@@ -22,7 +22,7 @@ it small and to show what it does to the numbers.
   them out of the repository (`audio/` is ignored).
 - The engine has no dependencies and stays that way: standard C++17, one header. Host code (JUCE, the Max SDK)
   belongs in the wrappers.
-- No allocation, locking or file access where audio is processed. (One known exception is listed in the roadmap.)
+- No allocation, locking or file access where audio is processed.
 
 ## Good first things
 

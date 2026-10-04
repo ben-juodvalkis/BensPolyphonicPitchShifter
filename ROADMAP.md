@@ -5,16 +5,16 @@ it is done.
 
 ## Order of work: sound before speed
 
-Decided 2026-10-04. Work through section 3 (sound) before most of section 2 (performance):
+Decided 2026-10-04. Work through section 3 (sound) before most of section 2 (performance). The one performance
+item that could not wait is done: nothing is allocated on the audio thread any more (crossing between shifting up
+and shifting down used to load a filter there, a dropout risk on stage).
 
-1. **Now: no allocation on the audio thread** (section 2). It is a dropout risk on stage when crossing between
-   shifting up and shifting down, not just a cost, and it does not touch the sound.
-2. **Then: sound** (section 3). These change what the engine computes, and each idea is tried in the Python
+1. **Now: sound** (section 3). These change what the engine computes, and each idea is tried in the Python
    reference first. Some will cost CPU (a long-history mode for held chords), so the final load is not known until
    they are in.
-3. **Any time: the faster transform and the vectorized band loop** (section 2). The same math done faster; the gate
+2. **Any time: the faster transform and the vectorized band loop** (section 2). The same math done faster; the gate
    proves the sound did not move. Worth doing early if the sound work needs the headroom.
-4. **Last: spreading the analysis and doing less of it** (section 2). Both change when and which bands are checked,
+3. **Last: spreading the analysis and doing less of it** (section 2). Both change when and which bands are checked,
    which is the logic the sound work rewrites. Optimizing it first would mean doing it twice.
 
 Revisit this if the CPU load or the 128-sample buffer gets in the way of live playing before the sound work is done.
@@ -44,8 +44,6 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
 - **A faster transform.** The band values come from a plain double-precision FFT written for clarity. A real,
   single-precision FFT (vDSP on Apple, pffft elsewhere) would cut that part several times over.
 - **Vectorize the band loop.** The per-sample work is the same few multiplications for every band.
-- **No allocation on the audio thread.** Crossing between shifting up and shifting down loads a different filter
-  and resizes buffers there. Both filter sets should be loaded up front.
 - Target: under 5 % shifting down and under 10 % shifting up.
 
 ## 3. Sound

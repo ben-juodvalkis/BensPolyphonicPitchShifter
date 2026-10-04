@@ -38,8 +38,7 @@ and judges by behavior and by ear, not by code.
   repo.
 - The reference device named in `docs/benchmarks.md` was only ever measured as a black box (audio in, audio out).
   Keep it that way: no decompiling, no disassembly.
-- The engine stays standard C++17 with no dependencies. No allocation where audio is processed (one known
-  exception is in `ROADMAP.md`).
+- The engine stays standard C++17 with no dependencies. No allocation where audio is processed.
 - Explain by behavior, not by code. American spelling.
 - Users see "Ben's Polyphonic Pitch Shifter" (plug-in name, device file and title, Max package, docs). "PolyPitch"
   stays only where users do not see it; Line 6 uses "Poly Pitch" for a Helix effect.

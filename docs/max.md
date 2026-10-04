@@ -40,8 +40,7 @@ Install it with `scripts/install-macos.sh max`, which copies the package into `~
 The shifted sound is mono (the two inputs summed) and goes to both outlets. The dry signal passes in stereo and is
 never delayed.
 
-Changing `semitones` while audio runs restarts the engine's bands, which can click; crossing between up and down
-also allocates memory on the audio thread. Both are on the roadmap.
+Changing `semitones` while audio runs restarts the engine's bands, which can click. That is on the roadmap.
 
 ## The Max for Live device
 

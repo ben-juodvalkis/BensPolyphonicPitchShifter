@@ -53,9 +53,10 @@ public:
         rc.assign (n, 1.0); rs.assign (n, 0.0); rdc.assign (n, 1.0); rds.assign (n, 0.0); ramp.assign (n, 0.0); rdamp.assign (n, 0.0); rdirty.assign (n, 1);
         orc.assign (n, 1.0); ors.assign (n, 0.0); ordc.assign (n, 1.0); ords.assign (n, 0.0); oramp.assign (n, 0.0); ordamp.assign (n, 0.0); ordirty.assign (n, 1); stC.assign (n, 1.0); stS.assign (n, 0.0);
         E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0);
-        fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0); twC.assign ((size_t) KMAX, 0.0); twS.assign ((size_t) KMAX, 0.0);
+        fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
         lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0); runR.assign ((size_t) NF + 8, 0.0f); runI.assign ((size_t) NF + 8, 0.0f);
         pvR.assign (4 * M, 0.0); pvI.assign (4 * M, 0.0);
+        makeBank (false); makeBank (true);      // both directions' filters now, so that crossing between them while playing allocates nothing
         configured = false; prepared = false;
         setSemitones (semis);
         reset();
@@ -171,7 +172,10 @@ private:
     int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116;
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
     std::vector<char> rdirty, ordirty;
-    std::vector<double> h, xring, fftRe, fftIm, twC, twS, Am, Um, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
+    struct Bank { std::vector<double> h, twC, twS; int tau = 0, L = 0; bool designed = false; };      // one direction's band filter and FFT twiddles
+    Bank banks[2];                                                                                      // [0] shifting down, [1] shifting up; made in prepare()
+    const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr;                // the ones in use
+    std::vector<double> xring, fftRe, fftIm, Am, Um, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
     std::vector<float> Zr, Zi, runR, runI;
     std::vector<double> pvR, pvI;
     std::vector<int> mode, omode, lead, olead, fade, flen, cin, cout, lcnt, want, on, sjn, ojn;
@@ -183,27 +187,37 @@ private:
 
     static inline double wrap (double a) { return a - 2.0 * kPi * std::round (a / (2.0 * kPi)); }
 
-    void loadFilter()
+    // called from prepare(), never while audio runs: one direction's band filter and FFT twiddles
+    void makeBank (bool upward)
     {
         // the designed filter for this rate and direction, or (other sample rates) the simple one: a sinc under a lopsided Hann window
+        Bank& b = banks[upward ? 1 : 0];
         const filters::Table* tb = nullptr;
         for (int i = 0; i < filters::numTables; ++i)
-            if (filters::tables[i].sampleRate == (int) std::lround (sr) && filters::tables[i].up == up) tb = &filters::tables[i];
-        if (tb != nullptr) { tau = tb->tau; L = tb->length; h.assign (tb->h, tb->h + L); designed = true; }
+            if (filters::tables[i].sampleRate == (int) std::lround (sr) && filters::tables[i].up == upward) tb = &filters::tables[i];
+        if (tb != nullptr) { b.tau = tb->tau; b.L = tb->length; b.h.assign (tb->h, tb->h + b.L); b.designed = true; }
         else
         {
-            tau = (int) std::lround ((up ? 8.0 : 12.0) * sr / 1000.0); const int tail = (int) std::lround ((up ? 28.0 : 40.0) * sr / 1000.0);
-            L = std::min (tau + tail + 1, XN - 64); h.assign ((size_t) L, 0.0); designed = false;
-            for (int n = 0; n < L; ++n)
+            b.tau = (int) std::lround ((upward ? 8.0 : 12.0) * sr / 1000.0); const int tail = (int) std::lround ((upward ? 28.0 : 40.0) * sr / 1000.0);
+            b.L = std::min (b.tau + tail + 1, XN - 64); b.h.assign ((size_t) b.L, 0.0); b.designed = false;
+            for (int n = 0; n < b.L; ++n)
             {
-                const double c = (double) (n - tau), w = c <= 0.0 ? 0.5 + 0.5 * std::cos (kPi * c / (tau + 1)) : 0.5 + 0.5 * std::cos (kPi * c / (tail + 1)), a = c / K;
-                h[(size_t) n] = (std::abs (a) < 1e-12 ? 1.0 : std::sin (kPi * a) / (kPi * a)) * w / K;
+                const double c = (double) (n - b.tau), w = c <= 0.0 ? 0.5 + 0.5 * std::cos (kPi * c / (b.tau + 1)) : 0.5 + 0.5 * std::cos (kPi * c / (tail + 1)), a = c / K;
+                b.h[(size_t) n] = (std::abs (a) < 1e-12 ? 1.0 : std::sin (kPi * a) / (kPi * a)) * w / K;
             }
         }
+        const int kb = K * (upward ? 2 : 1); b.twC.assign ((size_t) kb, 0.0); b.twS.assign ((size_t) kb, 0.0);
+        for (int i = 0; i < kb; ++i) { b.twC[(size_t) i] = std::cos (2.0 * kPi * i / kb); b.twS[(size_t) i] = std::sin (2.0 * kPi * i / kb); }
+    }
+
+    // switch to the filter for the current direction (both were made in prepare(), so nothing is allocated here)
+    void loadFilter()
+    {
+        const Bank& b = banks[up ? 1 : 0];
+        h = b.h.data(); twC = b.twC.data(); twS = b.twS.data(); tau = b.tau; L = b.L; designed = b.designed;
         tauD = (double) tau;
         over = up ? 2 : 1; Kb = K * over; dw = 2.0 * kPi / Kb; kB = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS);     // bands this bank has below 10 kHz
         for (int k = 0; k < kS; ++k) wk[(size_t) k] = k * dw;
-        for (int i = 0; i < Kb; ++i) { twC[(size_t) i] = std::cos (2.0 * kPi * i / Kb); twS[(size_t) i] = std::sin (2.0 * kPi * i / Kb); }
         if (configured) clearFrames();          // frames made with the other filter are no use
         configured = true;
     }
