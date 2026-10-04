@@ -1,7 +1,7 @@
 # Ben's Polyphonic Pitch Shifter
 
-Inside the code it goes by its old working name, PolyPitch: the repository, the source files, the bundle files and
-the Max object `polypitch~`.
+Inside the code it goes by its old working name, PolyPitch: the source files, the bundle files and the Max object
+`polypitch~`.
 
 A polyphonic pitch shifter for live playing. Play a chord through it and the chord comes out an octave down, or
 up, or anything in between: in tune, clean, and without the late attacks that make a shifter feel like wading.
