@@ -17,5 +17,5 @@ open-source licence; none of them is redistributed here.
 
 VST is a trademark of Steinberg Media Technologies GmbH. Audio Units is a trademark of Apple Inc. Max and Max for
 Live are products of Cycling '74 and Ableton. Helix and Helix Native are products of Line 6 (Yamaha Guitar Group);
-they are named in `docs/benchmarks.md` only as the device this project was measured against. PolyPitch is an
+they are named in `docs/benchmarks.md` only as the device this project was measured against. Ben's Polyphonic Pitch Shifter is an
 independent project and is not affiliated with or endorsed by any of them.

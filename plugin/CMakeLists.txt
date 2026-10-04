@@ -26,7 +26,8 @@ juce_add_plugin(PolyPitch
     PLUGIN_MANUFACTURER_CODE    Bjuo
     PLUGIN_CODE                 PlyP
     FORMATS                     VST3 AU
-    PRODUCT_NAME                "PolyPitch"
+    PRODUCT_NAME                "PolyPitch"                         # the bundle's file name; scripts and tests use it
+    PLUGIN_NAME                 "Ben's Polyphonic Pitch Shifter"    # the name hosts show
     DESCRIPTION                 "Polyphonic pitch shifter for live playing"
     IS_SYNTH                    FALSE
     NEEDS_MIDI_INPUT            FALSE

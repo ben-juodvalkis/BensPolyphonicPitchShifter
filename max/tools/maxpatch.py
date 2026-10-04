@@ -1,6 +1,6 @@
 """Generates the Max files that are not written by hand in Max:
 
-    max/device/PolyPitch.amxd                the Max for Live audio effect (plugin~ -> polypitch~ -> plugout~, three dials)
+    max/device/Ben's Polyphonic Pitch Shifter.amxd   the Max for Live audio effect (plugin~ -> polypitch~ -> plugout~, three dials)
     max/PolyPitch/help/polypitch~.maxhelp    the object's help patch
     build/maxcheck/check_<time>.maxpat       a self-running check patch (see check_in_max.py)
 
@@ -14,6 +14,8 @@ device file, is a button in Max's device editor (docs/max.md).
 import json, os, struct, time
 
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(os.path.dirname(HERE))
+NAME = "Ben's Polyphonic Pitch Shifter"      # what Live shows: the device's file name and its title
+DEVICE = os.path.join(ROOT, "max", "device", NAME + ".amxd")
 APPV = {"major": 9, "minor": 2, "revision": 0, "architecture": "x64", "modernui": 1}
 
 
@@ -54,7 +56,7 @@ def device_patcher():
          dial("d_mix", "Mix", 1, [380, 60, 44, 48], [72, 34, 44, 48], 0.0, 100.0, 100.0, 5),
          dial("d_tone", "Tone", 2, [460, 60, 44, 48], [122, 34, 44, 48], 0.0, 100.0, 100.0, 5),
          obj("p_semi", "prepend semitones", [300, 150, 105, 22], 1, 1, [""]), obj("p_mix", "prepend mix", [420, 150, 75, 22], 1, 1, [""]), obj("p_tone", "prepend tone", [510, 150, 80, 22], 1, 1, [""]),
-         comment("c_title", "PolyPitch", [300, 20, 200, 20], presentation=1, presentation_rect=[10, 8, 150, 20], fontface=1, fontsize=12.0)]
+         comment("c_title", NAME, [300, 20, 200, 20], presentation=1, presentation_rect=[10, 8, 160, 20], fontface=1, fontsize=10.0)]   # 145 px wide in Arial Bold 10
     L = [line("obj-1", 0, "pp", 0), line("obj-1", 1, "pp", 1), line("pp", 0, "obj-2", 0), line("pp", 1, "obj-2", 1),
          line("d_semi", 0, "p_semi", 0), line("p_semi", 0, "pp", 0), line("d_mix", 0, "p_mix", 0), line("p_mix", 0, "pp", 0), line("d_tone", 0, "p_tone", 0), line("p_tone", 0, "pp", 0)]
     now = int(time.time()) + 2082844800           # Max counts seconds from 1904
@@ -62,7 +64,7 @@ def device_patcher():
                "autolocalize": 0, "contents": {"patchers": {}}, "layout": {}, "searchpath": {}, "detailsvisible": 0, "amxdtype": 1633771873, "readonly": 0, "devpathtype": 0,
                "devpath": ".", "sortmode": 0, "viewmode": 0, "includepackages": 0}
     return {"patcher": {"fileversion": 1, "appversion": APPV, "classnamespace": "box", "rect": [100.0, 100.0, 760.0, 560.0], "openrect": [0.0, 0.0, 0.0, 169.0], "openrectmode": 0,
-                        "default_fontsize": 10.0, "default_fontname": "Arial Bold", "gridsize": [8.0, 8.0], "boxanimatetime": 500, "title": "PolyPitch", "boxes": B, "lines": L,
+                        "default_fontsize": 10.0, "default_fontname": "Arial Bold", "gridsize": [8.0, 8.0], "boxanimatetime": 500, "title": NAME, "boxes": B, "lines": L,
                         "latency": 0, "is_mpe": 0, "external_mpe_tuning_enabled": 0, "minimum_live_version": "", "minimum_max_version": "", "platform_compatibility": 0,
                         "project": project, "autosave": 0, "openinpresentation": 1, "devicewidth": 176.0, "description": "Polyphonic pitch shifter"}}
 
@@ -91,5 +93,5 @@ def help_patcher():
 
 
 if __name__ == "__main__":
-    d = write_amxd(os.path.join(ROOT, "max", "device", "PolyPitch.amxd"), device_patcher()); print("wrote", os.path.relpath(d, ROOT), os.path.getsize(d), "bytes")
+    d = write_amxd(DEVICE, device_patcher()); print("wrote", os.path.relpath(d, ROOT), os.path.getsize(d), "bytes")
     h = os.path.join(ROOT, "max", "PolyPitch", "help", "polypitch~.maxhelp"); json.dump(help_patcher(), open(h, "w"), indent="\t"); print("wrote", os.path.relpath(h, ROOT))

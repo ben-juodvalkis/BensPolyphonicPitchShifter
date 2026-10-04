@@ -1,6 +1,6 @@
 # Design notes: what was tried, and what it taught
 
-PolyPitch came out of a practical problem: a live guitar rig used a commercial polyphonic "capo" effect for an
+Ben's Polyphonic Pitch Shifter came out of a practical problem: a live guitar rig used a commercial polyphonic "capo" effect for an
 octave down, and its attacks came out about 10 ms late. The goal was something at least as clean on chords with
 earlier attacks. This page records the path, because most of the ideas that did not work are ideas a newcomer
 would try first.

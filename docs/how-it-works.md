@@ -1,6 +1,6 @@
-# How PolyPitch works
+# How Ben's Polyphonic Pitch Shifter works
 
-PolyPitch shifts pitch in real time, by up to an octave either way, without changing how fast the music goes by.
+Ben's Polyphonic Pitch Shifter shifts pitch in real time, by up to an octave either way, without changing how fast the music goes by.
 It is built for an instrument played live through it: chords have to stay in tune and clean, and a picked note has
 to come out when it was picked.
 
@@ -19,7 +19,7 @@ not, because the notes do not share a cycle. A shifter that makes one cut for th
 a chord a few degrees out of step at every join, always in the same direction, which is a steady detune: thirds
 come out a few cents apart and the chord sounds rough.
 
-So PolyPitch does not treat the signal as one thing.
+So Ben's Polyphonic Pitch Shifter does not treat the signal as one thing.
 
 ## Step 1: split the sound into narrow bands
 

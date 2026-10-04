@@ -33,7 +33,7 @@ scripts/install-macos.sh            # plug-in into ~/Library/Audio/Plug-Ins, Max
 auval -v aufx PlyP Bjuo             # Apple's validation of the Audio Unit
 ```
 
-Restart your host (or Max) afterwards. The Max for Live device is `max/device/PolyPitch.amxd`; see `docs/max.md`.
+Restart your host (or Max) afterwards. The Max for Live device is `max/device/Ben's Polyphonic Pitch Shifter.amxd`; see `docs/max.md`.
 
 The builds are signed ad hoc, which is enough on the machine that built them. Binaries for other people need a
 Developer ID signature and notarization (see `ROADMAP.md`).
@@ -84,7 +84,7 @@ does not do yet.
 | `reference/` | The Python reference implementation, the filter design and the table generator. |
 | `plugin/` | The JUCE wrapper (AU, VST3). |
 | `max/PolyPitch/` | The Max package: object source, help patch, package description. |
-| `max/device/PolyPitch.amxd` | The Max for Live device. |
+| `max/device/Ben's Polyphonic Pitch Shifter.amxd` | The Max for Live device. |
 | `max/tools/` | Generators for the device and help patch, and the in-Max check. |
 | `tools/` | The command-line harness and the load meter. |
 | `tests/` | Signals, measures, the scorecard, the engine-against-reference test, the plug-in test. |

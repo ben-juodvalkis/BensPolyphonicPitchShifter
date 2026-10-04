@@ -11,6 +11,8 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
 - The processor (`engine/PolyPitchProcessor.h`): mix and tone around the engine, shared by every build.
 - A plug-in (AU and VST3, macOS, universal), a Max object (`polypitch~`, macOS, universal) and a Max for Live
   device that uses the object.
+- Named Ben's Polyphonic Pitch Shifter wherever users see it (plug-in, device, Max package, docs). PolyPitch,
+  the working name, stays in code and file names; Line 6 uses "Poly Pitch" for a Helix effect.
 - A Python reference implementation the engine is tested against, a scorecard with a regression gate, and the
   band-filter design that generates the engine's tables.
 

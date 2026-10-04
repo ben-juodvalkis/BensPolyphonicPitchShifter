@@ -12,7 +12,8 @@ it is done.
   are needed.
 - **Signed, notarized macOS binaries and a release archive** (plug-ins, Max package, frozen device). Today's
   builds are signed ad hoc and only run without warnings on the machine that built them.
-- **Check the name.** Make sure "PolyPitch" is free to use for a published audio product.
+- **Check the name.** Renamed from "PolyPitch", which Line 6 uses for a Helix effect, to Ben's Polyphonic Pitch Shifter.
+  Only web searches have been done; a proper trademark check is still needed before release.
 
 ## 2. Performance
 
@@ -35,7 +36,7 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
 
 - **Held chords shifting up.** About 2 dB rougher than the reference device on average, up to 9 dB on some
   chords, and the cause is not known. One lead: the reference device trails bends by 45 ms when shifting up
-  (PolyPitch: under 10 ms), so it may be leaning on a much longer look-back for sustained sound. An optional
+  (Ben's Polyphonic Pitch Shifter: under 10 ms), so it may be leaning on a much longer look-back for sustained sound. An optional
   long-history mode for sustained notes would test that.
 - **Slides and vibrato shifting down.** The pitch wobbles 10.6 cents around the right value on a one-octave slide
   (reference device: 2.1). A reader assumes the last beat will repeat; it should follow the pitch as it moves.

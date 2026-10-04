@@ -1,6 +1,6 @@
 # Benchmarks
 
-What PolyPitch scores, how it was measured, and how a commercial reference device scores on the same tests.
+What Ben's Polyphonic Pitch Shifter scores, how it was measured, and how a commercial reference device scores on the same tests.
 
 All numbers are from October 2026, at 44.1 kHz unless stated, on the engine of version 0.1.0. In the dB columns,
 lower (more negative) is cleaner.
@@ -38,13 +38,13 @@ What the columns mean:
 
 The project set out to match Line 6's Helix Native "Poly Capo" block, a well-regarded polyphonic shifter. It was
 measured as a black box: the plug-in was hosted headless, fed the same test signals, and its output scored by the
-same code. Its own tone compensation was turned off for scoring, and it was 100 % wet. PolyPitch is not affiliated
+same code. Its own tone compensation was turned off for scoring, and it was 100 % wet. Ben's Polyphonic Pitch Shifter is not affiliated
 with Line 6; these are one person's measurements of one version of that product, and you should trust your ears
 over this table.
 
 ### The synthetic scorecard
 
-| Shift | Pairs under -40 dB, reference / PolyPitch | Two-note chords | Full chords | Attack late by |
+| Shift | Pairs under -40 dB, reference / this shifter | Two-note chords | Full chords | Attack late by |
 |---|---|---|---|---|
 | -12 | 15 / **28** | -27.8 / **-40.5** dB | -17.8 / **-37.5** dB | 9.8 / **2.1** ms |
 | -5 | 18 / **28** | -31.1 / **-43.1** | -21.7 / **-38.2** | 10.8 / **1.4** |
@@ -53,7 +53,7 @@ over this table.
 | +7 | 21 / **28** | -31.5 / **-37.4** | -28.8 / **-34.9** | 12.0 / **7.9** |
 | +12 | 21 / **26** | -33.4 / **-33.7** | -28.9 / **-29.4** | 11.7 / **7.4** |
 
-The reference device is exactly in tune on every chord note (0.0 to 0.1 cents); PolyPitch is within 0.6. On pairs
+The reference device is exactly in tune on every chord note (0.0 to 0.1 cents); Ben's Polyphonic Pitch Shifter is within 0.6. On pairs
 of pure sines the reference device's median is lower going up (-52 to -62 dB against -52 to -56 dB): where it is
 clean it is very clean.
 
@@ -65,7 +65,7 @@ a commercial sample library.
 **Two takes mixed** (shifting them together should equal shifting them apart and adding; the number is the new
 energy that appears only in the shifted mix), and **attack lateness** on the same takes:
 
-| Shift | Two DI takes mixed, reference / PolyPitch | Attack late by, median | Slowest tenth of attacks |
+| Shift | Two DI takes mixed, reference / this shifter | Attack late by, median | Slowest tenth of attacks |
 |---|---|---|---|
 | -12 | -21.4 / **-34.9** dB | 9.8 / **2.0** ms | 22 / **10** ms |
 | -5 | -25.2 / **-32.5** | 10.8 / **1.9** | 23 / **14** |
@@ -78,7 +78,7 @@ energy that appears only in the shifted mix), and **attack lateness** on the sam
 sample library, built into 30 chords; shifting each note alone and adding them up is an exact reference), and
 **mixes of guitar, bass and keys loops** from the same library:
 
-| Shift | Chords from single notes, reference / PolyPitch | Loop mixes, reference / PolyPitch |
+| Shift | Chords from single notes, reference / this shifter | Loop mixes, reference / this shifter |
 |---|---|---|
 | -12 | -27.4 / **-35.7** dB | -19.1 / **-24.1** dB |
 | -5 | -33.1 / **-38.3** | -25.1 / **-26.5** |
@@ -93,23 +93,23 @@ chords: two held DI chords, six sample-library guitar chords, three chords built
 | | Dirt between the notes | Fast loudness flutter (20 to 150 Hz, per third-octave band) |
 |---|---|---|
 | Reference | **-28.2 dB** | **-20.8 dB** |
-| PolyPitch | -26.4 | -20.4 |
+| This shifter | -26.4 | -20.4 |
 
 **Pitch that moves** (a one-octave slide, a whole-tone bend, a 6 Hz vibrato): how far the shifted pitch trails
 the input, and how much it wobbles around the right value once that delay is allowed for.
 
-| | Trails by, reference / PolyPitch | Wobble on the slide | on the bend | on the vibrato |
+| | Trails by, reference / this shifter | Wobble on the slide | on the bend | on the vibrato |
 |---|---|---|---|---|
 | Octave down | 12.3 to 13.4 / 11.6 to 12.4 ms | **2.1** / 10.6 c | 0.7 / 0.7 c | **1.5** / 3.8 c |
 | Octave up | 22 to 46 / **8.7 to 9.7** ms | 14.9 / **3.5** c | 5.8 / **0.8** c | 31.6 / **4.3** c |
 
-## Where PolyPitch is behind
+## Where Ben's Polyphonic Pitch Shifter is behind
 
 - **Held chords and loop mixes when shifting up**: 1 to 4 dB rougher than the reference device on sample-library
   material, about 2 dB on held chords. Of the eleven held chords it is cleaner on three, level on one and rougher on seven, by
   1 to 9 dB, and the reason for the difference has not been found.
 - **Slides and vibrato at octave down** wobble more around the right pitch (the table above).
-- **Pure tones going up**: where the reference device is clean it reaches -60 dB; PolyPitch sits around -52 dB.
+- **Pure tones going up**: where the reference device is clean it reaches -60 dB; Ben's Polyphonic Pitch Shifter sits around -52 dB.
 - **Tuning of chord notes**: 0.0 to 0.6 cents against 0.0 to 0.1.
 
 ## Cost

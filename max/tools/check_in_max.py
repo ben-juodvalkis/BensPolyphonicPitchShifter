@@ -14,9 +14,9 @@ The PolyPitch package (max/PolyPitch) has to be where Max finds it: scripts/inst
 """
 import json, os, sys, time, subprocess, tempfile
 import numpy as np, soundfile as sf
-from maxpatch import obj, msg, line, gen, APPV, ROOT
+from maxpatch import obj, msg, line, gen, APPV, ROOT, DEVICE
 
-OUT = os.path.join(ROOT, "build", "maxcheck"); DEVICE = os.path.join(ROOT, "max", "device", "PolyPitch.amxd"); SR = 44100
+OUT = os.path.join(ROOT, "build", "maxcheck"); SR = 44100
 # (name, object text or None for the device, message sent before audio starts, offline settings)
 CASES = [("object_down", "polypitch~ -12 @mix 100 @tone 0", "", dict(st=-12, mix=100, tone=0)), ("object_up", "polypitch~ 12 @mix 100 @tone 0", "", dict(st=12, mix=100, tone=0)),
          ("object_mix50", "polypitch~ -12 @mix 50 @tone 100", "", dict(st=-12, mix=50, tone=100)), ("device", None, "", dict(st=-12, mix=100, tone=100)),

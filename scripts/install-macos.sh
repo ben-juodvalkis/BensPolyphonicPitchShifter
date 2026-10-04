@@ -2,7 +2,7 @@
 # Install what has been built on this Mac. Usage: scripts/install-macos.sh [plugin] [max]     (no arguments = both)
 #   plugin  PolyPitch.component and PolyPitch.vst3 into ~/Library/Audio/Plug-Ins
 #   max     the PolyPitch package (the polypitch~ object and its help) into Max's Packages folder
-# The Max for Live device is max/device/PolyPitch.amxd: drag it into Live, or keep it wherever you keep devices.
+# The Max for Live device is max/device/Ben's Polyphonic Pitch Shifter.amxd: drag it into Live, or keep it wherever you keep devices.
 # It finds polypitch~ through the installed package. Restart Live (or Max) after installing.
 set -e
 cd "$(dirname "$0")/.."

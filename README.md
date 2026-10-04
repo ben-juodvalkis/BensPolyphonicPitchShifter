@@ -1,4 +1,7 @@
-# PolyPitch
+# Ben's Polyphonic Pitch Shifter
+
+Inside the code it goes by its old working name, PolyPitch: the repository, the source files, the bundle files and
+the Max object `polypitch~`.
 
 A polyphonic pitch shifter for live playing. Play a chord through it and the chord comes out an octave down, or
 up, or anything in between: in tune, clean, and without the late attacks that make a shifter feel like wading.
@@ -24,7 +27,7 @@ source (below).
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
-Measured against a well-regarded commercial polyphonic shifter on the same tests, PolyPitch is clearly cleaner and
+Measured against a well-regarded commercial polyphonic shifter on the same tests, Ben's Polyphonic Pitch Shifter is clearly cleaner and
 about 8 ms earlier shifting down, and close to it in cleanliness with attacks 4 ms earlier shifting up. It is
 behind on a few things, most of all held chords and loop material shifting up. `docs/benchmarks.md` has the method,
 every number, and the list of where it loses.
@@ -91,5 +94,5 @@ played straight from the input when shifting down, which is why they are only 2 
 MIT (see `LICENSE`). The plug-in links against JUCE, which changes the terms for plug-in binaries; the Max object
 links against Cycling '74's SDK. `THIRD-PARTY.md` spells out what that means.
 
-PolyPitch is an independent project, not affiliated with any of the companies whose products or formats it
+Ben's Polyphonic Pitch Shifter is an independent project, not affiliated with any of the companies whose products or formats it
 mentions.
