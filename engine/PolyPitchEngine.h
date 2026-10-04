@@ -6,8 +6,9 @@
 // The input runs through a bank of narrow band-pass filters (one FFT every 32 samples gives each band's slowly
 // changing envelope). Each band is then handled in one of two ways.
 //   "plain" band (one partial in it): its loudness is passed on as it happens and its phase is advanced `ratio`
-//       times as fast as the input's. Nothing is repeated or skipped; the partial is exactly in tune. A band that
-//       holds the weaker share of a partial follows its stronger neighbour's phase, so the two shares stay in step.
+//       times as fast as the input's (shifting up, that advance is smoothed over a few milliseconds). Nothing is
+//       repeated or skipped; the partial is exactly in tune. A band that holds the weaker share of a partial follows
+//       its stronger neighbour's phase, so the two shares stay in step.
 //   "beating" band (two partials in it): a reader plays the band at the shifted speed and jumps by exactly one
 //       repeat of the band's envelope (one beat), with the phase carried across. Both partials come out right.
 // Attacks, shifting down: played straight from the input (the bridge); the bands take over where they are the same
@@ -46,13 +47,15 @@ public:
         xring.assign (XN, 0.0);
         Zr.assign ((size_t) kS * 2 * NF, 0.0f); Zi.assign ((size_t) kS * 2 * NF, 0.0f);
         Am.assign ((size_t) kS * NF, 0.0); Um.assign ((size_t) kS * NF, 0.0); Cm.assign ((size_t) kS * NF, 0.0); lastAng.assign ((size_t) kS, 0.0);
+        Us.assign ((size_t) kS * NF, 0.0); fsm.assign ((size_t) kS, 0.0); ebm.assign ((size_t) kS, 0.0); epm.assign ((size_t) kS, 0.0);
+        smA = 1.0 - std::exp (-1.0 / (5.0 * sr / 1000.0 / H)); smE = 1.0 - std::exp (-1.0 / (15.0 * sr / 1000.0 / H));
         const size_t n = (size_t) kS;
         mode.assign (n, 1); omode.assign (n, 1); lead.assign (n, 0); olead.assign (n, 0); fade.assign (n, 0); flen.assign (n, 1); sjn.assign (n, 0); ojn.assign (n, 0);
         st0.assign (n, 0.0); sd0.assign (n, 0.0); psi.assign (n, 0.0); ot0.assign (n, 0.0); od0.assign (n, 0.0); opsi.assign (n, 0.0);
         evT.assign (n, -1); busy.assign (n, 0); J.assign (n, 0.0); Jc.assign (n, 0.0); cin.assign (n, 0); cout.assign (n, 0); lcnt.assign (n, 0); want.assign (n, 0);
         rc.assign (n, 1.0); rs.assign (n, 0.0); rdc.assign (n, 1.0); rds.assign (n, 0.0); ramp.assign (n, 0.0); rdamp.assign (n, 0.0); rdirty.assign (n, 1);
         orc.assign (n, 1.0); ors.assign (n, 0.0); ordc.assign (n, 1.0); ords.assign (n, 0.0); oramp.assign (n, 0.0); ordamp.assign (n, 0.0); ordirty.assign (n, 1); stC.assign (n, 1.0); stS.assign (n, 0.0);
-        E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0);
+        E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0); scnt.assign (n, 0); Js.assign (n, 0.0);
         fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
         lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0); runR.assign ((size_t) NF + 8, 0.0f); runI.assign ((size_t) NF + 8, 0.0f);
         pvR.assign (4 * M, 0.0); pvI.assign (4 * M, 0.0);
@@ -70,6 +73,8 @@ public:
         if (! configured || wasUp != up) loadFilter();
         // shifting up: twice the bands (half a band apart, same filter), a finer threshold for calling a band "beating", and a band on a reader stays longer
         dropIn = up ? 0.001 : 0.004; dropOut = up ? 0.00025 : dropIn; nOut = up ? 8 : 3;
+        // also shifting up only: a plain band's phase advance is smoothed over 5 ms, and a beat slower than 50 ms has to hold before a reader takes it
+        smoothOn = up; slj = up ? 50.0 * sr / 1000.0 : 0.0; nls = std::min (std::max ((int) (slj / H) - lmin + 2, 3), nl);
         xfu = up ? std::max (xf / 2, 2) : xf;
         flr = (double) (2 * H + 2 + (up ? (int) ((ratio - 1.0) * xfu) + 2 : 0));
         drift = 1.0 - ratio;
@@ -168,19 +173,20 @@ private:
     static constexpr double fmax = 10000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
     double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, dlim = 441.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
-    bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false;
-    int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116;
+    double smA = 0.0, smE = 0.0, slj = 0.0, slq = 0.5;
+    bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false, smoothOn = false;
+    int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, nls = 135;
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
     std::vector<char> rdirty, ordirty;
     struct Bank { std::vector<double> h, twC, twS; int tau = 0, L = 0; bool designed = false; };      // one direction's band filter and FFT twiddles
     Bank banks[2];                                                                                      // [0] shifting down, [1] shifting up; made in prepare()
     const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr;                // the ones in use
-    std::vector<double> xring, fftRe, fftIm, Am, Um, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
+    std::vector<double> xring, fftRe, fftIm, Am, Um, Us, fsm, ebm, epm, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, Js, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
     std::vector<float> Zr, Zi, runR, runI;
     std::vector<double> pvR, pvI;
-    std::vector<int> mode, omode, lead, olead, fade, flen, cin, cout, lcnt, want, on, sjn, ojn;
+    std::vector<int> mode, omode, lead, olead, fade, flen, cin, cout, lcnt, want, on, sjn, ojn, scnt;
     std::vector<int64_t> evT, busy;
-    int64_t t = 0, mNow = -1, wait = 0, quietUntil = 0, pendSwitch = -1, pend = -1, br0 = 0, br1 = 0;
+    int64_t t = 0, mNow = -1, wait = 0, quietUntil = 0, pendSwitch = -1, pend = -1, br0 = 0, br1 = 0, smHold = -1;
     double pendDelay = 0.0, ef = 0.0, pkh = 0.0, afc = 0.0, rel = 0.0, dirP = 0.0, dirPOld = 0.0, brW = 0.0, brW0 = 0.0;
     int onsD = 132, onsJ = 0, dirFade = 0;
     bool brActive = false, dirAct = false;
@@ -226,6 +232,7 @@ private:
     {
         std::fill (Zr.begin(), Zr.end(), 0.0f); std::fill (Zi.begin(), Zi.end(), 0.0f);
         std::fill (Am.begin(), Am.end(), 0.0); std::fill (Um.begin(), Um.end(), 0.0); std::fill (Cm.begin(), Cm.end(), 0.0); std::fill (lastAng.begin(), lastAng.end(), 0.0);
+        std::fill (Us.begin(), Us.end(), 0.0); std::fill (fsm.begin(), fsm.end(), 0.0); std::fill (ebm.begin(), ebm.end(), 0.0); std::fill (epm.begin(), epm.end(), 0.0);
     }
 
     void softReset()
@@ -234,9 +241,9 @@ private:
         {
             mode[k] = 1; omode[k] = 1; lead[k] = (int) k; olead[k] = (int) k; fade[k] = 0; flen[k] = 1; sjn[k] = 0; ojn[k] = 0;
             st0[k] = (double) t; sd0[k] = 0.0; psi[k] = 0.0; ot0[k] = (double) t; od0[k] = 0.0; opsi[k] = 0.0;
-            rdirty[k] = 1; ordirty[k] = 1; evT[k] = -1; busy[k] = 0; J[k] = 0.0; Jc[k] = 0.0; cin[k] = 0; cout[k] = 0; lcnt[k] = 0; want[k] = (int) k;
+            rdirty[k] = 1; ordirty[k] = 1; evT[k] = -1; busy[k] = 0; J[k] = 0.0; Jc[k] = 0.0; cin[k] = 0; cout[k] = 0; lcnt[k] = 0; want[k] = (int) k; scnt[k] = 0; Js[k] = 0.0;
         }
-        wait = t; quietUntil = 0; pendSwitch = -1; pend = -1; brActive = false; dirAct = false; dirFade = 0; brW = 0.0; brW0 = 0.0;
+        wait = t; quietUntil = 0; pendSwitch = -1; pend = -1; brActive = false; dirAct = false; dirFade = 0; brW = 0.0; brW0 = 0.0; smHold = -1;
     }
 
     // ---- analysis: one frame of every band's envelope
@@ -293,6 +300,35 @@ private:
             Cm[c1] = (m == 0 ? 0.0 : Cm[c0]) + re * re + im * im;                           // energy so far (for the readers' loudness correction)
             Um[c1] = m == 0 ? ang : Um[c0] + wrap (ang - lastAng[(size_t) k]);          // the phase, never wrapped back
             lastAng[(size_t) k] = ang;
+            if (smoothOn)
+            {
+                // The same phase with its frame-to-frame advance smoothed and summed up again: what a plain band's phase advance is taken
+                // from when shifting up. A steady partial's is unchanged (and so is its long-run average: the tuning stays exact); the quick
+                // swings of a weak second partial, of noise or of a beat's quiet moment are left out, so those are carried along with the
+                // partial instead of being scaled with it.
+                // A frame more than 10 dB under the band's recent loudness counts for less; a band that gets louder at once (from 3 dB above
+                // its recent loudness, fully at 6 dB) has its new advance taken as it is (both in a sliding way, so that a last-digit
+                // difference cannot tip anything). For 30 ms after an attack nothing is smoothed: while the click dies away in a band and
+                // the partial takes over, the advance changes, and smoothing that change would leave the bands that share the partial a
+                // little out of step. Where a frame or the one before it holds nothing at all (digital silence has no phase) the advance is
+                // zero. Only the advance is ever used, so the smoothed phase starts at 0.
+                const size_t kk = (size_t) k;
+                if (m == 0) { Us[c1] = 0.0; fsm[kk] = 0.0; ebm[kk] = 0.0; epm[kk] = 0.0; }
+                else
+                {
+                    const double e = re * re + im * im;
+                    if (e <= 1e-24 || epm[kk] <= 1e-24) fsm[kk] = 0.0;
+                    else
+                    {
+                        double g = smA; const double eb = ebm[kk];
+                        if (e < 0.1 * eb) g = smA * e / (0.1 * eb);
+                        if (e > 2.0 * eb) g = eb > 0.0 ? smA + (1.0 - smA) * std::min ((e - 2.0 * eb) / (2.0 * eb), 1.0) : 1.0;
+                        if (t <= smHold) g = 1.0;
+                        fsm[kk] += g * (Um[c1] - Um[c0] - fsm[kk]);
+                    }
+                    ebm[kk] += smE * (e - ebm[kk]); epm[kk] = e; Us[c1] = Us[c0] + fsm[kk];
+                }
+            }
         }
     }
 
@@ -311,11 +347,13 @@ private:
         im = bi + 0.5 * f * (ci - ai + f * (2 * ai - 5 * bi + 4 * ci - di + f * (3 * (bi - ci) + di - ai)));
     }
 
+    inline const double* leadPhase() const { return smoothOn ? Us.data() : Um.data(); }       // what a leader's phase advance is taken from
+
     inline double ulin (int k, double p) const
     {
         const double q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
         if (! frameOk (i) || ! frameOk (i + 1)) return 0.0;
-        const double a = Um[(size_t) k * NF + (size_t) (i & FM)], b = Um[(size_t) k * NF + (size_t) ((i + 1) & FM)];
+        const double* u = leadPhase(); const double a = u[(size_t) k * NF + (size_t) (i & FM)], b = u[(size_t) k * NF + (size_t) ((i + 1) & FM)];
         return a + f * (b - a);
     }
 
@@ -344,9 +382,9 @@ private:
             const double p = tt - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
             if (! frameOk (i) || ! frameOk (i + 1)) { re = 0.0; im = 0.0; return; }
             const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
-            const double a = Am[bk + c0] + f * (Am[bk + c1] - Am[bk + c0]);
+            const double a = Am[bk + c0] + f * (Am[bk + c1] - Am[bk + c0]); const double* ul = leadPhase();
             const double ph = Um[bk + c0] + f * (Um[bk + c1] - Um[bk + c0]) + wk[(size_t) k] * (p - tauD)
-                            + (ratio - 1.0) * (Um[bl + c0] + f * (Um[bl + c1] - Um[bl + c0]) + wk[(size_t) Ld] * (p - tauD)) + ps;
+                            + (ratio - 1.0) * (ul[bl + c0] + f * (ul[bl + c1] - ul[bl + c0]) + wk[(size_t) Ld] * (p - tauD)) + ps;
             re = a * std::cos (ph); im = a * std::sin (ph); return;
         }
         const double p = t0 - d0 + ratio * (tt - t0); double zr, zi; zat (k, p, zr, zi);
@@ -362,9 +400,10 @@ private:
             const double p = (double) t - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
             if (! frameOk (i) || ! frameOk (i + 1)) { c = 1.0; sn = 0.0; dc = 1.0; ds = 0.0; amp = 0.0; damp = 0.0; return; }
             const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
-            const double a0 = Am[bk + c0], a1 = Am[bk + c1], uk = Um[bk + c1] - Um[bk + c0], ul = Um[bl + c1] - Um[bl + c0];
+            const double* lp = leadPhase();
+            const double a0 = Am[bk + c0], a1 = Am[bk + c1], uk = Um[bk + c1] - Um[bk + c0], ul = lp[bl + c1] - lp[bl + c0];
             amp = a0 + f * (a1 - a0); damp = (a1 - a0) / H;
-            const double ph = Um[bk + c0] + f * uk + wk[(size_t) k] * (p - tauD) + (ratio - 1.0) * (Um[bl + c0] + f * ul + wk[(size_t) Ld] * (p - tauD)) + ps;
+            const double ph = Um[bk + c0] + f * uk + wk[(size_t) k] * (p - tauD) + (ratio - 1.0) * (lp[bl + c0] + f * ul + wk[(size_t) Ld] * (p - tauD)) + ps;
             const double sl = uk / H + wk[(size_t) k] + (ratio - 1.0) * (ul / H + wk[(size_t) Ld]);
             c = std::cos (ph); sn = std::sin (ph); dc = std::cos (sl); ds = std::sin (sl); return;
         }
@@ -481,19 +520,20 @@ private:
 
     // what band k's likeness-by-lag curve says: 0 = never falls (one partial), 1 = falls and does not come back,
     // 2 = falls and comes back: Jf = the first lag (frames) at which it is back = the repeat of the band's envelope
-    int repeat (int k, double& Jf, double& cf) const
+    // (over the first n lags of the curve)
+    int repeat (int k, int n, double& Jf, double& cf) const
     {
         const double* c = &CO[(size_t) k * (size_t) nl]; const double drop = mode[(size_t) k] == 1 ? dropIn : dropOut;      // (a band already on a reader stays on it down to a shallower dip)
         double top = c[0]; int id = -1;
-        for (int i = 0; i < nl; ++i) { if (c[i] > top) top = c[i]; if (c[i] < top - drop) { id = i; break; } }
+        for (int i = 0; i < n; ++i) { if (c[i] > top) top = c[i]; if (c[i] < top - drop) { id = i; break; } }
         Jf = -1.0; cf = top;
         if (id < 0) return 0;
         double cmin = c[id], g = -1.0;
-        for (int i = id; i < nl; ++i) if (c[i] < cmin) cmin = c[i];
-        for (int i = id + 1; i < nl - 1; ++i) if (c[i] > c[i - 1] && c[i] >= c[i + 1] && c[i] > g) g = c[i];
+        for (int i = id; i < n; ++i) if (c[i] < cmin) cmin = c[i];
+        for (int i = id + 1; i < n - 1; ++i) if (c[i] > c[i - 1] && c[i] >= c[i + 1] && c[i] > g) g = c[i];
         cf = g;
         if (g < cabs || g < top - (1.0 - rho) * (top - cmin)) return 1;
-        for (int i = id + 1; i < nl - 1; ++i)
+        for (int i = id + 1; i < n - 1; ++i)
             if (c[i] > c[i - 1] && c[i] >= c[i + 1] && c[i] >= g - tol2)
             {
                 const double den = c[i - 1] - 2.0 * c[i] + c[i + 1]; double off = 0.0;
@@ -520,7 +560,7 @@ private:
     // ---- an attack
     void onAttack()
     {
-        const int64_t ts = t; wait = ts + hold;
+        const int64_t ts = t; wait = ts + hold; smHold = ts + (int64_t) tau - pre + settle;      // (the smoothing of the phase advance rests this long)
         if (usebr)
         {
             const int64_t tnew = ts + (int64_t) std::ceil ((tauD + flr - dA0) / drift);
@@ -597,7 +637,34 @@ private:
         for (int k = 1; k < kmax; ++k)
         {
             const size_t i = (size_t) k; int st = 0; double Jf = -1.0, cf = 0.0;
-            if (on[i]) st = repeat (k, Jf, cf);
+            if (on[i])
+            {
+                if (slj > 0.0)
+                {
+                    // A slow beat (longer than slj) is a matter of trust: two steady partials 10 to 20 Hz apart repeat exactly, but a real note's
+                    // partial is itself a cluster that wanders and looks like a slow beat for a moment, and a reader jumping 50 to 100 ms on it only
+                    // adds flutter. So a slow repeat counts once it has been there (a peak of the curve at that lag, as good as the best) for slq
+                    // times its own length, or when the band is already on it; until then the band goes by what the curve says within slj.
+                    st = repeat (k, nl, Jf, cf);
+                    if (st == 2)
+                    {
+                        double cn = cf;
+                        if (scnt[i] > 0)                         // the slow repeat being watched: is its peak still there, as good as the best?
+                        {
+                            double Jn = -1.0; nearPeak (k, Js[i], Jn, cn);
+                            if (Jn > 0.0 && cn >= cf - tol2) { ++scnt[i]; Js[i] = Jn; } else scnt[i] = 0;
+                        }
+                        if (Jf * H > slj)
+                        {
+                            if (scnt[i] == 0) { scnt[i] = 1; Js[i] = Jf; cn = cf; }
+                            if ((double) scnt[i] >= slq * Js[i] * H / hop) { Jf = Js[i]; cf = cn; }
+                            else if (! (mode[i] == 0 && J[i] > slj)) st = repeat (k, nls, Jf, cf);
+                        }
+                    }
+                    else scnt[i] = 0;
+                }
+                else st = repeat (k, nl, Jf, cf);
+            }
             if (st == 2)
             {
                 if (cin[i] > 0 && std::abs (Jf - Jc[i]) <= 0.08 * Jc[i]) ++cin[i]; else cin[i] = 1;

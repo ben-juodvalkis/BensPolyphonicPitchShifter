@@ -22,6 +22,7 @@ audio out.
 | 8 | **No reader where a band holds one partial** (advance its phase instead); a reader that jumps exactly one beat where a band holds two | The current design. Exact tuning by construction, nothing repeated in most bands, and up-shift attacks 6 ms earlier because no reader has to catch up. |
 | 9 | Keep the two shares of a partial in step (followers and placement) | Fixed two faults that only real recordings showed (below). |
 | 10 | Shifting up: twice the bands at the same width, steadier decisions, readers' loudness corrected | Held chords at octave up went from clearly rougher than the reference device to close to it. |
+| 11 | Shifting up: a plain band's phase advance smoothed over 5 ms; a slow beat has to hold before a reader takes it | Held chords at octave up 1 dB cleaner on average and 4 dB on the one that was worst, chords built from real notes 2 to 4 dB at every up-shift, with a little less flutter than the reference device. Steady synthetic clusters of four or more partials in one band got worse (below). |
 
 ## Things worth knowing before changing the engine
 
@@ -49,6 +50,48 @@ under a lone sine until the filter design was given extra weight far from the ba
 
 **Up and down want different settings.** Twice the bands and a finer threshold help held chords at octave up and
 cost 2 to 5 dB on mixes of real takes at octave down. The engine switches settings with the direction.
+
+## Held chords shifting up: what the roughness was, and what did not fix it
+
+The engine was about 2 dB rougher than the reference device on eleven real held chords at octave up, and 9 dB on one
+clean, high chord (`docs/benchmarks.md`). The lead at the time was that the reference device, which trails bends by
+45 ms going up, leans on a longer look-back. That was wrong, and the opposite helped. What the measurements said,
+all on those eleven chords (dirt between the notes, engine -26.7 dB before, reference device -28.4):
+
+| Tried | Result |
+|---|---|
+| A longer band filter (10, 12, 16 ms delay) | -27.1, -26.7, -26.8 dB. No. |
+| Narrower bands (1024 at 16 ms; the same with twice the bands) | -25.7, -26.8 dB. No. |
+| Every decision constant, one at a time: how deep a beat must be, how far it must come back, checks to start and to stop, how often decisions are made, the comparison window, placement on or off, loudness correction off, followers off | All within 0.6 dB of where it was. (Asking for a likeness of 0.98 at the repeat: -23.0.) |
+| A reader only for a second partial that stands above what a loud neighbor leaks into the band | No change. |
+| No nudging of a reader's position at its jumps | In one clean two-partial band the nudges put sidebands at -31 dB that are at -62 dB without them, but the total did not move. |
+| Looking back only 50 ms for a repeat (so two partials less than 20 Hz apart are never given a reader) | -27.4 dB, the clean high chord from -30.6 to -36.7. But synthetic chords lost 2 dB on the scorecard: there, pairs 10 to 20 Hz apart are steady and a reader is exact. |
+| The same, but a slow beat counts once it has held for half its length | Keeps both: what is in the engine now. |
+| A plain band's phase advance smoothed, loudness-weighted | Cleaner, but single notes came out up to 2.7 cents off at octave down: a weighted average of a beating band's phase advance leans toward the weaker partial by its share of the power. A plain average does not (the long-run average advance of a beating band is exactly its stronger partial's). |
+| Smoothing over 10 ms or 20 ms instead of 5 | 0.3 dB cleaner at 10 ms and no more at 20, and bends trail by 14 ms and 19 ms instead of 12 (unsmoothed: 10); at 20 ms a 6 Hz vibrato wobbles by 10 cents. |
+| Smoothing right through an attack | Loop mixes 1 dB rougher at +7. While the click dies away in a band and the partial takes over, the band's phase advance changes; smoothing that change leaves each band behind by an amount that depends on where the partial sits in it, so two bands that share the partial come out of step until one follows the other. Hence the 30 ms rest after an attack. |
+| The smoothing as a tracker that follows the phase itself (a phase and a rate, both corrected) | No rest needed, bends trail no more than unsmoothed, vibrato wobble halved. But a slow beat between two nearly equal partials (a fifth's shared harmonics) turns the phase half a turn at each quiet moment, the tracker follows that turn, and those chords come out 1.5 dB rougher than with no smoothing; smoothing the advance instead passes over the turn for good. |
+| No readers at all: find each partial where a band is loudest, work out its share in the bands around it from the filter's shape, render each partial once and what is left with the nearest partial's phase | Exact on two steady sines 69 Hz apart, and better than the reference device on some clean chords. On real chords no better than plain bands throughout (-11 dB): two partials 80 Hz apart at unequal loudness do not both make a loudest band, so the weaker one is never found. It would need partials to be found in what is left over after the strong ones are taken out. Not pursued. |
+
+What it came down to:
+
+- **A real note's partial is not a line.** It is a tight cluster (two polarisations of the string, a unison string,
+  a chorus) that beats slowly and wanders. Synthetic partials are lines. Everything the engine did well on
+  synthetic chords and badly on real ones traces back to that.
+- **A slow beat on a real note is not to be trusted.** A cluster looks like two partials 10 to 20 Hz apart for a
+  moment. A reader that jumps 50 to 100 ms on it splices things that do not match, and each splice is a little
+  flutter. The reference device never tries: it carries partials that close along as one beating note.
+- **Advancing a plain band's phase frame by frame scales whatever rides on the partial**: the phase swing of a
+  beat's quiet moment, a faint neighbor, noise. Taking the advance from a smoothed phase carries those along
+  instead.
+- **The two measures disagree, and both are right.** The held-chord measure reads the input's lines from its own
+  spectrum and allows 19 Hz around each, so a slow beat carried along at its old rate is clean to it. The scorecard
+  knows every partial exactly and calls the same thing dirt. A real chord wants the first, a synthetic chord the
+  second. Chords built from single-note recordings, where shifting each note alone and adding them up is an exact
+  reference, sided with the real chords.
+- **What got worse.** Four or more steady partials inside one band's width (a synthetic test: no real chord is
+  that steady) used to come out with -12 to -16 dB of dirt, because the engine would take any slow repeat it could
+  find; now it is -6 to -11 dB. Three partials are unchanged.
 
 ## Things worth knowing about measuring
 

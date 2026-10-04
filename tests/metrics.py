@@ -1,7 +1,7 @@
 """Measures used by the scorecard and the tests. y is always a mono render on the same timeline as the input (sample i
 of y was produced while sample i of the input was being fed in), so any lateness is in the audio itself."""
 import numpy as np
-from scipy.signal import butter, sosfiltfilt, get_window
+from scipy.signal import butter, sosfiltfilt, get_window, hilbert
 from signals import SR
 
 EPS = 1e-15
@@ -204,3 +204,32 @@ def superposition(ym, ya, yb, n_fft=8192, hop=2048, k=2.5, floor_db=70.0):
     return dict(excess_db=float(dbp(ex[live].sum() / tot[live].sum())), missing_db=float(dbp(mi[live].sum() / tot[live].sum())),
                 excess_p90_db=float(np.percentile(dbp(ex[live] / tot[live] + 1e-12), 90)))
 
+
+def line_dirt(x, y, r, t0=0.4, t1=None, n_fft=8192, hop=2048, tol_bins=3.5, floor_db=55.0):
+    """Held sound with no ideal signal to compare with (real recordings are measured this way too): the input's
+    spectrum is a set of lines, a perfect shifter moves each to r x its frequency and adds nothing. -> the output's
+    energy that is NOT within tol_bins (19 Hz) of any moved line, dB re the output's total, over the frames between
+    t0 and t1 (seconds; no attack may fall inside). The input's lines are read frame by frame, down to floor_db
+    below the strongest. Two partials closer than the frame can tell apart count as one line, so a slow beat that is
+    carried along at its old rate is not dirt here; scorecard.py, which knows every partial, is the stricter test."""
+    w = np.blackman(n_fft); f = np.fft.rfftfreq(n_fft, 1 / SR); bw = f[1]; t1 = len(x) / SR if t1 is None else t1
+    band = (f > 30.0) & (f < min(5000.0 * max(r, 0.5), 0.45 * SR)); off = 0.0; tot = 0.0
+    for i in range(int(t0 * SR), min(int(t1 * SR), len(x), len(y)) - n_fft, hop):
+        X = np.abs(np.fft.rfft(x[i:i + n_fft] * w)); P = 20 * np.log10(X + 1e-15)
+        pk = np.nonzero((P[1:-1] > P[:-2]) & (P[1:-1] >= P[2:]) & (P[1:-1] > P.max() - floor_db))[0] + 1
+        q = (pk + 0.5 * (P[pk - 1] - P[pk + 1]) / (P[pk - 1] - 2 * P[pk] + P[pk + 1] - 1e-12)) * r; m = np.zeros(len(f), bool)
+        for v in q: m[max(int(np.floor(v - tol_bins)), 0):int(np.ceil(v + tol_bins)) + 1] = True
+        Py = np.abs(np.fft.rfft(y[i:i + n_fft] * w)) ** 2; off += Py[band & ~m].sum(); tot += Py[band].sum()
+    return float(dbp(off / (tot + 1e-30) + 1e-12))
+
+
+def flutter(y, fmin=100.0, fmax=8000.0, lo=20.0, hi=150.0):
+    """Fast loudness flutter of a held sound: in each third-octave band of y, the power of the envelope's movement
+    between lo and hi Hz against its steady level; energy-weighted over the bands, dB. Partials that share a band
+    beat, so this is not zero for a perfect shifter: it is for comparing two renderings of the same chord."""
+    num = 0.0; den = 0.0; fc = fmin; q = int(0.02 * SR)
+    while fc <= fmax:
+        b = sosfiltfilt(butter(4, [fc / 2 ** (1 / 6), fc * 2 ** (1 / 6)], btype="band", fs=SR, output="sos"), y); e = np.abs(hilbert(b))[q:-q]; h = np.hanning(len(e))
+        E = np.abs(np.fft.rfft((e - e.mean()) * h)) ** 2; f = np.fft.rfftfreq(len(e), 1 / SR); p = float(np.mean(b[q:-q] ** 2))
+        num += p * E[(f >= lo) & (f <= hi)].sum() * 2 / (np.sum(h ** 2) * len(e)) / (e.mean() ** 2 + 1e-30); den += p; fc *= 2 ** (1 / 3)
+    return float(dbp(num / (den + 1e-30) + 1e-12))

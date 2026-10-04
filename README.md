@@ -21,16 +21,16 @@ source (below).
 | | Octave down | Octave up |
 |---|---|---|
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
-| Chord notes in tune to | 0.6 cents | 0.1 cents |
-| Dirt on full plucked chords (lower is cleaner) | -37.5 dB | -29.4 dB |
+| Chord notes in tune to | 0.6 cents | 0.2 cents |
+| Dirt on full plucked chords (lower is cleaner) | -37.5 dB | -28.8 dB |
 | CPU, one core at 48 kHz (Apple M1 Max) | 8 to 10 % | 19 to 21 % |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
 Measured against a well-regarded commercial polyphonic shifter on the same tests, Ben's Polyphonic Pitch Shifter is clearly cleaner and
 about 8 ms earlier shifting down, and close to it in cleanliness with attacks 4 ms earlier shifting up. It is
-behind on a few things, most of all held chords and loop material shifting up. `docs/benchmarks.md` has the method,
-every number, and the list of where it loses.
+behind on a few things, most of all mixes of several parts at small upward shifts and clean high chords held at
+octave up. `docs/benchmarks.md` has the method, every number, and the list of where it loses.
 
 ## Build and install (macOS)
 

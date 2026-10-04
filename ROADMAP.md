@@ -48,14 +48,22 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
 
 ## 3. Sound
 
-- **Held chords shifting up.** About 2 dB rougher than the reference device on average, up to 9 dB on some
-  chords, and the cause is not known. One lead: the reference device trails bends by 45 ms when shifting up
-  (Ben's Polyphonic Pitch Shifter: under 10 ms), so it may be leaning on a much longer look-back for sustained sound. An optional
-  long-history mode for sustained notes would test that.
+- **Held chords shifting up.** 0.7 dB rougher than the reference device on average (it was 2 dB), up to 4.7 dB
+  on a clean high chord (it was 9). The cause was not a short look-back (longer and narrower filters changed
+  nothing): a real note's partial is a slowly beating cluster, and the engine was scaling its phase swings and
+  putting readers on beats that were not there (`docs/design-notes.md`). What is left, on clean chords: a band that
+  lies between two partials is on a reader, and its jumps leave sidebands about 35 dB down. Taking the two
+  partials apart from what the bands on either side know, with no reader, would remove them; a first sketch of
+  that is in the design notes. Done when `tests/held_chords.py` reaches the reference device's -40 dB.
+- **Mixes of several parts, shifting up.** On twelve pairs of DI takes the reference device is 1.3 to 3.2 dB
+  cleaner at up-shifts, most at +2 and most where strummed chords meet another take; loop mixes show the same at
+  +2. Cause unknown. (Setting the phase only in the bands an attack reaches, instead of in all of them, was tried
+  and changed nothing.)
 - **Slides and vibrato shifting down.** The pitch wobbles 10.6 cents around the right value on a one-octave slide
   (reference device: 2.1). A reader assumes the last beat will repeat; it should follow the pitch as it moves.
 - **Three partials in one band.** A reader gets two right. Separating them by using what the neighboring bands
-  know about each partial would get all three.
+  know about each partial would get all three. (Four or more steady partials in one band's width got worse when
+  slow beats stopped being trusted at once: -9 dB of dirt where it was -15, on a synthetic test.)
 - **The first beat after an attack, shifting up.** Until a beating band's beat has gone by once it is treated as
   plain. Carrying the previous note's knowledge across an attack on the same pitch would shorten that.
 - **Timbre on dense chords.** Partials' loudness is 3 to 6 dB off on full chords at octave up (0.3 dB on single
