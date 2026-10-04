@@ -22,7 +22,7 @@ audio out.
 | 8 | **No reader where a band holds one partial** (advance its phase instead); a reader that jumps exactly one beat where a band holds two | The current design. Exact tuning by construction, nothing repeated in most bands, and up-shift attacks 6 ms earlier because no reader has to catch up. |
 | 9 | Keep the two shares of a partial in step (followers and placement) | Fixed two faults that only real recordings showed (below). |
 | 10 | Shifting up: twice the bands at the same width, steadier decisions, readers' loudness corrected | Held chords at octave up went from clearly rougher than the reference device to close to it. |
-| 11 | Shifting up: a plain band's phase advance smoothed over 5 ms; a slow beat has to hold before a reader takes it | Held chords at octave up 1 dB cleaner on average and 4 dB on the one that was worst, chords built from real notes 2 to 4 dB at every up-shift, with a little less flutter than the reference device. Steady synthetic clusters of four or more partials in one band got worse (below). |
+| 11 | A plain band's phase advance smoothed over 5 ms; a slow beat has to hold before a reader takes it (first for shifting up) | Held chords at octave up 1 dB cleaner on average and 4 dB on the one that was worst, chords built from real notes 2 to 4 dB at every up-shift, with a little less flutter than the reference device. Steady synthetic clusters of four or more partials in one band got worse (below). |
 
 ## Things worth knowing before changing the engine
 
@@ -92,6 +92,40 @@ What it came down to:
 - **What got worse.** Four or more steady partials inside one band's width (a synthetic test: no real chord is
   that steady) used to come out with -12 to -16 dB of dirt, because the engine would take any slow repeat it could
   find; now it is -6 to -11 dB. Three partials are unchanged.
+
+## Slides and vibrato shifting down: two different faults
+
+On a one-octave slide at octave down the shifted pitch wobbled 11 cents around the right value, and 4 cents on a
+vibrato (reference device: 2 and 1.5). The roadmap blamed the readers for assuming that the last beat repeats.
+Neither fault was that.
+
+- **The slide: two shares of the fundamental a quarter turn apart.** After an attack every band takes over from
+  the direct playback as a reader, all at one place, in step. A band was given until it had fallen 10 ms behind to
+  show a beat, which at an octave down is 20 ms, about the time it takes to see a beat three times. The band that
+  held the fundamental and the second harmonic missed it by a few milliseconds, went back to plain, came back as a
+  reader 8 ms later, and was now 140 degrees out of step with the plain band below it that held the rest of the
+  fundamental. Nudging pulled that to 83 degrees and stopped. Two shares of one partial that far apart, each
+  trailing the input by a slightly different time, add up to a pitch that wanders whenever the pitch moves.
+  Giving a band 40 ms instead: 11.2 to 3.8 cents.
+- **The vibrato: a single partial taken for a slow beat.** A partial with vibrato on it comes back to the same
+  pitch half a vibrato later, and for a moment the band looks just like it did 85 ms ago. The band that held the
+  note's fundamental, alone, was put on a reader with an 85 ms "beat" once in every vibrato cycle and taken off
+  again 12 ms later. The rule made for held chords (a slow beat has to hold for half its length) stops that, and
+  with the smoothed phase advance as well the wobble is 0.3 cents; either one alone leaves it at 3.5.
+
+| Tried | Result |
+|---|---|
+| A full nudge at every jump instead of half | The slide at 2.7 cents, but full chords 4 dB rougher (-33.5 dB) and chord notes 1.3 cents off: the nudge is a noisy measurement and wants averaging. |
+| Placing a reader when it starts, as shifting up does | The slide at 3.8 cents, but chords built from real notes 4 dB rougher (-31.4 dB) and mixes of two takes 5 dB. Shifting down, a reader is best left where the direct playback put it. |
+| Making a reader's splice fit at the splice itself when the pitch is moving, instead of on average over the last 12 ms | Worse (slide 13.7, vibrato 27.8 cents). Fitting on average puts a jumping reader's pitch 6 ms ahead of where it reads, which is what makes a reader trail the input by the same time as a plain band. Leave it. |
+| The wait as a distance (until the band is 20 ms behind) | Right at an octave, where a band falls behind half a millisecond per millisecond. At two semitones it falls behind a ninth as fast, waited 180 ms, and by then played soft notes late: the slowest tenth of attacks on DI takes went from 12 to 18 ms. As a time (40 ms) it is 11. |
+
+One thing costs: for a down-shift, scaling a band's phase *shrinks* whatever swing rides on a partial, so carrying
+the swing along instead leaves more of it. Two pure sines at octave down went from -54.0 to -52.1 dB. Real material
+gained more from the rest than it lost there (loop mixes 1 dB, twelve pairs of DI takes 1 to 2 dB).
+
+A side effect to know about: with the smoothed advance, the shifted pitch follows a bend 4 ms *sooner* at octave
+down (8 ms behind instead of 12). The loudness still arrives when it did.
 
 ## Things worth knowing about measuring
 

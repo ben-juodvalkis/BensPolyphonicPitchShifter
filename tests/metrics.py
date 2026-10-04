@@ -233,3 +233,17 @@ def flutter(y, fmin=100.0, fmax=8000.0, lo=20.0, hi=150.0):
         E = np.abs(np.fft.rfft((e - e.mean()) * h)) ** 2; f = np.fft.rfftfreq(len(e), 1 / SR); p = float(np.mean(b[q:-q] ** 2))
         num += p * E[(f >= lo) & (f <= hi)].sum() * 2 / (np.sum(h ** 2) * len(e)) / (e.mean() ** 2 + 1e-30); den += p; fc *= 2 ** (1 / 3)
     return float(dbp(num / (den + 1e-30) + 1e-12))
+
+
+def pitch_track(y, f_track, r, lp_hz=25.0):
+    """Moving pitch. y is the shifted version of a tone whose fundamental followed f_track (Hz, one value per sample),
+    so its fundamental should be at r x f_track. y is turned back by exactly that phase; what is left is its frequency
+    error. A constant delay shows up as an error proportional to how fast the pitch is moving, so the delay is fitted
+    and taken out. -> (how far the pitch trails the input, ms; the wobble that is left, cents rms)"""
+    n = len(f_track); fe = r * np.asarray(f_track, float); z = y[:n] * np.exp(-2j * np.pi * np.cumsum(fe) / SR)
+    sos = butter(4, lp_hz, fs=SR, output="sos"); zb = sosfiltfilt(sos, z.real) + 1j * sosfiltfilt(sos, z.imag)
+    df = np.gradient(np.unwrap(np.angle(zb))) * SR / (2 * np.pi); a = np.abs(zb); s = slice(int(0.25 * SR), n - int(0.15 * SR))
+    w = a[s] > 0.2 * np.median(a[s]); fp = np.gradient(fe) * SR; tau = -float(np.sum(df[s][w] * fp[s][w]) / (np.sum(fp[s][w] ** 2) + EPS))
+    cents = 1200 * np.log2(np.maximum(fe[s] + df[s] + tau * fp[s], 1e-3) / fe[s])
+    return tau * 1000, float(np.sqrt(np.mean(cents[w] ** 2)))
+

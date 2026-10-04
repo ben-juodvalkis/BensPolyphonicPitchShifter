@@ -21,8 +21,8 @@ source (below).
 | | Octave down | Octave up |
 |---|---|---|
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
-| Chord notes in tune to | 0.6 cents | 0.2 cents |
-| Dirt on full plucked chords (lower is cleaner) | -37.5 dB | -28.8 dB |
+| Chord notes in tune to | 0.4 cents | 0.2 cents |
+| Dirt on full plucked chords (lower is cleaner) | -37.4 dB | -28.8 dB |
 | CPU, one core at 48 kHz (Apple M1 Max) | 8 to 10 % | 19 to 21 % |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
@@ -72,8 +72,8 @@ played straight from the input when shifting down, which is why they are only 2 
 - Changing Semitones while playing restarts the bands and can click.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
 - The work arrives in lumps: use a buffer of 128 samples or more for now.
-- Held chords shifted up are a little rougher than the best commercial shifter; slides and wide vibrato shifted
-  down wobble a few cents.
+- Held chords shifted up are a little rougher than the best commercial shifter, and the middle note of a full
+  chord comes out too quiet at octave up.
 - Nothing below about 60 Hz is shifted (bass guitar's lowest notes).
 
 `ROADMAP.md` is the plan for all of these.

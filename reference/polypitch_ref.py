@@ -12,14 +12,14 @@ How it works: docs/how-it-works.md. In short, a bank of narrow band-pass filters
 
   a "plain" band (one partial in it)
         no reader and no jumps: the band's loudness is passed on as it happens and its phase is advanced `ratio`
-        times as fast as the input's (measured frame by frame; shifting up, that advance is smoothed over a few
-        milliseconds, see _smooth). The partial comes out exactly in tune, nothing is repeated or skipped, and the
+        times as fast as the input's (measured frame by frame, and that advance smoothed over a few milliseconds,
+        see _smooth). The partial comes out exactly in tune, nothing is repeated or skipped, and the
         band is only as late as the band filter itself.
   or a "beating" band (two partials in it: two notes' harmonics close together, or two low notes)
         its envelope repeats once per beat. A reader plays the band at the shifted speed and jumps by exactly one
         such repeat, with the band's phase carried across the jump. Both partials come out right. (Advancing the
         phase as for a plain band would move the weaker partial to a wrong frequency.) A repeat is looked for up to
-        `reach_ms` back; shifting up, one longer than `slow_ms` counts only once it has held for half as long as it lasts.
+        `reach_ms` back; one longer than `slow_ms` counts only once it has held for half as long as it lasts.
 
   attacks, shifting down: the attack is played straight from the input (the bridge); the bands take over as
         readers at the same position and each then settles into one of the two ways.
@@ -79,10 +79,11 @@ def _holds(ons, M, H, hold, span):
 @njit(parallel=True, cache=True)
 def _smooth(Zc, U, tf, te, hold):
     """US[k, m]: band k's phase with its frame-to-frame advance smoothed (time constant tf frames) and summed up again.
-    A plain band's phase advance is taken from this when shifting up. A steady partial's is the same as before, and
+    A plain band's phase advance is taken from this. A steady partial's is the same as without smoothing, and
     so is its long-run average (so the tuning stays exact). What is left out are the quick swings: a weak second
     partial, noise, the turn of phase in a beat's quiet moment (which is passed over for good). Those are then
-    carried along with the partial instead of being scaled with it, which is what made held chords rough.
+    carried along with the partial instead of being scaled with it (scaling them is what made held chords rough when
+    shifting up, and a vibrato wobble when shifting down).
     - A frame more than 10 dB under the band's recent loudness (te frames) counts for less.
     - When the band gets louder at once (from 3 dB above its recent loudness, fully at 6 dB) the new advance is taken
       as it is. Both of these in a sliding way, so that a last-digit difference cannot tip anything.
@@ -331,7 +332,7 @@ def _emit(et, em, ed, ep, el, ej, ef, en, k, t, mode, d, psi, L, Jn, flen):
     et[k, j] = t; em[k, j] = mode; ed[k, j] = d; ep[k, j] = psi; el[k, j] = L; ej[k, j] = Jn; ef[k, j] = flen; en[k] = j + 1
 
 @njit(cache=True)
-def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, bridge, dA0, tau, drop, rho, cabs, tol2, n_in, n_out, dlim, M, sel, rd_on, pre, clock, Wl, lock_on, nb_on, pgain, wmin, gain_on, drop_out, slj, slq):
+def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, bridge, dA0, tau, drop, rho, cabs, tol2, n_in, n_out, twait, M, sel, rd_on, pre, clock, Wl, lock_on, nb_on, pgain, wmin, gain_on, drop_out, slj, slq):
     kmax = Z.shape[0]; hop = hopf * H; up = ratio > 1.0001; xfu = max(xf // 2, 2) if up else xf; xa = 48
     dpv = float(H + 1); flr = float(2 * H + 2 + (int((ratio - 1.0) * xfu) + 2 if up else 0)); drift = 1.0 - ratio; dw = 2.0 * np.pi / K
     nh = n // hop + 1; nl = lmax - lmin + 1; cap = nh + nh // 2 + 64
@@ -425,8 +426,11 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                     if keep: cout[k] = 0
                     else: cout[k] += 1
                 else:                                           # free-running after the bridge: no jump needed yet
+                    # (it waits twait to see whether the band beats. That has to be long enough for a beat to be seen three times: a band
+                    # that leaves and comes back as a reader is no longer in step with its neighbours. A time, not a distance: a small
+                    # shift falls behind slowly, and a band that waited until it was far behind would play soft notes late)
                     if cin[k] >= n_in: J[k] = Jc[k] * H; cout[k] = 0
-                    elif dk - flr > dlim or on[k] == 0: cout[k] = n_out
+                    elif t - st0[k] > twait or on[k] == 0: cout[k] = n_out
                 must = up and dk - (ratio - 1.0) * hop <= flr         # shifting up: the reader is about to reach "now"
                 if (cout[k] >= n_out and t >= busy[k]) or (must and (J[k] <= 0.0 or cout[k] > 0)):
                     ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 1, 0.0, k, 0, ratio, H, wk[k], dw, tau, dpv, flr, M, max(J[k], wmin) / ratio / M)
@@ -497,7 +501,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
     return et, em, ed, ep, el, ej, ef, en, diag, br0[:nbr], br1[:nbr], drt[:ndr]
 
 def shift(x, st, sr=SR, K=512, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
-          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, dlim_ms=10.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=None, slow_ms=None, slow_hold=0.5, debug=False):
+          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=50.0, slow_hold=0.5, debug=False):
     """Shift mono signal x by st semitones (-12 .. +12). -> the shifted signal, same length, no dry signal mixed in.
     Everything after sr is a tuning constant of the engine; the defaults are what the C++ engine uses. The ones set
     to None differ between shifting up and shifting down and are filled in below.
@@ -515,11 +519,9 @@ def shift(x, st, sr=SR, K=512, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, re
     if drop is None: drop = 0.001 if up else 0.004
     if drop_out is None: drop_out = 0.00025 if up else drop
     if n_out is None: n_out = 8 if up else 3
-    # Also shifting up only (both measured on held chords and on chords built from single-note recordings, docs/benchmarks.md):
-    # a plain band's phase advance is smoothed over 5 ms, and a beat slower than 50 ms has to hold (for slow_hold times its own
-    # length) before a reader takes it.
-    if smooth_ms is None: smooth_ms = 5.0 if up else 0.0
-    if slow_ms is None: slow_ms = 50.0 if up else 0.0
+    # In both directions (docs/design-notes.md has what each was measured on): a plain band's phase advance is smoothed over
+    # smooth_ms, a beat slower than slow_ms has to hold (for slow_hold times its own length) before a reader takes it, and after
+    # an attack shifting down a band waits wait_ms, where the bridge left it, to see whether it beats.
     tau = int(round(tau_ms * sr / 1000)); h = prototype(K, tau, int(round(tail_ms * sr / 1000)))
     # over = 2: twice as many bands, half a band apart, each as wide as before (the same filter, so no extra delay). Every
     # partial then has bands in which it is the main thing, also where three partials crowd into one band's width.
@@ -531,7 +533,7 @@ def shift(x, st, sr=SR, K=512, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, re
     lmin = max(int(round(lmin_ms * sr / 1000 / H)), 1); lmax = int(reach_ms * sr / 1000 / H); xf = int(2.6667 * sr / 1000)
     flr = float(2 * H + 2 + (int((r - 1.0) * (max(xf // 2, 2))) + 2 if up else 0))
     ev = _control(Z, A, U, US, CE, len(x), ons, r, H, Kb, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, 1 if bridge else 0, dA_ms * sr / 1000, float(tau),
-                    drop, rho, cabs, tol2, int(n_in), int(n_out), dlim_ms * sr / 1000, int(M), float(sel), 1 if rd else 0, pre, float(clock), max(int(lock_ms * sr / 1000 / H), 4), 1 if lock else 0, int(place), float(pgain), 0.012 * sr, 1 if gain else 0, drop_out, slow_ms * sr / 1000, float(slow_hold))
+                    drop, rho, cabs, tol2, int(n_in), int(n_out), wait_ms * sr / 1000, int(M), float(sel), 1 if rd else 0, pre, float(clock), max(int(lock_ms * sr / 1000 / H), 4), 1 if lock else 0, int(place), float(pgain), 0.012 * sr, 1 if gain else 0, drop_out, slow_ms * sr / 1000, float(slow_hold))
     dpv = float(H + 1); dw = 2.0 * np.pi / Kb
     if debug == "bands":
         return [_render_band(Z, A, U, US, CE, k, len(x), r, H, dw, float(tau), dpv, flr, ev[0][k], ev[1][k], ev[2][k], ev[3][k], ev[4][k], ev[5][k], ev[6][k], ev[7][k]) for k in range(kmax)], ev

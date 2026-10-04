@@ -44,12 +44,13 @@ share in the next.
 and its phase is advanced at the shifted rate: for an octave up the output phase turns twice as fast as the
 input's. The partial comes out exactly in tune, and the band is only as late as the filter itself.
 
-Shifting up, the rate is not taken from one frame to the next but smoothed over 5 ms. A steady partial comes out
-the same. What changes is everything small and quick that rides on it: a real string's partial is a tight cluster
-that beats slowly, with a faint neighbor and some noise beside it, and each of those makes the band's phase swing
-for a moment. Advancing the phase at the shifted rate scales those swings too and turns them into roughness; with
-the smoothed rate they are carried along with the partial as they are. (For 30 ms after an attack the smoothing
-rests, so that the bands which share a partial settle in step.)
+The rate is not taken from one frame to the next but smoothed over 5 ms. A steady partial comes out the same.
+What changes is everything small and quick that rides on it: a real string's partial is a tight cluster that beats
+slowly, with a faint neighbor and some noise beside it, and each of those makes the band's phase swing for a
+moment. Advancing the phase at the shifted rate scales those swings too; with the smoothed rate they are carried
+along with the partial as they are. Shifting up, that is what keeps a held chord smooth; shifting down, what keeps
+a vibrato from wobbling. (For 30 ms after an attack the smoothing rests, so that the bands which share a partial
+settle in step.)
 
 **A beating band holds two partials**, for example the third harmonic of one string and the second of another, or
 two low notes. Scaling the phase would get the stronger one right and move the weaker one to a wrong pitch. But two
@@ -63,12 +64,12 @@ plain band that likeness stays near 1 at every distance. For a beating band it f
 distance at which it is back is the beat. A band becomes a reader band when that pattern has held for three checks
 in a row, and goes back to plain when it has been gone for a while.
 
-Shifting up, a slow beat (longer than 50 ms: two partials less than 20 Hz apart) has to earn that. Two steady
-partials that close repeat exactly, and a reader gets both right. But a real note's partial, being a cluster that
-wanders, looks like a slow beat for a moment and then does not, and a reader that jumps 50 to 100 ms on it adds
-flutter to a chord that was smooth. So a slow beat is believed only once it has stayed put for half its own
-length; until then the band goes by what it sees within 50 ms, and two partials that close are carried along
-together as one beating note.
+A slow beat (longer than 50 ms: two partials less than 20 Hz apart) has to earn that. Two steady partials that
+close repeat exactly, and a reader gets both right. But a real note's partial, being a cluster that wanders, looks
+like a slow beat for a moment and then does not, and so does a single partial with vibrato on it (its pitch comes
+back to where it was half a vibrato later). A reader that jumps 50 to 100 ms on either adds flutter to what was
+smooth. So a slow beat is believed only once it has stayed put for half its own length; until then the band goes by
+what it sees within 50 ms, and two partials that close are carried along together as one beating note.
 
 ## Step 3: keep the two shares of a partial together
 
@@ -92,7 +93,10 @@ recent peak and treats a doubling within a millisecond as an attack.
 - **Shifting down**, the attack is played straight from the input at the shifted speed, starting 1 ms behind. That
   direct playback falls further behind as it goes. At the moment it is exactly as far behind as the bands are, the
   bands are the same signal, and they take over. This is why attacks come out about 2 ms late when shifting down,
-  whatever the filter delay.
+  whatever the filter delay. Every band takes over as a reader at that one place, where all of them are in step.
+  A band that turns out to beat stays there; one that holds a single partial goes back to plain. Each is given
+  40 ms to show which it is, because a band that left too early and came back as a reader would no longer be in
+  step with its neighbors.
 - **Shifting up** there is no such trick, because the playback would have to read ahead of the input. Instead,
   just before the attack reaches the bands, every band's phase is set equal to the input's, so the bands add up to
   the attack itself; from there the phases run at the shifted rate. The attack is as late as the filter: about
@@ -140,7 +144,8 @@ now has a band in which only it and one neighbor matter.
 | How far back a repeat is looked for | 2.2 to 100 ms | same |
 | A band counts as beating when the likeness dips by | 0.004 | 0.001 |
 | Checks in a row to become a reader / to stop | 3 / 3 | 3 / 8 |
-| A plain band's phase advance is smoothed over | (not smoothed) | 5 ms, resting for 30 ms after an attack |
-| A beat longer than 50 ms has to hold for | (no such rule) | half its own length |
+| A plain band's phase advance is smoothed over | 5 ms, resting for 35 ms after an attack | 5 ms, resting for 30 ms after an attack |
+| A beat longer than 50 ms has to hold for | half its own length | half its own length |
+| After an attack, a band waits to see whether it beats for | 40 ms | (no direct playback) |
 | Crossfade at a reader's jump | 2.7 ms | 1.3 ms |
 | Attack | direct playback, hands over after about 27 ms at an octave | phase set 2 ms before the attack reaches the bands |

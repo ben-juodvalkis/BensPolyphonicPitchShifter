@@ -59,15 +59,22 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
   cleaner at up-shifts, most at +2 and most where strummed chords meet another take; loop mixes show the same at
   +2. Cause unknown. (Setting the phase only in the bands an attack reaches, instead of in all of them, was tried
   and changed nothing.)
-- **Slides and vibrato shifting down.** The pitch wobbles 10.6 cents around the right value on a one-octave slide
-  (reference device: 2.1). A reader assumes the last beat will repeat; it should follow the pitch as it moves.
+- **Slides shifting down.** The pitch wobbled 11 cents around the right value on a one-octave slide and 4 on a
+  vibrato; it is now 3.3 and 0.3 (reference device: 2.1 and 1.5). Both causes are in `docs/design-notes.md`.
+  What is left on the slide are short disturbances where a partial crosses from one band into the next and the
+  bands change between plain and reader. Done when `tests/moving_pitch.py` shows 2 cents or less at -12 and -5.
 - **Three partials in one band.** A reader gets two right. Separating them by using what the neighboring bands
   know about each partial would get all three. (Four or more steady partials in one band's width got worse when
   slow beats stopped being trusted at once: -9 dB of dirt where it was -15, on a synthetic test.)
 - **The first beat after an attack, shifting up.** Until a beating band's beat has gone by once it is treated as
   plain. Carrying the previous note's knowledge across an attack on the same pitch would shorten that.
-- **Timbre on dense chords.** Partials' loudness is 3 to 6 dB off on full chords at octave up (0.3 dB on single
-  notes).
+- **Timbre on dense chords: the middle note is too quiet at octave up.** The third of a full chord loses 6 to
+  13 dB of its fundamental (reference device: exact), because two other notes' partials sit 30 to 50 Hz either side
+  and all three share every band there. This is "three partials in one band" below, heard. Bands half as wide
+  (1024 of them with a 16 ms filter) get it right: partials that stand alone are then 0.9 dB off instead of 2.4
+  (reference device 1.0), and attacks come out 15 ms late instead of 7.4. That is the trade the response setting
+  below would expose. The other 3 to 6 dB in the old figure are partials that two notes share: their slow beat
+  keeps its old rate, on the reference device as well.
 - **Chord-note tuning** from 0.1 to 0.6 cents to zero.
 - **Below 60 Hz.** The lowest band is unused, so bass-guitar fundamentals below that are lost.
 - **A response setting for shifting up.** A longer band filter is cleaner and later: 10 ms gives about 1 dB cleaner

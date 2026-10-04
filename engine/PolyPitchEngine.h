@@ -6,7 +6,7 @@
 // The input runs through a bank of narrow band-pass filters (one FFT every 32 samples gives each band's slowly
 // changing envelope). Each band is then handled in one of two ways.
 //   "plain" band (one partial in it): its loudness is passed on as it happens and its phase is advanced `ratio`
-//       times as fast as the input's (shifting up, that advance is smoothed over a few milliseconds). Nothing is
+//       times as fast as the input's (that advance smoothed over a few milliseconds). Nothing is
 //       repeated or skipped; the partial is exactly in tune. A band that holds the weaker share of a partial follows
 //       its stronger neighbour's phase, so the two shares stay in step.
 //   "beating" band (two partials in it): a reader plays the band at the shifted speed and jumps by exactly one
@@ -38,7 +38,7 @@ public:
         lmax = std::min ((int) (100.0 * sr / 1000.0 / H), NF / 3); nl = lmax - lmin + 1;
         xf = (int) (2.6667 * sr / 1000.0);
         hold = (int) (0.012 * sr); settle = (int) (25.0 * sr / 1000.0);
-        dA0 = 1.0 * sr / 1000.0; dlim = 10.0 * sr / 1000.0; pre = (int) (2.0 * sr / 1000.0);
+        dA0 = 1.0 * sr / 1000.0; twait = 40.0 * sr / 1000.0; pre = (int) (2.0 * sr / 1000.0);
         Wl = std::max ((int) (12.0 * sr / 1000.0 / H), 4); wmin = 0.012 * sr;
         afc = 1.0 - std::exp (-1.0 / (0.001 * sr)); rel = std::exp (-1.0 / (0.080 * sr));
         onsD = std::max ((int) (0.003 * sr), 1); onsBuf.assign ((size_t) onsD, 0.0);
@@ -73,8 +73,8 @@ public:
         if (! configured || wasUp != up) loadFilter();
         // shifting up: twice the bands (half a band apart, same filter), a finer threshold for calling a band "beating", and a band on a reader stays longer
         dropIn = up ? 0.001 : 0.004; dropOut = up ? 0.00025 : dropIn; nOut = up ? 8 : 3;
-        // also shifting up only: a plain band's phase advance is smoothed over 5 ms, and a beat slower than 50 ms has to hold before a reader takes it
-        smoothOn = up; slj = up ? 50.0 * sr / 1000.0 : 0.0; nls = std::min (std::max ((int) (slj / H) - lmin + 2, 3), nl);
+        // in both directions: a beat slower than 50 ms has to hold before a reader takes it (and a plain band's phase advance is smoothed over 5 ms: analyzeFrame)
+        slj = 50.0 * sr / 1000.0; nls = std::min (std::max ((int) (slj / H) - lmin + 2, 3), nl);
         xfu = up ? std::max (xf / 2, 2) : xf;
         flr = (double) (2 * H + 2 + (up ? (int) ((ratio - 1.0) * xfu) + 2 : 0));
         drift = 1.0 - ratio;
@@ -172,9 +172,9 @@ private:
     static constexpr int K = 512, KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48;
     static constexpr double fmax = 10000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
-    double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, dlim = 441.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
+    double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, twait = 1764.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
     double smA = 0.0, smE = 0.0, slj = 0.0, slq = 0.5;
-    bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false, smoothOn = false;
+    bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false;
     int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, nls = 135;
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
     std::vector<char> rdirty, ordirty;
@@ -300,10 +300,9 @@ private:
             Cm[c1] = (m == 0 ? 0.0 : Cm[c0]) + re * re + im * im;                           // energy so far (for the readers' loudness correction)
             Um[c1] = m == 0 ? ang : Um[c0] + wrap (ang - lastAng[(size_t) k]);          // the phase, never wrapped back
             lastAng[(size_t) k] = ang;
-            if (smoothOn)
             {
                 // The same phase with its frame-to-frame advance smoothed and summed up again: what a plain band's phase advance is taken
-                // from when shifting up. A steady partial's is unchanged (and so is its long-run average: the tuning stays exact); the quick
+                // from. A steady partial's is unchanged (and so is its long-run average: the tuning stays exact); the quick
                 // swings of a weak second partial, of noise or of a beat's quiet moment are left out, so those are carried along with the
                 // partial instead of being scaled with it.
                 // A frame more than 10 dB under the band's recent loudness counts for less; a band that gets louder at once (from 3 dB above
@@ -347,7 +346,7 @@ private:
         im = bi + 0.5 * f * (ci - ai + f * (2 * ai - 5 * bi + 4 * ci - di + f * (3 * (bi - ci) + di - ai)));
     }
 
-    inline const double* leadPhase() const { return smoothOn ? Us.data() : Um.data(); }       // what a leader's phase advance is taken from
+    inline const double* leadPhase() const { return Us.data(); }       // what a leader's phase advance is taken from: the smoothed phase
 
     inline double ulin (int k, double p) const
     {
@@ -704,10 +703,10 @@ private:
                 }
                 if (keep) cout[i] = 0; else ++cout[i];
             }
-            else                                                 // free-running after the bridge: no jump needed yet
-            {
+            else                                                 // free-running after the bridge: no jump needed yet. It waits twait to see whether
+            {                                                    // the band beats (long enough to see a beat three times; a time, not a distance)
                 if (cin[i] >= nIn) { J[i] = Jc[i] * H; cout[i] = 0; }
-                else if (dk - flr > dlim || ! on[i]) cout[i] = nOut;
+                else if ((double) t - st0[i] > twait || ! on[i]) cout[i] = nOut;
             }
             const bool must = up && dk - (ratio - 1.0) * hop <= flr;             // shifting up: the reader is about to reach "now"
             if ((cout[i] >= nOut && t >= busy[i]) || (must && (J[i] <= 0.0 || cout[i] > 0)))

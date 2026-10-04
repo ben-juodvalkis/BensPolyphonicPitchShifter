@@ -44,6 +44,7 @@ Developer ID signature and notarization (see `ROADMAP.md`).
 scripts/gate.sh                                 # the gate: builds the tools, engine against reference, scorecard at -12 and +12
 .venv/bin/python tests/scorecard.py engine all  # all six intervals
 .venv/bin/python tests/held_chords.py           # sustained chords after the attack (octave up; another interval as an argument)
+.venv/bin/python tests/moving_pitch.py          # a slide, a bend and a vibrato: how far the pitch trails and how much it wobbles
 .venv/bin/python tests/test_plugin.py           # the built plug-in, hosted headless, against the engine
 .venv/bin/python tests/mix_test.py a.wav b.wav  # the linearity test on two recordings of your own
 ```
@@ -88,6 +89,6 @@ does not do yet.
 | `max/device/Ben's Polyphonic Pitch Shifter.amxd` | The Max for Live device. |
 | `max/tools/` | Generators for the device and help patch, and the in-Max check. |
 | `tools/` | The command-line harness and the load meter. |
-| `tests/` | Signals, measures, the scorecard, the held-chord test, the engine-against-reference test, the plug-in test. |
+| `tests/` | Signals, measures, the scorecard, the held-chord and moving-pitch tests, the engine-against-reference test, the plug-in test. |
 | `scripts/` | Build, install, gate. |
 | `docs/` | How it works, benchmarks, design notes, Max notes. |
