@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+build/
+reference/.cache/
+# compiled Max object (built by scripts/build.sh max; attached to releases, not committed)
+max/PolyPitch/externals/
+# your own recordings for tests/mix_test.py
+audio/

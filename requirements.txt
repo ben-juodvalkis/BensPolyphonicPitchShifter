@@ -1,0 +1,7 @@
+# for the reference implementation and the tests (Python 3.10 or newer)
+numpy
+scipy
+numba
+soundfile
+# only for tests/test_plugin.py and `scorecard.py plugin` (hosts the built VST3)
+pedalboard

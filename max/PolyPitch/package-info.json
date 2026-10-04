@@ -1,0 +1,19 @@
+{
+	"name" : "PolyPitch",
+	"displayname" : "PolyPitch",
+	"version" : "0.1.0",
+	"author" : "Ben Juodvalkis",
+	"description" : "Polyphonic pitch shifter for live playing: the polypitch~ object. Chords stay in tune and clean; attacks come out about 2 ms late shifting down and 7 ms shifting up.",
+	"tags" : [ "audio", "pitch", "pitch shifter", "guitar" ],
+	"website" : "",
+	"max_version_min" : "8.2",
+	"max_version_max" : "none",
+	"os" : {
+		"macintosh" : {
+			"platform" : [ "x64", "aarch64" ],
+			"min_version" : "11.0"
+		}
+	},
+	"package_extra" : { },
+	"filetype" : "max package"
+}
