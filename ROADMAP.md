@@ -3,6 +3,22 @@
 Ordered by what would help most. Numbers quoted here are from `docs/benchmarks.md`; each item says how to tell when
 it is done.
 
+## Order of work: sound before speed
+
+Decided 2026-10-04. Work through section 3 (sound) before most of section 2 (performance):
+
+1. **Now: no allocation on the audio thread** (section 2). It is a dropout risk on stage when crossing between
+   shifting up and shifting down, not just a cost, and it does not touch the sound.
+2. **Then: sound** (section 3). These change what the engine computes, and each idea is tried in the Python
+   reference first. Some will cost CPU (a long-history mode for held chords), so the final load is not known until
+   they are in.
+3. **Any time: the faster transform and the vectorized band loop** (section 2). The same math done faster; the gate
+   proves the sound did not move. Worth doing early if the sound work needs the headroom.
+4. **Last: spreading the analysis and doing less of it** (section 2). Both change when and which bands are checked,
+   which is the logic the sound work rewrites. Optimizing it first would mean doing it twice.
+
+Revisit this if the CPU load or the 128-sample buffer gets in the way of live playing before the sound work is done.
+
 ## 1. Before a first public release
 
 - **Run the Max object and the device inside Max.** They are built but untested there. `max/tools/check_in_max.py`
