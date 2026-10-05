@@ -171,6 +171,82 @@ What it taught:
 
 Fast stays the default: which of the three should be is a question for ears and hands, not for these tables.
 
+## Mixes at small upward shifts, and the first beat after an attack
+
+Two roadmap items: "the first beat after an attack, shifting up" (a beating band is treated as plain until its beat
+has gone by once; the idea was to carry a band's last beat across an attack) and "mixes of several parts at small
+upward shifts" (the reference device 3 dB cleaner at +2, cause unknown). Measuring the first found the second.
+
+**Where the dirt sits in time.** New energy in the shifted mix of two DI takes (twelve pairs), in 46 ms frames,
+sorted by how long ago the last attack was:
+
+| At +2 | First 70 ms after an attack | 70 to 250 ms | Later |
+|---|---|---|---|
+| This shifter, before | -25 to -30 dB | -21 to -23 | -17.6 (two thirds of all the new energy) |
+| Reference device | -24 to -30 | -28 to -34 | -29.4 |
+
+The time just after an attack was the engine's cleanest and the reference device's dirtiest; +7 and +12 read the
+same way. So the first beat is not where real mixes lose. (On chords strummed in time it does cost, for both:
+`tests/strummed_chords.py` prints the first 120 ms after a strum beside the rest.)
+
+**What the sustain's dirt was.** All 45 pairings of the ten DI takes at +2, new energy in the mix; before -23.5 dB,
+reference device -28.6:
+
+| Tried | Result |
+|---|---|
+| No readers at all | -26.1 dB by the usual ruler but -23.8 by a sharper one (below): every weaker partial is then off by the shift's share of its spacing. At +7 it is no better by the usual ruler and 2 dB worse by the sharp one, and bass with guitar lines lose 5 dB at +2. |
+| The down-shift threshold for calling a band beating (0.004 instead of 0.001) | Half a dB on twelve pairs. Not the lever. |
+| A band leaves a reader whose beat has gone after 3 checks instead of 8 | -25.8 dB. After 5 checks: -23.7, nothing. |
+| A beat has to hold before a reader takes it from 20 ms on instead of 50 | -25.8 dB. From 30 ms: -24.7. From 10 ms: -25.1. |
+| Both | -27.1 dB. What the engine does now below a fifth. |
+| Both, with a deep beat (two partials of like strength) left as it was | -23.9 to -24.5 dB: the gain is gone. It was the strong pairs that were costing, not the faint ones. |
+
+Why: at a small shift a reader has little to put right and much time to do harm. What a plain band gets wrong on
+the weaker of two partials d Hz apart is (r - 1) d Hz, an eighth of d at +2. And a reader plays its band up to one
+beat late until its next jump; it gains only r - 1 ms per ms, so at +2 a reader on a 40 ms beat sits there for a
+third of a second. A soft note that starts in that band in the meantime comes out late, and a reader whose beat
+has gone keeps playing old material for as long as it is allowed to stay.
+
+**How far up it carries** (45 pairings, gain by the usual ruler and by the sharp one):
+
+| +1 | +2 | +3 | +4 | +5 | +6 |
+|---|---|---|---|---|---|
+| 3.9 / 1.8 dB | 3.6 / 1.9 | 2.5 / 1.1 | 3.5 / 1.4 | 2.7 / 1.3 | 1.0 / 0.4 |
+
+From +7 up, leaving a reader after 3 checks would still give mixes 0.3 to 1.3 dB (+7, +9 and +12, either ruler),
+but real held chords lose 0.4 to 0.6 dB there, and at +7 the scorecard's chords and the chords built from single
+notes lose 0.7 to 0.8 dB. Hence "below a fifth". The boundary for a beat that has to hold is set where a reader would put right less than 10 Hz (20 ms up to
++3, 33 ms at +5), which is what the sweeps at +2, +4 and +5 preferred.
+
+**The ruler.** The measure used for mixes allows a partial to sit 11 Hz from its place. At +2 that cannot see what a
+plain band does to the weaker of two partials 40 Hz apart, which comes out 5 Hz off. A sharper ruler (frames four
+times as long, 2.7 Hz) reads the 45 pairings at +2 as: before -23.3, now -25.2, no readers at all -23.8, reference
+device -24.1. The reference device scores 4.5 dB worse under the sharp ruler than under the usual one: where two
+partials are too close for it to tell apart it carries them along as one beating note, which is what a plain band
+does. Its lead at +2 was largely a matter of the ruler. Both rulers agree that the change is a gain, which is why
+it is in.
+
+**What it costs.**
+
+- Low notes a small interval apart beat slowly, strongly and for real, and now wait longer for their reader: a
+  minor third on low E and a minor triad on low G, built from single-note recordings, came out 4 to 5 dB rougher at
+  +2 (the thirty chords together: 3 dB cleaner), one loop of bass with guitar 2.7 dB.
+- In the clean response at +2 two pure pairs 26 Hz apart went from -49 to -39 dB. Their readers still come, 20 ms
+  later, and happen to settle less well in step with their neighbors. Clean's mixes gain the most of the three
+  responses all the same (45 pairings: -24.6 to -27.9 dB; from leaving sooner alone: -26.2), so it was not exempted.
+  But the two-take mix of the benchmarks' first table lost 3 dB on Clean (-29.9 to -26.8) while Fast and Balanced
+  gained 2.
+- Partials that stand alone in a full chord are 2.0 dB off in loudness on Clean at +2, where they were 1.2 (Fast
+  and Balanced improved, to 1.4 and 1.2).
+- The scorecard's full chords at +6 lost 0.7 dB (-36.8 to -36.1); at +1 to +5 they gained 0.7 to 1.7.
+
+**The first beat itself** was not changed. On a pure pair with a 37 ms beat (clean response, +2, before this
+change) the first band became a reader 66 ms after the tone began (one beat, plus the 24 ms the comparison needs,
+plus three checks) and the others up to 60 ms later. Carrying the last beat across an attack on the same pitch could save perhaps a third of that, by an
+estimate from how the check works, and would be wrong at every chord change. Not built. What would remove the wait
+is taking a band's two partials apart frame by frame once their frequencies are known, instead of waiting for a
+repeat: the same direction as "no readers at all" in the held-chords table above.
+
 ## Things worth knowing about measuring
 
 - **Chord scores need each note's tuning**, read from a partial that no other note shares. A score that allows a
@@ -185,3 +261,10 @@ Fast stays the default: which of the three should be is a question for ears and 
   apart beat at a different rate before and after a correct shift.
 - **Test with material you did not make.** The two worst faults were found within an hour of trying sample-library
   notes.
+- **Know how much slack the ruler gives.** The mix measure allows a line 11 Hz of slack, the scorecard 6 Hz. At a
+  small shift a partial can come out a few Hz from its place and be invisible to both. A second ruler with 2.7 Hz
+  of slack took most of the reference device's lead at +2 away and halved a gain of this engine's.
+- **Sort the dirt by time since the attack.** It showed in one run that the engine and the reference device have
+  their dirt at opposite ends of a note.
+- **Twelve pairs are few.** One decision that tips the other way moves a pair by 3 dB. All 45 pairings of the same
+  ten takes gave steadier means; single pairs still swing by 5 dB either way between two settings.

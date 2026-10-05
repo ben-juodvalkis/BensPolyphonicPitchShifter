@@ -15,7 +15,7 @@ this table (about four minutes; it needs no audio files):
 | -12 | -52.1 dB | 28 | -42.4 dB | -37.4 dB | 0.4 c | 2.1 ms | 0.1 c | 0.1 dB |
 | -5 | -53.0 | 28 | -44.1 | -37.4 | 0.2 | 1.4 | 0.1 | 0.1 |
 | -2 | -53.9 | 28 | -45.3 | -40.1 | 0.1 | 1.2 | 0.3 | 0.1 |
-| +2 | -55.8 | 28 | -43.1 | -37.6 | 0.1 | 8.5 | 0.1 | 0.1 |
+| +2 | -55.3 | 28 | -43.1 | -38.9 | 0.1 | 8.5 | 0.1 | 0.1 |
 | +7 | -54.5 | 28 | -41.8 | -35.9 | 0.2 | 7.9 | 0.1 | 0.1 |
 | +12 | -52.9 | 26 | -35.2 | -28.8 | 0.2 | 7.4 | 0.3 | 0.2 |
 
@@ -30,16 +30,16 @@ What the columns mean:
 - **Timbre error**: how far each partial's loudness is from the perfect shift (rms over the partials within 30 dB
   of the strongest), on single notes.
 
-`scripts/gate.sh` runs the -12 and +12 rows and fails if they fall outside limits set a little looser than this.
+`scripts/gate.sh` runs the -12, +2 and +12 rows and fails if they fall outside limits set a little looser than this.
 
 Shifting up there are three **responses** (the Response control). The table above is Fast, the default.
 `python tests/scorecard.py engine balanced 2 7 12` (or `clean`) prints the other two:
 
 | Shift | Response | Two-sine pairs, median dirt | Pairs under -40 dB (of 28) | Two-note chords | Full chords | Chord notes off by | Attack late by |
 |---|---|---|---|---|---|---|---|
-| +2 | Fast | -55.8 dB | 28 | -43.1 dB | -37.6 dB | 0.1 c | 8.5 ms |
-| | Balanced | -60.7 | 28 | -44.5 | -39.1 | 0.1 | 12.5 |
-| | Clean | -52.8 | 26 | -43.1 | -40.2 | 0.1 | 16.5 |
+| +2 | Fast | -55.3 dB | 28 | -43.1 dB | -38.9 dB | 0.1 c | 8.5 ms |
+| | Balanced | -60.7 | 28 | -46.9 | -42.2 | 0.1 | 12.5 |
+| | Clean | -53.4 | 24 | -42.9 | -40.4 | 0.1 | 16.5 |
 | +7 | Fast | -54.5 | 28 | -41.8 | -35.9 | 0.2 | 7.9 |
 | | Balanced | -59.4 | 28 | -43.3 | -36.4 | 0.2 | 11.9 |
 | | Clean | -53.2 | 28 | -40.3 | -37.3 | 0.0 | 15.8 |
@@ -66,6 +66,23 @@ partial is a close pair, as a real string's is. It prints the dirt between the n
 `python tests/moving_pitch.py` prints the "Pitch that moves" table further down (a slide, a bend and a vibrato whose
 right answer is known at every moment).
 
+`python tests/strummed_chords.py` asks whether the shifter is linear on full chords strummed in time: three
+six-string chords, every string struck anew at each strum, shifted as a whole and one string at a time. A perfect
+shifter gives the same sound both ways. The new energy that appears only in the whole pattern:
+
+| Shift | Strums 0.6 s apart, reference device / this shifter | Strums 0.3 s apart |
+|---|---|---|
+| -12 | -21.4 / **-33.0** dB | -20.7 / **-31.5** dB |
+| +2 | -21.4 / **-28.8** | -20.4 / **-29.4** |
+| +7 | -18.9 / **-21.4** | -17.4 / **-22.5** |
+| +12 | -18.7 / -18.6 | -16.1 / **-19.0** |
+
+That is the ruler of the real-recording tables below (186 ms frames, fine in frequency). The test also prints the
+same thing in 46 ms frames, fine in time and coarse in frequency, for the first 120 ms after a strum and for the
+rest. Going up, the start of a chord is the dirtier part for both: at +12 this shifter has -22.9 dB early and -28.3
+late, the reference device -25.1 and -39.8. By that ruler the reference device is the cleaner one once a chord
+has settled (by 4 dB at +7 and 11 dB at +12), which is the roughness of "Held chords" below seen another way.
+
 `python tests/mix_test.py a.wav b.wav` runs the "is it linear" test on two recordings of your own.
 
 ## Against a reference device
@@ -83,7 +100,7 @@ over this table.
 | -12 | 15 / **28** | -27.8 / **-42.4** dB | -17.8 / **-37.4** dB | 9.8 / **2.1** ms |
 | -5 | 18 / **28** | -31.1 / **-44.1** | -21.7 / **-37.4** | 10.8 / **1.4** |
 | -2 | 19 / **28** | -36.3 / **-45.3** | -32.1 / **-40.1** | 11.4 / **1.2** |
-| +2 | 21 / **28** | -39.6 / **-43.1** | -33.9 / **-37.6** | 11.8 / **8.5** |
+| +2 | 21 / **28** | -39.6 / **-43.1** | -33.9 / **-38.9** | 11.8 / **8.5** |
 | +7 | 21 / **28** | -31.5 / **-41.8** | -28.8 / **-35.9** | 12.0 / **7.9** |
 | +12 | 21 / **26** | -33.4 / **-35.2** | -28.9 / -28.8 | 11.7 / **7.4** |
 
@@ -104,7 +121,7 @@ energy that appears only in the shifted mix), and **attack lateness** on the sam
 | -12 | -21.4 / **-35.9** dB | 9.8 / **2.0** ms | 22 / **11** ms |
 | -5 | -25.2 / **-32.6** | 10.8 / **1.9** | 23 / **14** |
 | -2 | -25.9 / **-34.4** | 11.9 / **1.9** | 29 / **11** |
-| +2 | -25.7 / **-29.3** | 12.0 / **8.1** | 30 / **12** |
+| +2 | -25.7 / **-31.1** | 12.0 / **8.1** | 30 / **10** |
 | +7 | -22.8 / **-26.6** | 12.1 / **8.0** | 33 / **11** |
 | +12 | -20.6 / **-21.1** | 12.2 / **7.8** | 37 / **11** |
 
@@ -116,9 +133,25 @@ pairs**, the ten added ones mostly with strummed chord takes, give a different p
 | -12 | -24.1 / **-29.3** dB |
 | -5 | -28.2 / **-31.0** |
 | -2 | -29.3 / **-31.2** |
-| +2 | **-27.5** / -24.3 |
+| +2 | **-27.5** / -27.1 |
 | +7 | **-24.5** / -22.4 |
 | +12 | **-22.1** / -20.8 |
+
+At +2 the two are now level on these twelve; they were 3.2 dB apart until shifts up by less than a fifth got
+settings of their own (`docs/design-notes.md`). On all 45 pairings of the ten takes:
+
+| Shift | 45 pairings, the ruler used above, reference / this shifter | A sharper ruler |
+|---|---|---|
+| +2 | **-28.6** / -27.1 dB | -24.1 / **-25.2** dB |
+| +4 | **-26.7** / -25.5 | -23.2 / -23.1 |
+| +5 | **-26.3** / -24.5 | **-23.0** / -22.5 |
+| +7 | **-25.6** / -21.9 | **-22.4** / -21.0 |
+
+**The ruler matters at small shifts.** The measure used above allows a partial to sit up to 11 Hz from its place
+before it counts as new energy. The sharper one (frames four times as long) allows 2.7 Hz. Under it the reference
+device loses 3 to 4.5 dB and this shifter 1 to 2.5: where two partials of different takes are too close for it to
+tell apart, the reference device carries them along as one beating note, which leaves the weaker one a few Hz from
+where it belongs. By the sharp ruler this shifter is 1.1 dB ahead at +2, level at +4 and half a dB behind at +5.
 
 **Chords built from single-note recordings** (26 notes of piano, keys, guitar, bass, bells and plucks from a
 sample library, built into 30 chords; shifting each note alone and adding them up is an exact reference), and
@@ -129,7 +162,7 @@ sample library, built into 30 chords; shifting each note alone and adding them u
 | -12 | -27.4 / **-35.5** dB | -19.1 / **-25.0** dB |
 | -5 | -33.1 / **-39.0** | -25.1 / **-27.8** |
 | -2 | -34.2 / **-42.5** | -25.7 / **-28.1** |
-| +2 | -32.1 / **-33.9** | **-23.9** / -21.5 |
+| +2 | -32.1 / **-36.9** | -23.9 / **-24.2** |
 | +7 | -29.0 / **-32.4** | **-21.6** / -20.7 |
 | +12 | -26.2 / **-29.1** | -19.6 / **-19.9** |
 
@@ -163,33 +196,40 @@ for them are under "What you can run yourself"):
 
 | | Fast | Balanced | Clean | Reference device |
 |---|---|---|---|---|
-| Attack late by, median (DI takes) | 8.1 / 8.0 / 7.8 ms | 12.0 / 12.0 / 11.7 | 16.2 / 15.9 / 15.8 | 12.0 / 12.1 / 12.2 |
-| Slowest tenth of attacks | 12 / 11 / 11 ms | 14 / 13 / 14 | 20 / 19 / 19 | 30 / 33 / 37 |
-| Two DI takes mixed | -29.3 / -26.6 / -21.1 dB | **-30.0** / -26.7 / -22.7 | -29.9 / **-28.8** / **-24.7** | -25.7 / -22.8 / -20.6 |
-| Twelve pairs of DI takes mixed | -24.3 / -22.4 / -20.8 dB | -24.5 / -23.8 / -21.5 | -24.5 / **-24.5** / **-23.3** | **-27.5** / **-24.5** / -22.1 |
-| Chords from single notes | -33.9 / **-32.4** / -29.1 dB | **-34.4** / **-32.4** / -30.7 | -33.1 / -31.6 / **-31.0** | -32.1 / -29.0 / -26.2 |
-| Loop mixes | -21.5 / -20.7 / -19.9 dB | -22.9 / **-22.7** / **-21.9** | -21.9 / -22.4 / -21.1 | **-23.9** / -21.6 / -19.6 |
-| The middle note of a full chord: loudness off by | 2.2 / 2.2 / 4.5 dB | 3.6 / **0.4** / 2.5 | 1.6 / 0.6 / 0.7 | **0.5** / 0.5 / **0.5** |
-| Partials that stand alone in a full chord: loudness off by | 2.6 / 1.6 / 2.4 dB | 2.0 / 1.2 / 1.9 | 1.2 / 0.9 / **0.9** | **0.3** / **0.5** / 1.0 |
+| Attack late by, median (DI takes) | 8.1 / 8.0 / 7.8 ms | 12.1 / 12.0 / 11.7 | 16.0 / 15.9 / 15.8 | 12.0 / 12.1 / 12.2 |
+| Slowest tenth of attacks | 10 / 11 / 11 ms | 14 / 13 / 14 | 18 / 19 / 19 | 30 / 33 / 37 |
+| Two DI takes mixed | -31.1 / -26.6 / -21.1 dB | **-32.1** / -26.7 / -22.7 | -26.8 / **-28.8** / **-24.7** | -25.7 / -22.8 / -20.6 |
+| Twelve pairs of DI takes mixed | -27.1 / -22.4 / -20.8 dB | -27.7 / -23.8 / -21.5 | **-28.4** / **-24.5** / **-23.3** | -27.5 / **-24.5** / -22.1 |
+| Chords from single notes | -36.9 / **-32.4** / -29.1 dB | **-37.7** / **-32.4** / -30.7 | -36.3 / -31.6 / **-31.0** | -32.1 / -29.0 / -26.2 |
+| Loop mixes | -24.2 / -20.7 / -19.9 dB | -25.5 / **-22.7** / **-21.9** | **-26.3** / -22.4 / -21.1 | -23.9 / -21.6 / -19.6 |
+| The middle note of a full chord: loudness off by | 1.6 / 2.2 / 4.5 dB | 1.2 / **0.4** / 2.5 | 0.9 / 0.6 / 0.7 | **0.5** / 0.5 / **0.5** |
+| Partials that stand alone in a full chord: loudness off by | 1.4 / 1.6 / 2.4 dB | 1.2 / 1.2 / 1.9 | 2.0 / 0.9 / **0.9** | **0.3** / **0.5** / 1.0 |
 | Held chords at +12: dirt / flutter | -27.7 / **-21.0** dB | -28.0 / **-21.0** | -27.5 / -20.5 | **-28.4** / -20.8 |
 
 The middle note is the third of six of the scorecard's full chords (its fundamental, rms over the six); the
 partials that stand alone are those of all ten chords with no other partial within 20 Hz.
 
 In words: Balanced is as late as the reference device and cleaner than Fast on nearly everything, by 5 to 7 dB on
-pure intervals and up to 2 dB on chords and mixes; a vibrato wobbles a little more (5.6 cents against 3.9 at octave
-up). Clean is 8 ms later than Fast. It is the one that gets a chord's middle note right, and it is 2 to 3.6 dB
-cleaner than Fast on mixes of DI takes at +7 and +12. What it costs besides the 8 ms: pitch that moves is followed
-less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 ms), and pure intervals at +2 and +7 are 1
-to 3 dB less clean than on Fast.
+pure intervals, up to 4 dB on chords and up to 2 dB on mixes; a vibrato wobbles a little more (5.6 cents against
+3.9 at octave up). Clean is 8 ms later than Fast. It is the one that gets a chord's middle note right, and it is 2
+to 3.6 dB cleaner than Fast on mixes of DI takes at +7 and +12. What it costs besides the 8 ms: pitch that moves is
+followed less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 ms), and pure intervals at +2 and
++7 are 1 to 3 dB less clean than on Fast. At +2 Clean is the cleanest of the three on the twelve pairs and on loop
+mixes but the roughest on the two-take mix of the first table (a bass line with a guitar line, and two guitar
+lines), which lost 3 dB on Clean when small shifts got their own settings while the other two responses gained.
 
 ## Where Ben's Polyphonic Pitch Shifter is behind
 
-- **Mixes going up**: on twelve pairs of DI takes the reference device is 1.3 to 3.2 dB cleaner than the Fast
-  response at up-shifts (most at +2, most on strummed chords mixed with another take), and on loop mixes 2.4 dB
-  cleaner at +2 and 0.9 dB at +7. The Clean response is level with it on the twelve pairs at +7 and 1.2 dB ahead at
-  +12, and Balanced is ahead on loop mixes at +7 and +12. At +2 the reference device stays ahead whatever the
-  response: by 3 dB on the twelve pairs and 1 to 2 dB on loop mixes. The reason has not been found.
+- **Mixes going up by a fifth or more, on the Fast response**: on twelve pairs of DI takes the reference device is
+  2.1 dB cleaner at +7 and 1.3 dB at +12, and on loop mixes 0.9 dB at +7. The Clean response is level with it on
+  the twelve pairs at +7 and 1.2 dB ahead at +12, and Balanced is ahead on loop mixes at both. The reason for what
+  is left has not been found. (Below a fifth the gap is closed on the twelve pairs and on loop mixes; on all 45
+  pairings the reference device is 1.1 to 1.8 dB ahead from +2 to +5 by the usual ruler, and within about 1 dB
+  either way by the sharp one.)
+- **Low notes a small interval apart, shifted up a little.** Closing that gap had a price: a few real chords on the
+  lowest strings (a minor third on low E, a minor triad on low G) came out 4 to 5 dB rougher at +2 while the thirty
+  chords together gained 3 dB, and one loop of bass with guitar 2.7 dB rougher while the ten loop mixes together
+  gained 2.7 dB.
 - **Held chords when shifting up**: 0.7 dB rougher than the reference device on average, and 1.5 to 4.7 dB on five
   of the eleven. On clean, sparse chords (`tests/held_chords.py`) the gap is 2.3 dB on Fast and 0.9 dB on
   Balanced. What made them rough, and what is left of it, is in `docs/design-notes.md`.
@@ -202,8 +242,8 @@ to 3 dB less clean than on Fast.
   one of its own. Balanced helps the open E (1.6 dB) and not the other two. Partials that share their place with
   another note's partial are 4 to 5 dB off in every response and on the reference device, for a different reason:
   their slow beat keeps its old rate.
-- **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 and 0.9 dB off at +2
-  and +7 on Clean (2.6 and 1.6 on Fast), against 0.3 and 0.5 for the reference device.
+- **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 to 2.0 dB off at +2 and
+  0.9 to 1.6 dB at +7, depending on the response, against 0.3 and 0.5 for the reference device.
 - **Pure tones going up**: where the reference device is clean it reaches -60 dB. Fast sits around -53 to -56 dB;
   Balanced reaches -60.
 - **Tuning of chord notes**: 0.1 to 0.4 cents against 0.0 to 0.1 (Clean going up: 0.0 to 0.1).
@@ -219,6 +259,8 @@ Measured with `build/tools/polypitch_load` on DI chord takes at 48 kHz, one core
 
 The worst block is high because the engine does its analysis in one lump every 128 samples. Until that is spread
 out (see `ROADMAP.md`), use a buffer of 128 samples or more.
+
+Shifting up by less than a fifth costs a point less (17 to 19 % at +2 and +5): fewer bands are on readers.
 
 Shifting up, the three responses cost the same on average: 19 to 21 % on Fast and on Balanced, 18 to 22 % on Clean
 (at +7 and +12, same takes). Clean's worst block measured higher, 80 to 90 % of its time slot against 60 to 70 %,

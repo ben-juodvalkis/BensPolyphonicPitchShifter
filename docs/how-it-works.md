@@ -72,6 +72,13 @@ back to where it was half a vibrato later). A reader that jumps 50 to 100 ms on 
 smooth. So a slow beat is believed only once it has stayed put for half its own length; until then the band goes by
 what it sees within 50 ms, and two partials that close are carried along together as one beating note.
 
+How much a reader is worth depends on the size of the shift. What a plain band gets wrong on the weaker of two
+partials is the shift's share of their spacing: an eighth of it at two semitones up, all of it at an octave. And a
+reader plays its band up to one beat late until its next jump, which at a small shift is a long way off. So when
+shifting up by less than a fifth the engine is choosier: a beat has to hold wherever a reader would put right less
+than 10 Hz (every beat longer than 20 ms at +2, longer than 33 ms at +5), and a band leaves a reader as soon as its
+beat has been gone for three checks. On mixes of two parts and on strummed chords that is 3 dB cleaner at +2.
+
 ## Step 3: keep the two shares of a partial together
 
 Because a partial sits in two bands, its two shares must come out in step or they partly cancel and the partial
@@ -167,9 +174,9 @@ one's numbers. Changing the response while shifting up restarts the bands, as ch
 | Window for the likeness check | 24 ms | 24 ms |
 | How far back a repeat is looked for | 2.2 to 100 ms | same |
 | A band counts as beating when the likeness dips by | 0.004 | 0.001 |
-| Checks in a row to become a reader / to stop | 3 / 3 | 3 / 8 |
+| Checks in a row to become a reader / to stop | 3 / 3 | 3 / 8 (3 / 3 below a fifth up) |
 | A plain band's phase advance is smoothed over | 5 ms, resting for 35 ms after an attack | 5 ms, resting for 30 ms after an attack |
-| A beat longer than 50 ms has to hold for | half its own length | half its own length |
+| A beat has to hold for half its own length if it is longer than | 50 ms | 50 ms (below a fifth up: 20 ms at +1 to +3, rising to 41 ms at +6) |
 | After an attack, a band waits to see whether it beats for | 40 ms | (no direct playback) |
 | Crossfade at a reader's jump | 2.7 ms | 1.3 ms |
 | Attack | direct playback, hands over after about 27 ms at an octave | phase set 2 ms before the attack reaches the bands |

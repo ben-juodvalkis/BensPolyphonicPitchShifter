@@ -4,7 +4,8 @@ The engine is a line-for-line port, so on simple material the two agree to round
 a decision can tip the other way in one of them (single against double precision in the repeat-finding sums), after
 which the two outputs are both valid but no longer the same; then only the level has to agree.
 
-    python tests/test_engine_vs_reference.py            44.1 and 48 kHz: -12, and +12 with each response (fast, balanced, clean)
+    python tests/test_engine_vs_reference.py            44.1 and 48 kHz: -12, +2 (a small shift up has settings of its own), and
+                                                        +12 with each response (fast, balanced, clean)
 Exit status 1 on a mismatch.
 """
 import sys
@@ -22,7 +23,7 @@ def main():
     items = [("sine 440", sine(440.0, 1.2, -12)[0], -90.0), ("two sines 440 + 622", sine(440.0, 1.2, -18)[0] + sine(622.25, 1.2, -18)[0], -90.0),
              ("plucked A2", pluck(NOTE["A2"], 1.4)[0], -40.0), ("plucked E open chord", strum(N("E2", "B2", "E3", "G#3", "B3", "E4"), 2.2, 0.5)[0], None)]
     for sr in (44100, 48000):
-        for st, resp in ((-12, 0), (12, 0), (12, 1), (12, 2)):
+        for st, resp in ((-12, 0), (2, 0), (12, 0), (12, 1), (12, 2)):
             for name, s, limit in items:
                 x = np.concatenate([z, s, z]); x = resample_poly(x, 160, 147) if sr == 48000 else x
                 x = x.astype(np.float32).astype(np.float64); yc = engines.engine(x, st, sr=sr, response=resp); yp = engines.reference(x, st, sr=sr, response=resp)

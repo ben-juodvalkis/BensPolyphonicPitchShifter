@@ -5,8 +5,9 @@ it small and to show what it does to the numbers.
 
 ## Before you open a pull request
 
-1. Run the gate: `scripts/gate.sh` (about three minutes). It builds the tools, checks that the C++ engine still
-   matches the Python reference, and checks that the scorecard at octave down and octave up stays inside its limits.
+1. Run the gate: `scripts/gate.sh` (about four minutes). It builds the tools, checks that the C++ engine still
+   matches the Python reference, and checks that the scorecard at octave down, +2 and octave up stays inside its
+   limits.
 2. If you changed how the engine sounds, say what moved: paste the scorecard lines before and after
    (`python tests/scorecard.py engine all`). A change that makes one number better and another worse is fine if you
    say so; a change with no numbers is hard to accept.

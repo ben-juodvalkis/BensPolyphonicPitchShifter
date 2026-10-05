@@ -60,11 +60,17 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
   lies between two partials is on a reader, and its jumps leave sidebands about 35 dB down. Taking the two
   partials apart from what the bands on either side know, with no reader, would remove them; a first sketch of
   that is in the design notes. Done when `tests/held_chords.py` reaches the reference device's -40 dB.
-- **Mixes of several parts at small upward shifts.** On twelve pairs of DI takes the reference device is 3 dB
-  cleaner at +2 in every response, most where strummed chords meet another take; loop mixes show 1 to 2.4 dB at +2.
-  (At +7 and +12 the Clean response is level with it or ahead; on Fast it is 1.3 to 2.1 dB behind there.) Cause
-  unknown: not band width, not filter leak, and setting the phase only in the bands an attack reaches, instead of
-  in all of them, changed nothing.
+- **Mixes of several parts, shifting up by a fifth or more.** On twelve pairs of DI takes the Fast response is
+  2.1 dB behind the reference device at +7 and 1.3 dB at +12 (Clean: level, and 1.2 dB ahead). Below a fifth the
+  gap is closed on those twelve (it was 3.2 dB at +2): there a band was being put on a reader too readily and kept
+  on it too long, where a reader has little to put right (`docs/design-notes.md`). The same settings do not carry
+  to +7 and above, where they cost held chords what they give mixes. Cause of what is left unknown: not band
+  width, not filter leak, and setting the phase only in the bands an attack reaches changed nothing.
+- **Low notes a small interval apart, shifted up a little.** The price of the item above: such notes beat slowly,
+  strongly and for real, and now wait longer for their reader. A few real chords on the lowest strings came out 4
+  to 5 dB rougher at +2 while thirty together gained 3. Telling a strong steady beat from a passing one sooner
+  would get both (leaving deep beats as they were did not: it gave the whole gain back). The clean response also
+  lost two pure pairs and one two-take mix at +2 to the same change.
 - **Slides shifting down.** The pitch wobbled 11 cents around the right value on a one-octave slide and 4 on a
   vibrato; it is now 3.3 and 0.3 (reference device: 2.1 and 1.5). Both causes are in `docs/design-notes.md`.
   What is left on the slide are short disturbances where a partial crosses from one band into the next and the
@@ -75,15 +81,20 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
   down. (Four or more steady partials in one band's width got worse when slow beats stopped being trusted at once:
   -9 dB of dirt where it was -15, on a synthetic test.)
 - **The first beat after an attack, shifting up.** Until a beating band's beat has gone by once it is treated as
-  plain. Carrying the previous note's knowledge across an attack on the same pitch would shorten that.
+  plain. On chords strummed in time the first 120 ms after a strum are 4 to 10 dB dirtier than the rest
+  (`tests/strummed_chords.py`), on the reference device as well. On mixes of real takes, though, the time just
+  after an attack is the cleanest part, so this is not where mixes lose. Carrying the last beat across an attack
+  on the same pitch would save perhaps a third of the wait and be wrong at every chord change; it was not built.
+  What would remove the wait: once a band's two partials are known, take them apart frame by frame instead of
+  waiting for a repeat (the same direction as in "Held chords" above).
 - **The middle note of a full chord on the Fast and Balanced responses.** At octave up the third of a full chord
   loses 6 to 9 dB of its fundamental, or 13 dB of its second harmonic, because two other notes' partials sit 30 to
   50 Hz either side and all three share every band there ("three partials in one band", heard). The Clean response
   has it within 1 dB, as the reference device does. Done when Fast has it too; that is the item above. (The other
   3 to 6 dB in the old "timbre" figure are partials that two notes share: their slow beat keeps its old rate, on
   the reference device as well.)
-- **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 and 0.9 dB off at +2
-  and +7 on Clean, 2.6 and 1.6 on Fast; the reference device has 0.3 and 0.5.
+- **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 to 2.0 dB off at +2 and
+  0.9 to 1.6 dB at +7, depending on the response; the reference device has 0.3 and 0.5.
 - **Chord-note tuning** from 0.1 to 0.6 cents to zero.
 - **Below 60 Hz.** The lowest band is unused, so bass-guitar fundamentals below that are lost.
 - **A cleaner Clean: its bands twice over.** 2048 bands (Clean's 43 Hz bands, half a band apart, as Fast does

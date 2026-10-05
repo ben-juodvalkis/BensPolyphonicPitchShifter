@@ -189,16 +189,16 @@ def note_cents(s, freqs, r, t1):
     return out
 
 
-def superposition(ym, ya, yb, n_fft=8192, hop=2048, k=2.5, floor_db=70.0):
+def superposition(ym, *parts, n_fft=8192, hop=2048, k=2.5, floor_db=70.0):
     """New spectral energy in dev(a+b) that dev(a) and dev(b) do not have (dB re the total), and energy they
-    have that the mix lost. Fine frequency resolution (5.4 Hz bins), so sidebands and wrong tones between the
-    partials count, while a partial that is merely a little louder or softer does not (k = 4 dB of slack, and a
-    +-2 bin neighbourhood so a few cents of drift is not counted either)."""
+    have that the mix lost (two parts or more). Fine frequency resolution (5.4 Hz bins), so sidebands and wrong
+    tones between the partials count, while a partial that is merely a little louder or softer does not (k = 4 dB
+    of slack, and a +-2 bin neighbourhood: a partial up to 11 Hz from its place is not counted either)."""
     from scipy.ndimage import maximum_filter1d
-    n = min(len(ym), len(ya), len(yb)); w = np.blackman(n_fft); ex = []; mi = []; tot = []
+    n = min([len(ym)] + [len(p) for p in parts]); w = np.blackman(n_fft); ex = []; mi = []; tot = []
     for i in range(0, n - n_fft, hop):
-        A = np.abs(np.fft.rfft(ya[i:i + n_fft] * w)) ** 2; B = np.abs(np.fft.rfft(yb[i:i + n_fft] * w)) ** 2; M = np.abs(np.fft.rfft(ym[i:i + n_fft] * w)) ** 2
-        ref = A + B; fl = ref.max() * 10 ** (-floor_db / 10)
+        M = np.abs(np.fft.rfft(ym[i:i + n_fft] * w)) ** 2
+        ref = sum(np.abs(np.fft.rfft(p[i:i + n_fft] * w)) ** 2 for p in parts); fl = ref.max() * 10 ** (-floor_db / 10)
         ex.append(np.maximum(M - k * maximum_filter1d(ref, 5) - fl, 0).sum()); mi.append(np.maximum(ref / k - maximum_filter1d(M, 5) - fl, 0).sum()); tot.append(ref.sum())
     ex = np.array(ex); mi = np.array(mi); tot = np.array(tot); live = tot > tot.max() * 10 ** (-30 / 10)
     return dict(excess_db=float(dbp(ex[live].sum() / tot[live].sum())), missing_db=float(dbp(mi[live].sum() / tot[live].sum())),

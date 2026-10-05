@@ -31,8 +31,8 @@ Measured against a well-regarded commercial polyphonic shifter on the same tests
 about 8 ms earlier shifting down, and close to it in cleanliness with attacks 4 ms earlier shifting up. Shifting
 up, the Response control spends that head start on a cleaner sound: Balanced is as late as that shifter, Clean
 4 ms later, and Clean brings the middle note of a full chord, which Fast leaves too quiet, up to its right
-loudness. It is behind on a few things, most of all mixes of several parts at small upward shifts and clean high
-chords held at octave up.
+loudness. It is behind on a few things, most of all mixes of several parts shifted up by a fifth or more and clean
+high chords held at octave up.
 `docs/benchmarks.md` has the method, every number, and the list of where it loses.
 
 ## Build and install (macOS)
@@ -44,7 +44,7 @@ scripts/build.sh tools plugin                               # the command-line t
 C74_SDK=/path/to/max-sdk-base scripts/build.sh max          # the Max object (needs Cycling '74's max-sdk-base)
 
 scripts/install-macos.sh                                    # plug-in and Max package into your user folders
-scripts/gate.sh                                             # the tests: about three minutes
+scripts/gate.sh                                             # the tests: about four minutes
 ```
 
 The plug-in needs CMake and JUCE 8 (a checkout at `~/JUCE` is used if present, otherwise it is fetched). Details,

@@ -73,10 +73,15 @@ public:
         up = ratio > 1.0001; unity = std::abs (ratio - 1.0) < 1e-9;
         if (sr <= 0.0) return;
         if (! configured || bankFor() != loaded) loadFilter();
-        // shifting up: twice the bands (half a band apart, same filter), a finer threshold for calling a band "beating", and a band on a reader stays longer
-        dropIn = up ? 0.001 : 0.004; dropOut = up ? 0.00025 : dropIn; nOut = up ? 8 : 3;
-        // in both directions: a beat slower than 50 ms has to hold before a reader takes it (and a plain band's phase advance is smoothed over 5 ms: analyzeFrame)
-        slj = 50.0 * sr / 1000.0; nls = std::min (std::max ((int) (slj / H) - lmin + 2, 3), nl);
+        // shifting up: twice the bands (half a band apart, same filter), a finer threshold for calling a band "beating", and a band on a reader stays longer.
+        // By less than a fifth up a reader is worth less (what a plain band gets wrong on the weaker of two partials d Hz apart is (ratio - 1) d Hz) and costs
+        // more (it plays its band up to a beat late until its next jump, which is a long way off): there a band leaves a reader whose beat has gone after 3
+        // checks, as shifting down.
+        const bool small = up && ratio - 1.0 < 0.45;
+        dropIn = up ? 0.001 : 0.004; dropOut = up ? 0.00025 : dropIn; nOut = up && ! small ? 8 : 3;
+        // in both directions: a beat slower than 50 ms has to hold before a reader takes it (and a plain band's phase advance is smoothed over 5 ms: analyzeFrame).
+        // Shifting up by less than a fifth that starts sooner: wherever the reader would put right less than 10 Hz, from 20 ms on.
+        slj = (small ? std::min (std::max (100.0 * (ratio - 1.0), 20.0), 50.0) : 50.0) * sr / 1000.0; nls = std::min (std::max ((int) (slj / H) - lmin + 2, 3), nl);
         xfu = up ? std::max (xf / 2, 2) : xf;
         flr = (double) (2 * H + 2 + (up ? (int) ((ratio - 1.0) * xfu) + 2 : 0));
         drift = 1.0 - ratio;

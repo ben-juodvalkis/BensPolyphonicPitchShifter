@@ -501,7 +501,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
     return et, em, ed, ep, el, ej, ef, en, diag, br0[:nbr], br1[:nbr], drt[:ndr]
 
 def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
-          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=50.0, slow_hold=0.5, debug=False):
+          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=None, slow_hold=0.5, debug=False):
     """Shift mono signal x by st semitones (-12 .. +12). -> the shifted signal, same length, no dry signal mixed in.
     response (shifting up only) trades how late an attack comes out for how clean the sound is: 0 = fast, the attack as
     early as it can be (an 8 ms band filter); 1 = balanced, the same bands behind a 12 ms filter, attacks 4 ms later;
@@ -528,10 +528,19 @@ def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fma
     if over is None: over = 2 if (up and not clean) else 1
     if drop is None: drop = 0.001 if up else 0.004
     if drop_out is None: drop_out = 0.00025 if up else drop
-    if n_out is None: n_out = 8 if up else 3
+    # Shifting up by less than a fifth a reader is worth less and costs more. What a plain band gets wrong on the weaker of two
+    # partials d Hz apart is (r - 1) d Hz: an eighth of d at two semitones, all of it at an octave. And a reader plays its band up
+    # to a beat late until its next jump, which at a small shift is a long way off (it gains r - 1 ms per ms). So there a band
+    # leaves a reader whose beat has gone after 3 checks, as shifting down, not 8; and a beat has to hold before a reader takes it
+    # (slow_ms, below) wherever the reader would put right less than 10 Hz: from 20 ms on at +2, from 33 ms on at +5. On 45 pairs
+    # of DI takes mixed at +2 that took the new energy from -23.5 to -27.1 dB (docs/design-notes.md, docs/benchmarks.md).
+    small = up and r - 1.0 < 0.45
+    if n_out is None: n_out = 8 if (up and not small) else 3
     # In both directions (docs/design-notes.md has what each was measured on): a plain band's phase advance is smoothed over
-    # smooth_ms, a beat slower than slow_ms has to hold (for slow_hold times its own length) before a reader takes it, and after
-    # an attack shifting down a band waits wait_ms, where the bridge left it, to see whether it beats.
+    # smooth_ms, a beat slower than slow_ms (50 ms, less for a small shift up) has to hold (for slow_hold times its own length)
+    # before a reader takes it, and after an attack shifting down a band waits wait_ms, where the bridge left it, to see whether
+    # it beats.
+    if slow_ms is None: slow_ms = min(max(100.0 * (r - 1.0), 20.0), 50.0) if small else 50.0
     tau = int(round(tau_ms * sr / 1000)); h = prototype(K, tau, int(round(tail_ms * sr / 1000)))
     # over = 2: twice as many bands, half a band apart, each as wide as before (the same filter, so no extra delay). Every
     # partial then has bands in which it is the main thing, also where three partials crowd into one band's width.

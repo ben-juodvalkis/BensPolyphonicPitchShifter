@@ -41,17 +41,18 @@ Developer ID signature and notarization (see `ROADMAP.md`).
 ## Test
 
 ```
-scripts/gate.sh                                 # the gate: builds the tools, engine against reference, scorecard at -12 and +12 (+12 in each response)
+scripts/gate.sh                                 # the gate: builds the tools, engine against reference, scorecard at -12, +2 and +12 (+12 in each response)
 .venv/bin/python tests/scorecard.py engine all  # all six intervals
 .venv/bin/python tests/held_chords.py           # sustained chords after the attack (octave up; another interval as an argument)
 .venv/bin/python tests/moving_pitch.py          # a slide, a bend and a vibrato: how far the pitch trails and how much it wobbles
+.venv/bin/python tests/strummed_chords.py       # full chords strummed in time against their strings shifted one at a time
 .venv/bin/python tests/test_plugin.py           # the built plug-in, hosted headless, against the engine
 .venv/bin/python tests/mix_test.py a.wav b.wav  # the linearity test on two recordings of your own
 ```
 
 Run the Python tests from the repository root as shown or from `tests/`. `scorecard.py` takes a target (`engine`,
-`reference` or `plugin`) and a list of intervals; it, `held_chords.py` and `moving_pitch.py` also take `balanced`
-or `clean` to run that response (shifting up only; Fast is the default).
+`reference` or `plugin`) and a list of intervals; it, `held_chords.py`, `moving_pitch.py` and `strummed_chords.py`
+also take `balanced` or `clean` to run that response (shifting up only; Fast is the default).
 
 The Max object and the device are checked inside Max with `max/tools/check_in_max.py` (see `docs/max.md`).
 
@@ -91,6 +92,6 @@ does not do yet.
 | `max/device/Ben's Polyphonic Pitch Shifter.amxd` | The Max for Live device. |
 | `max/tools/` | Generators for the device and help patch, and the in-Max check. |
 | `tools/` | The command-line harness and the load meter. |
-| `tests/` | Signals, measures, the scorecard, the held-chord and moving-pitch tests, the engine-against-reference test, the plug-in test. |
+| `tests/` | Signals, measures, the scorecard, the held-chord, moving-pitch and strummed-chord tests, the engine-against-reference test, the plug-in test. |
 | `scripts/` | Build, install, gate. |
 | `docs/` | How it works, benchmarks, design notes, Max notes. |

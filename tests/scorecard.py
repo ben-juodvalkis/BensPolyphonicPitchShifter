@@ -1,6 +1,6 @@
 """The scorecard: how clean, how in tune and how late, on synthetic material with exact answers.
 
-    python tests/scorecard.py                     the C++ engine at -12 and +12, checked against the gate
+    python tests/scorecard.py                     the C++ engine at -12, +2 and +12, checked against the gate
     python tests/scorecard.py reference -12 7     another target (engine | reference | plugin), other intervals
     python tests/scorecard.py engine all          all six intervals (-12 -5 -2 +2 +7 +12)
     python tests/scorecard.py engine clean 12     with the response set to balanced or clean (it only matters shifting up)
@@ -13,7 +13,7 @@ What is measured (per interval, one test signal of about two minutes):
   notes    6 single plucked notes: how late the attack comes out, tuning, and timbre (how far each partial's
            loudness is from the ideal shift, rms dB over the partials within 30 dB of the strongest)
 
-Exit status 1 if a gated interval (-12 and +12; +12 for the balanced and clean responses) falls outside the limits in
+Exit status 1 if a gated interval (-12, +2 and +12; +12 for the balanced and clean responses) falls outside the limits in
 GATE or GATE_RESPONSE: a regression guard, set a little looser than what the engine scores today (docs/benchmarks.md).
 """
 import sys, time, json, os
@@ -32,6 +32,7 @@ CH = [("E5 power", N("E2", "B2", "E3")), ("A5 power", N("A2", "E3", "A3")), ("E 
 PL = ("E2", "A2", "G3", "E4", "A4", "E5")
 # limits for the regression gate: (key, worst allowed, "max" = must not exceed / "min" = must reach)
 GATE = {-12: (("pairs_clean", 26, "min"), ("dyads_db", -37.0, "max"), ("chords_db", -34.0, "max"), ("chord_cents", 1.5, "max"), ("attack_ms", 3.0, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),
+        2: (("pairs_clean", 25, "min"), ("dyads_db", -39.0, "max"), ("chords_db", -37.0, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 9.5, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),      # a shift up by less than a fifth has settings of its own
         12: (("pairs_clean", 23, "min"), ("dyads_db", -31.0, "max"), ("chords_db", -27.0, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 8.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))}
 # the same for the balanced (1) and clean (2) responses, which only matter shifting up
 GATE_RESPONSE = {1: {12: (("pairs_clean", 24, "min"), ("dyads_db", -31.5, "max"), ("chords_db", -28.5, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 12.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))},
@@ -110,5 +111,5 @@ def run(target="engine", sts=(-12, 12), save=None, response=0):
 if __name__ == "__main__":
     a = sys.argv[1:]; target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
     rest = [v for v in a if v not in engines.BY_NAME and v not in engines.RESPONSES]
-    sts = ALL if rest == ["all"] else tuple(int(v) for v in rest) or ((12,) if resp else (-12, 12))
+    sts = ALL if rest == ["all"] else tuple(int(v) for v in rest) or ((12,) if resp else (-12, 2, 12))
     sys.exit(0 if run(target, sts, response=resp) else 1)
