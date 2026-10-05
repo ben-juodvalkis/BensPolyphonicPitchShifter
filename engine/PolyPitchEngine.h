@@ -239,6 +239,9 @@ private:
     std::vector<double> xring, fftRe, fftIm, Am, Um, Us, fsm, ebm, epm, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, Js, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
     std::vector<float> Zr, Zi;
     std::vector<double> pvR, pvI, Lr, Li, Lpk, Ew, Ei;
+    double fitT[M] = {}, fitC[M] = {}, fitS[M] = {}, fitEn[M] = {}, fitOr[M] = {}, fitOi[M] = {}, fitVr[M] = {}, fitVi[M] = {}, fitWr[M] = {}, fitWi[M] = {};      // what a fit works with (fitPrepare)
+    bool fitOk[M] = {};
+    int lockN = 0;
     std::vector<int> mode, omode, lead, olead, fade, flen, cin, cout, lcnt, want, on, sjn, ojn, scnt;
     std::vector<int64_t> evT, busy;
     int64_t t = 0, mNow = -1, wait = 0, quietUntil = 0, pendSwitch = -1, pend = -1, br0 = 0, br1 = 0, smHold = -1;
@@ -514,23 +517,18 @@ private:
         return std::min (2.0, std::max (0.5, std::sqrt (en / ep)));
     }
 
-    // one stretch of band k's output at time tt, as a complex value. mode 1: loudness as it happens, phase = the band's
-    // own + (ratio - 1) x its leader's. mode 0: a reader that was d0 behind at t0 and moves at `ratio`.
-    inline void cx (int k, double tt, int md, double t0, double d0, double ps, int Ld, int Jn, double& re, double& im) const
+    // A stretch of band k's output is one of two things. Plain: the band's loudness as it happens, and as phase the band's own
+    // + (ratio - 1) x its leader's. A reader: the band's envelope as it was d0 behind at t0, read on at `ratio`, on a carrier.
+    // A plain stretch of band k (leader Ld, turn ps) at time tt: its loudness and its phase. False where there are no frames.
+    inline bool plainAt (int k, double tt, double ps, int Ld, double& a, double& ph) const
     {
-        if (md == 1)
-        {
-            const double p = tt - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
-            if (! frameOk (i) || ! frameOk (i + 1)) { re = 0.0; im = 0.0; return; }
-            const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
-            const double a = Am[bk + c0] + f * (Am[bk + c1] - Am[bk + c0]); const double* ul = leadPhase();
-            const double ph = Um[bk + c0] + f * (Um[bk + c1] - Um[bk + c0]) + wk[(size_t) k] * (p - tauD)
-                            + (ratio - 1.0) * (ul[bl + c0] + f * (ul[bl + c1] - ul[bl + c0]) + wk[(size_t) Ld] * (p - tauD)) + ps;
-            re = a * std::cos (ph); im = a * std::sin (ph); return;
-        }
-        const double p = t0 - d0 + ratio * (tt - t0); double zr, zi; zat (k, p, zr, zi);
-        const double ph = wk[(size_t) k] * (p - tauD) + ps, c = std::cos (ph), s = std::sin (ph), g = readerGain (k, p, tt, Jn);
-        re = g * (zr * c - zi * s); im = g * (zr * s + zi * c);
+        const double p = tt - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
+        if (! frameOk (i) || ! frameOk (i + 1)) return false;
+        const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
+        a = Am[bk + c0] + f * (Am[bk + c1] - Am[bk + c0]); const double* ul = leadPhase();
+        ph = Um[bk + c0] + f * (Um[bk + c1] - Um[bk + c0]) + wk[(size_t) k] * (p - tauD)
+           + (ratio - 1.0) * (ul[bl + c0] + f * (ul[bl + c1] - ul[bl + c0]) + wk[(size_t) Ld] * (p - tauD)) + ps;
+        return true;
     }
 
     // set a stretch's spinning vector exactly, for sample t
@@ -583,82 +581,151 @@ private:
         mode[i] = md; st0[i] = (double) te; sd0[i] = d; psi[i] = ps; lead[i] = Ld; sjn[i] = Jn; flen[i] = std::max (flenNew, 1); fade[i] = flen[i]; evT[i] = te;
     }
 
-    // the turn that lines a new stretch of band k up with the running one over the last M*step samples of output
-    double align (int k, int mo, double to, double dOld, double po, int lo, int jo, int mn, double dn, int ln, int jn, double step) const
+    // ---- fitting a new stretch of band k to what is running. Everything is compared at M moments of the output, t - j step
+    // (not just at the splice, where a beat's quiet moment can mislead).
+
+    // band k's stretch (md, t0, d0, ps, Ld, Jn) at those moments, as complex values. A plain stretch is worked out moment by
+    // moment. A reader's carrier turns by the same angle from each moment to the next, so one sine and cosine do for all of them.
+    void moments (int k, int md, double t0, double d0, double ps, int Ld, int Jn, double step, double* vr, double* vi) const
     {
-        POLYPITCH_STAGE_START (sPlacement);
-        double cr = 0.0, ci = 0.0;
+        if (md == 1)
+        {
+            for (int j = 0; j < M; ++j)
+            {
+                double a, ph;
+                if (plainAt (k, (double) t - j * step, ps, Ld, a, ph)) { vr[j] = a * std::cos (ph); vi[j] = a * std::sin (ph); } else { vr[j] = 0.0; vi[j] = 0.0; }
+            }
+            return;
+        }
+        const double w = wk[(size_t) k], ph = w * (t0 - d0 + ratio * ((double) t - t0) - tauD) + ps, dph = -w * ratio * step, dc = std::cos (dph), ds = std::sin (dph);
+        double c = std::cos (ph), s = std::sin (ph);
         for (int j = 0; j < M; ++j)
         {
-            const double tt = (double) t - j * step; double ar, ai, br, bi;
-            cx (k, tt, mo, to, dOld, po, lo, jo, ar, ai); cx (k, tt, mn, (double) t, dn, 0.0, ln, jn, br, bi);
-            cr += ar * br + ai * bi; ci += ai * br - ar * bi;
+            const double tt = (double) t - j * step, p = t0 - d0 + ratio * (tt - t0), g = readerGain (k, p, tt, Jn); double zr, zi; zat (k, p, zr, zi);
+            vr[j] = g * (zr * c - zi * s); vi[j] = g * (zr * s + zi * c);
+            const double c2 = c * dc - s * ds; s = c * ds + s * dc; c = c2;
         }
-        return std::atan2 (ci, cr);
     }
 
-    // where to put band k's reader (within dn0 + lo .. dn0 + hi, nc trials and one more in between) and with what
-    // turn: where the new stretch lines up best with the band's own running stretch and with the neighbours' output
-    // (at the phase the bands have between them in the input)
-    void place (int k, int mn, double dn0, int jn, double lo, double hi, int nc, double step, int WlP, double& bd, double& bp)
+    // What stays the same wherever a new reader of band k (its beat jn frames long) is tried: the moments, the turn of its carrier
+    // from the first moment to each of them, the band's level now at each (a reader's loudness is scaled to it: readerGain), and
+    // the band's own running stretch.
+    void fitPrepare (int k, int jn, double step)
     {
         POLYPITCH_STAGE_START (sPlacement);
-        const int64_t m0 = t / H; double ir[2] = { 0.0, 0.0 }, ii[2] = { 0.0, 0.0 }; const int nbs[2] = { k - 1, k + 1 };
-        WlP = std::min (WlP, NF - 4);
+        const size_t kk = (size_t) k; const double dph = -wk[kk] * ratio * step, dc = std::cos (dph), ds = std::sin (dph); double c = 1.0, s = 0.0;
+        const double* cm = &Cm[kk * NF]; auto at = [cm] (int64_t i) { return cm[(size_t) (i & FM)]; };
+        for (int j = 0; j < M; ++j)
+        {
+            const double tt = (double) t - j * step, qn = (tt - flr) / H, fln = std::floor (qn), fn = qn - fln; const int64_t im = (int64_t) fln;
+            fitT[j] = tt; fitC[j] = c; fitS[j] = s; fitOk[j] = frameOk (im - jn) && frameOk (im + 1);
+            fitEn[j] = fitOk[j] ? at (im) + fn * (at (im + 1) - at (im)) - at (im - jn) - fn * (at (im - jn + 1) - at (im - jn)) : 0.0;
+            const double c2 = c * dc - s * ds; s = c * ds + s * dc; c = c2;
+        }
+        moments (k, mode[kk], st0[kk], sd0[kk], psi[kk], lead[kk], sjn[kk], step, fitOr, fitOi);
+    }
+
+    // What a new reader is placed against: the band's own running stretch plus the neighbours' output, each neighbour turned to
+    // the phase the two bands have between them in the input (over the last WlP frames) and weighted by what they have in common.
+    void fitNeighbours (int k, double step, int WlP)
+    {
+        POLYPITCH_STAGE_START (sPlacement);
+        const int64_t m0 = t / H; const int nbs[2] = { k - 1, k + 1 }; WlP = std::min (WlP, NF - 4);
+        for (; lockN < WlP; ++lockN) { lockC[(size_t) lockN] = lockC[(size_t) (lockN - Kb / H)]; lockS[(size_t) lockN] = lockS[(size_t) (lockN - Kb / H)]; }     // (the turn between two bands comes round every Kb / H frames)
+        for (int j = 0; j < M; ++j) { pvR[(size_t) j] = fitOr[j]; pvI[(size_t) j] = fitOi[j]; }
         for (int q = 0; q < 2; ++q)
         {
             const int a = nbs[q];
             if (a < 1 || a >= kmax || m0 - WlP < 0) continue;
             const float* ar_ = zrp (a, m0); const float* ai_ = zip (a, m0); const float* br_ = zrp (k, m0); const float* bi_ = zip (k, m0);
-            double sr_ = 0.0, si_ = 0.0, ea = 1e-30, eb = 1e-30;
+            const double sg = a < k ? 1.0 : -1.0; double sr_ = 0.0, si_ = 0.0, ea = 1e-30, eb = 1e-30;
             for (int j = 0; j < WlP; ++j)
             {
-                const double zar = ar_[-j], zai = ai_[-j], zbr = br_[-j], zbi = bi_[-j];
-                const double pr = zar * zbr + zai * zbi, pi_ = zai * zbr - zar * zbi, ang = (a - k) * dw * ((double) (m0 - j) * H - tauD), c = std::cos (ang), sn = std::sin (ang);
+                const double zar = ar_[-j], zai = ai_[-j], zbr = br_[-j], zbi = bi_[-j], pr = zar * zbr + zai * zbi, pi_ = zai * zbr - zar * zbi, c = lockC[(size_t) j], sn = sg * lockS[(size_t) j];
                 sr_ += pr * c - pi_ * sn; si_ += pr * sn + pi_ * c; ea += zar * zar + zai * zai; eb += zbr * zbr + zbi * zbi;
             }
             const double nrm = std::sqrt (sr_ * sr_ + si_ * si_);
-            if (nrm > 1e-30) { const double cw = nrm / std::sqrt (ea * eb); ir[q] = sr_ / nrm * cw; ii[q] = si_ / nrm * cw; }
+            if (! (nrm > 1e-30)) continue;
+            const double cw = nrm / std::sqrt (ea * eb), ir = sr_ / nrm * cw, ii = si_ / nrm * cw;
+            if (ir == 0.0 && ii == 0.0) continue;
+            const size_t aa = (size_t) a; moments (a, mode[aa], st0[aa], sd0[aa], psi[aa], lead[aa], sjn[aa], step, fitVr, fitVi);
+            for (int j = 0; j < M; ++j) { pvR[(size_t) j] += fitVr[j] * ir + fitVi[j] * ii; pvI[(size_t) j] += fitVi[j] * ir - fitVr[j] * ii; }      // (n conj(I))
         }
-        double best = -1.0; bd = dn0; bp = 0.0; int bi0 = 0; const size_t kk = (size_t) k;
-        nc = std::min (nc, 30);
-        // what the new stretch is compared with at each of the M moments (it does not depend on the trial position):
-        // the band's own running stretch plus the neighbours' output turned to the phase the bands have in the input
+    }
+
+    // A new reader of band k, d behind now, against a reference (wr, wi: already turned back by the carrier's turn at each
+    // moment): the sum over the moments of reference x conj (the reader's value there, without its carrier). Its size says how
+    // well the two line up; fitTurn makes the turn out of it.
+    inline void fitTry (int k, int jn, double d, const double* wr, const double* wi, double& yr, double& yi) const
+    {
+        const double* cm = &Cm[(size_t) k * NF]; auto at = [cm] (int64_t i) { return cm[(size_t) (i & FM)]; }; double sr_ = 0.0, si_ = 0.0;
         for (int j = 0; j < M; ++j)
         {
-            const double tt = (double) t - j * step; double ar, ai;
-            cx (k, tt, mode[kk], st0[kk], sd0[kk], psi[kk], lead[kk], sjn[kk], ar, ai);
-            for (int q = 0; q < 2; ++q)
+            const double p = (double) t - d + ratio * (fitT[j] - (double) t); double zr, zi, g = 1.0; zat (k, p, zr, zi);
+            if (fitOk[j])
             {
-                if (ir[q] == 0.0 && ii[q] == 0.0) continue;
-                const size_t a = (size_t) nbs[q]; double nr, ni;
-                cx ((int) a, tt, mode[a], st0[a], sd0[a], psi[a], lead[a], sjn[a], nr, ni);
-                ar += nr * ir[q] + ni * ii[q]; ai += ni * ir[q] - nr * ii[q];           // (n conj(I)): summed with the own stretch, the same total as before
+                const double qp = p / H, flp = std::floor (qp), fp = qp - flp; const int64_t ip = (int64_t) flp;
+                if (frameOk (ip - jn) && frameOk (ip + 1))
+                {
+                    const double ep = at (ip) + fp * (at (ip + 1) - at (ip)) - at (ip - jn) - fp * (at (ip - jn + 1) - at (ip - jn)), en = fitEn[j];
+                    if (ep > 1e-24 && en > 0.0) g = std::min (2.0, std::max (0.5, std::sqrt (en / ep)));
+                }
             }
-            pvR[(size_t) j] = ar; pvI[(size_t) j] = ai;
+            sr_ += g * (wr[j] * zr + wi[j] * zi); si_ += g * (wi[j] * zr - wr[j] * zi);
         }
+        yr = sr_; yi = si_;
+    }
+
+    inline double fitTurn (int k, double d, double yr, double yi) const
+    {
+        const double th = wk[(size_t) k] * ((double) t - d - tauD), c = std::cos (th), s = std::sin (th);                // the carrier at the first moment
+        return std::atan2 (yi * c - yr * s, yr * c + yi * s);
+    }
+
+    // where to put band k's reader (within dn0 + lo .. dn0 + hi, nc trials and one more in between) and with what turn: where it
+    // lines up best with what fitNeighbours laid out
+    void fitSearch (int k, int jn, double dn0, double lo, double hi, int nc, double& bd, double& bp)
+    {
+        POLYPITCH_STAGE_START (sPlacement);
+        for (int j = 0; j < M; ++j) { const double pr = pvR[(size_t) j], pi_ = pvI[(size_t) j]; fitWr[j] = pr * fitC[j] + pi_ * fitS[j]; fitWi[j] = pi_ * fitC[j] - pr * fitS[j]; }
+        double best = -1.0, byr = 0.0, byi = 0.0; bd = dn0; int bi0 = 0; bool any = false;
+        nc = std::min (nc, 30);
         for (int ci_ = 0; ci_ <= nc; ++ci_)
         {
             double dn;
             if (ci_ < nc) dn = dn0 + (nc > 1 ? lo + (hi - lo) * ci_ / (nc - 1) : 0.0);
-            else
+            else                                                 // once more, between the grid points: where a parabola through the best three peaks
             {
                 if (nc < 3 || bi0 == 0 || bi0 == nc - 1) break;
                 const double den = mags[(size_t) bi0 - 1] - 2.0 * mags[(size_t) bi0] + mags[(size_t) bi0 + 1];
                 if (den > -1e-30) break;
                 dn = bd + 0.5 * (mags[(size_t) bi0 - 1] - mags[(size_t) bi0 + 1]) / den * (hi - lo) / (nc - 1);
             }
-            double xr = 0.0, xi = 0.0;
-            for (int j = 0; j < M; ++j)
-            {
-                const double tt = (double) t - j * step; double br, bi;
-                cx (k, tt, mn, (double) t, dn, 0.0, k, jn, br, bi);
-                xr += pvR[(size_t) j] * br + pvI[(size_t) j] * bi; xi += pvI[(size_t) j] * br - pvR[(size_t) j] * bi;
-            }
-            const double mag = xr * xr + xi * xi; mags[(size_t) ci_] = mag;
-            if (ci_ < nc) { if (mag > best) { best = mag; bd = dn; bp = std::atan2 (xi, xr); bi0 = ci_; } }
-            else if (mag >= best) { bd = dn; bp = std::atan2 (xi, xr); }
+            double yr, yi; fitTry (k, jn, dn, fitWr, fitWi, yr, yi);
+            const double mag = yr * yr + yi * yi; mags[(size_t) ci_] = mag;
+            if (ci_ < nc) { if (mag > best) { best = mag; bd = dn; byr = yr; byi = yi; bi0 = ci_; any = true; } }
+            else if (mag >= best) { bd = dn; byr = yr; byi = yi; any = true; }
         }
+        bp = any ? fitTurn (k, bd, byr, byi) : 0.0;
+    }
+
+    // the turn that lines a new reader of band k, dn behind now, up with the band's own running stretch
+    double fitAlign (int k, int jn, double dn)
+    {
+        POLYPITCH_STAGE_START (sPlacement);
+        for (int j = 0; j < M; ++j) { fitWr[j] = fitOr[j] * fitC[j] + fitOi[j] * fitS[j]; fitWi[j] = fitOi[j] * fitC[j] - fitOr[j] * fitS[j]; }
+        double yr, yi; fitTry (k, jn, dn, fitWr, fitWi, yr, yi);
+        return fitTurn (k, dn, yr, yi);
+    }
+
+    // the turn that lines a new plain stretch of band k (leading itself) up with the band's running stretch
+    double alignPlain (int k, double step)
+    {
+        POLYPITCH_STAGE_START (sPlacement);
+        const size_t kk = (size_t) k; double cr = 0.0, ci = 0.0;
+        moments (k, mode[kk], st0[kk], sd0[kk], psi[kk], lead[kk], sjn[kk], step, fitOr, fitOi); moments (k, 1, (double) t, 0.0, 0.0, k, 0, step, fitVr, fitVi);
+        for (int j = 0; j < M; ++j) { cr += fitOr[j] * fitVr[j] + fitOi[j] * fitVi[j]; ci += fitOi[j] * fitVr[j] - fitOr[j] * fitVi[j]; }
+        return std::atan2 (ci, cr);
     }
 
     // what band k's likeness-by-lag curve says: 0 = never falls (one partial), 1 = falls and does not come back,
@@ -671,9 +738,22 @@ private:
         for (int i = 0; i < n; ++i) { if (c[i] > top) top = c[i]; if (c[i] < top - drop) { id = i; break; } }
         Jf = -1.0; cf = top;
         if (id < 0) return 0;
-        double cmin = c[id], g = -1.0;
-        for (int i = id; i < n; ++i) if (c[i] < cmin) cmin = c[i];
-        for (int i = id + 1; i < n - 1; ++i) if (c[i] > c[i - 1] && c[i] >= c[i + 1] && c[i] > g) g = c[i];
+        // the lowest point from the fall on, and the highest peak after it (two lags abreast, so that neither search waits on itself)
+        double cmin = c[n - 1] < c[id] ? c[n - 1] : c[id], g = -1.0;
+        {
+            double m1 = cmin, g1 = -1.0; int i = id + 1;
+            for (; i + 1 < n - 1; i += 2)
+            {
+                const double a = c[i - 1], b = c[i], d = c[i + 1], e = c[i + 2];
+                if (b < cmin) cmin = b;
+                if (d < m1) m1 = d;
+                if (b > a && b >= d && b > g) g = b;
+                if (d > b && d >= e && d > g1) g1 = d;
+            }
+            for (; i < n - 1; ++i) { const double b = c[i]; if (b < cmin) cmin = b; if (b > c[i - 1] && b >= c[i + 1] && b > g) g = b; }
+            if (m1 < cmin) cmin = m1;
+            if (g1 > g) g = g1;
+        }
         cf = g;
         if (g < cabs || g < top - (1.0 - rho) * (top - cmin)) return 1;
         for (int i = id + 1; i < n - 1; ++i)
@@ -773,6 +853,9 @@ private:
             }
         }
         POLYPITCH_STAGE_NEXT (sDecisions);
+        // the turn of phase between two neighbouring bands at each of the last frames (the followers below and fitNeighbours use it)
+        lockN = std::max (Wl, Kb / H);
+        for (int j = 0; j < lockN; ++j) { const double ang = -dw * ((double) (m0 - j) * H - tauD); lockC[(size_t) j] = std::cos (ang); lockS[(size_t) j] = std::sin (ang); }
         for (int k = 1; k < kmax; ++k)
         {
             const size_t i = (size_t) k; int st = 0; double Jf = -1.0, cf = 0.0;
@@ -817,12 +900,12 @@ private:
                     const double Jk = Jc[i] * H, stp = std::max (Jk, wmin) / ratio / M; double dn = up ? flr + Jk : flr, ps; const int jnk = std::max ((int) std::nearbyint (Jk / H), 1);
                     if (placeMode == 1 || placeMode == 2)       // anywhere within one beat: where the neighbours' shares fit
                     {
-                        const int wl = std::max ((int) std::nearbyint (Jk / H), 8);
-                        place (k, 0, dn, jnk, 0.0, Jk * 15.0 / 16.0, 16, stp, wl, dn, ps);
-                        place (k, 0, dn, jnk, -Jk / 24.0, Jk / 24.0, 5, stp, wl, dn, ps);
+                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (Jk / H), 8));
+                        fitSearch (k, jnk, dn, 0.0, Jk * 15.0 / 16.0, 16, dn, ps);
+                        fitSearch (k, jnk, dn, -Jk / 24.0, Jk / 24.0, 5, dn, ps);
                         if (dn < flr) dn = flr;
                     }
-                    else ps = align (k, 1, st0[i], 0.0, psi[i], lead[i], 0, 0, dn, k, jnk, stp);
+                    else { fitPrepare (k, jnk, stp); ps = fitAlign (k, jnk, dn); }
                     emit (k, t, 0, dn, ps, k, jnk, xf); J[i] = Jk; busy[i] = t + xf; cout[i] = 0; lcnt[i] = 0;
                 }
                 continue;
@@ -851,7 +934,7 @@ private:
             const bool must = up && dk - (ratio - 1.0) * hop <= flr;             // shifting up: the reader is about to reach "now"
             if ((cout[i] >= nOut && t >= busy[i]) || (must && (J[i] <= 0.0 || cout[i] > 0)))
             {
-                const double ps = align (k, 0, st0[i], sd0[i], psi[i], k, sjn[i], 1, 0.0, k, 0, std::max (J[i], wmin) / ratio / M);
+                const double ps = alignPlain (k, std::max (J[i], wmin) / ratio / M);
                 emit (k, t, 1, 0.0, ps, k, 0, xfu); J[i] = 0.0; busy[i] = t + xfu; cout[i] = 0; cin[i] = 0; lcnt[i] = 0;
                 continue;
             }
@@ -867,18 +950,18 @@ private:
                     {
                         double lo = -J[i] / 8.0, dq;
                         if (dn + lo < flr) lo = flr - dn;
-                        place (k, 0, dn, jnk, lo, J[i] / 8.0, 9, stp, std::max ((int) std::nearbyint (J[i] / H), 8), dq, ps);
-                        if (pgain < 1.0) { dn = dn + pgain * (dq - dn); ps = align (k, 0, st0[i], sd0[i], psi[i], k, sjn[i], 0, dn, k, jnk, stp); }
+                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (J[i] / H), 8));
+                        fitSearch (k, jnk, dn, lo, J[i] / 8.0, 9, dq, ps);
+                        if (pgain < 1.0) { dn = dn + pgain * (dq - dn); ps = fitAlign (k, jnk, dn); }
                         else dn = dq;
                     }
-                    else ps = align (k, 0, st0[i], sd0[i], psi[i], k, sjn[i], 0, dn, k, jnk, stp);
+                    else { fitPrepare (k, jnk, stp); ps = fitAlign (k, jnk, dn); }
                     emit (k, t, 0, dn, ps, k, jnk, xfu); busy[i] = t + xfu;
                 }
             }
         }
         // shares of one partial in neighbouring bands: the weaker band follows the stronger one's phase
         if (m0 - Wl - 1 < 0) return;
-        for (int j = 0; j < Wl; ++j) { const double ang = -dw * ((double) (m0 - j) * H - tauD); lockC[(size_t) j] = std::cos (ang); lockS[(size_t) j] = std::sin (ang); }
         for (int k = 1; k < kmax - 1; ++k)                       // how steady the phase between band k and k+1 has been
         {
             const float* ar_ = zrp (k, m0); const float* ai_ = zip (k, m0); const float* br_ = zrp (k + 1, m0); const float* bi_ = zip (k + 1, m0);

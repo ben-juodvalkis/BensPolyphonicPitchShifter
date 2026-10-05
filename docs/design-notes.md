@@ -290,6 +290,17 @@ threshold there is four times as coarse.
 What it means for the work after this: a change that leaves the likeness sums alone can be compared with the build
 before it sample by sample, and one that touches them cannot, however small the change.
 
+**Fitting a reader to its neighbors, at a third of the cost.** A fit compares a new reader, tried at up to 23
+positions, with what is already sounding at 16 moments of the output. The band's own running stretch, the
+neighbors' output and the band's level at each moment do not depend on the position tried and are now worked out
+once per fit, not once per position (and once for the two searches that start a reader). A reader's carrier turns
+by the same angle from each moment to the next, so one sine and cosine, turned on fifteen times, do where sixteen
+were worked out; the turn of phase between two bands comes round every 16 or 32 frames and is read from the table
+the followers already use. Fits went from 6 to 7 % of a slot in the heaviest blocks at octave up to 2 %. These are
+the same sums in another order: the 88 renders are within -137 dB of the build before (all but two within
+-150 dB) and every scorecard row is the same. Reading the curves two lags abreast, which is exactly the same
+arithmetic, is in the same commit.
+
 **What could not be done.**
 
 | Tried | Result |

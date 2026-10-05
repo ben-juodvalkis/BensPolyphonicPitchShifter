@@ -36,9 +36,9 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 5.0 % of a core shifting down and
-10 to 11 % shifting up, and the 99.9th-percentile 64-sample block takes 11 % of its time slot at octave down and
-23 % at octave up. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 4.9 % of a core shifting down and
+9 to 10 % shifting up, and the 99.9th-percentile 64-sample block takes 10 % of its time slot at octave down and
+17 % at octave up. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
 targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and has not
 been measured since; on the M4 they come to about 3.3 %, 6.6 % and 15 %.
 
@@ -51,12 +51,15 @@ Done:
   reference always had; that changed the output wherever a band sits on the fence between one partial and two,
   and no score moved by more than its last digit (`docs/design-notes.md`, "Speed").
 
+- **Fitting a reader to its neighbors costs a third of what it did** (6 to 7 % of a slot in the heaviest blocks
+  at octave up before, 2 % now; the heavy block as a whole 23 to 17 %). The same sums: what does not depend on the
+  position tried is worked out once, and a reader's carrier is turned from one moment to the next instead of
+  being worked out anew at each. The output is within -137 dB of what it was on 88 renders and every scorecard
+  row is unchanged. Spreading the fits over the following frames, the other idea, would move when a reader
+  starts: a sound change, and not needed.
+
 In this order:
 
-- **Fitting a reader to its neighbors** is now the largest lump: 6 to 7 of the 23 to 26 % of a slot that the
-  heaviest blocks take at octave up. Each fit tries up to 21 positions, and there are 11 fits per check on average.
-  Make one fit cheaper (the same sums, so the same sound); spreading the fits over the following frames would move
-  when a reader starts, which is a sound change.
 - **Vectorize the band loop.** The largest part of the average: the same few multiplications for every band at
   every sample, with branches in the way (plain or reader, fading or not), and a reader's sample costs many times
   a plain band's. The same sums done faster; the output must not move.

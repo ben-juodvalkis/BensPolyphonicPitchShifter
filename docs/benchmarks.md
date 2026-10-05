@@ -261,10 +261,10 @@ with the build before, the lowest of six):
 
 | | Average load | The 99.9th-percentile 64-sample block, share of its 1.33 ms |
 |---|---|---|
-| Octave down | 5.0 % | 10.8 % |
-| +2 | 9.8 % | 18.5 % |
-| Octave up | 10.8 % | 23.1 % |
-| Octave up, Clean | 10.6 % | 22.8 % |
+| Octave down | 4.9 % | 9.9 % |
+| +2 | 9.3 % | 14.9 % |
+| Octave up | 9.9 % | 17.2 % |
+| Octave up, Clean | 9.9 % | 17.2 % |
 
 The heavy blocks matter more than the average: a buffer of 64 samples has to be finished inside its 1.33 ms every
 time. Until they are lighter still (see `ROADMAP.md`), use a buffer of 128 samples or more.
@@ -279,23 +279,25 @@ What has changed so far: the likeness curves (how the engine tells a band with o
 where the decisions are made as well. Their sums are now kept running as the frames arrive, on a frame that has no
 check, so they never fall in the same 64 samples as the decisions, and they cost the same whatever is being played.
 The output is not sample for sample what it was: `docs/design-notes.md` ("Speed") has why, and what was measured.
+And fitting a reader to its neighbors costs a third of what it did: what is the same for every position tried is
+worked out once, and one sine and cosine do for all sixteen moments a reader is compared at.
 
-Where the time goes now (`build/tools/polypitch_profile`, the same take, Fast response, the less disturbed of two
-runs):
+Where the time goes now (`build/tools/polypitch_profile`, the same take, Fast response, the least disturbed of
+three runs; the profile's own timers add a little):
 
 | Stage | How often | Octave up | Octave down |
 |---|---|---|---|
-| The band loop: one output sample from every band | every sample | 4.9 % of a core | 2.4 % |
-| Decisions: plain or reader, jumps, who follows whom | every 128 samples | 2.4 | 0.8 |
-| (of the decisions: fitting a reader to its neighbors) | | (1.0) | (0.1) |
-| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.7 | 0.8 |
+| The band loop: one output sample from every band | every sample | 4.9 % of a core | 2.6 % |
+| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.8 | 0.9 |
+| Decisions: plain or reader, jumps, who follows whom | every 128 samples | 1.2 | 0.5 |
+| (of the decisions: fitting a reader to its neighbors) | | (0.3) | (0.1) |
 | Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 1.0 | 0.5 |
 | The transform | every 32 samples | 0.7 | 0.3 |
 | The window | every 32 samples | 0.2 | 0.2 |
-| All | | 10.9 | 5.1 |
+| All | | 9.7 | 5.1 |
 
-In the heaviest hundredth of the blocks at octave up, 11 of the 23 to 26 % of the slot are the decisions (6 to 7 of
-them fitting readers), 8 to 9 the band loop and about 2 the curves. The single heaviest block is a noisy number (it depends on
+In the heaviest hundredth of the blocks at octave up, 8 of the 17 % of the slot are the band loop, 4 to 5 the
+decisions (2 of them fitting readers) and 2 the curves. The single heaviest block is a noisy number (it depends on
 what else the computer is doing); the 99.9th percentile repeats.
 
 Shifting up by less than a fifth costs a point less (fewer bands are on readers), and the three responses cost the
