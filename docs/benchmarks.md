@@ -32,6 +32,25 @@ What the columns mean:
 
 `scripts/gate.sh` runs the -12 and +12 rows and fails if they fall outside limits set a little looser than this.
 
+Shifting up there are three **responses** (the Response control). The table above is Fast, the default.
+`python tests/scorecard.py engine balanced 2 7 12` (or `clean`) prints the other two:
+
+| Shift | Response | Two-sine pairs, median dirt | Pairs under -40 dB (of 28) | Two-note chords | Full chords | Chord notes off by | Attack late by |
+|---|---|---|---|---|---|---|---|
+| +2 | Fast | -55.8 dB | 28 | -43.1 dB | -37.6 dB | 0.1 c | 8.5 ms |
+| | Balanced | -60.7 | 28 | -44.5 | -39.1 | 0.1 | 12.5 |
+| | Clean | -52.8 | 26 | -43.1 | -40.2 | 0.1 | 16.5 |
+| +7 | Fast | -54.5 | 28 | -41.8 | -35.9 | 0.2 | 7.9 |
+| | Balanced | -59.4 | 28 | -43.3 | -36.4 | 0.2 | 11.9 |
+| | Clean | -53.2 | 28 | -40.3 | -37.3 | 0.0 | 15.8 |
+| +12 | Fast | -52.9 | 26 | -35.2 | -28.8 | 0.2 | 7.4 |
+| | Balanced | -60.1 | 27 | -35.7 | -30.2 | 0.2 | 11.3 |
+| | Clean | -55.2 | 28 | -35.1 | -33.5 | 0.0 | 15.4 |
+
+Balanced is the same bands behind a longer filter (12 ms instead of 8), which lets less of each partial into the
+bands around it. Clean has bands half as wide behind a 16 ms filter. Single notes are in tune to 0.1 to 0.3 cents
+and their timbre within 0.2 dB in all three. The gate also runs the +12 row of Balanced and of Clean.
+
 `python tests/held_chords.py` measures what that table averages away: ten sustained chords in the high, sparse
 register, from 0.4 s into each chord, where every partial should come out as one clean line. In five of them each
 partial is a close pair, as a real string's is. It prints the dirt between the notes and the fast loudness flutter
@@ -40,7 +59,9 @@ partial is a close pair, as a real string's is. It prints the dirt between the n
 | | Dirt between the notes | Fast loudness flutter |
 |---|---|---|
 | Reference device (see below) | **-40.0 dB** | **-40.2 dB** |
-| This shifter | -37.7 | -37.8 |
+| This shifter (Fast) | -37.7 | -37.8 |
+| Balanced | -39.1 | -38.6 |
+| Clean | -37.1 | -37.4 |
 
 `python tests/moving_pitch.py` prints the "Pitch that moves" table further down (a slide, a bend and a vibrato whose
 right answer is known at every moment).
@@ -132,24 +153,60 @@ allowed for.
 |---|---|---|---|---|
 | Octave down | 12.3 to 13.4 / **8.0 to 8.7** ms | **2.1** / 3.3 c | 0.8 / **0.5** c | 1.5 / **0.3** c |
 | Octave up | 22 to 46 / **11.2 to 12.0** ms | 14.9 / **3.3** c | 5.8 / **0.9** c | 31.6 / **3.9** c |
+| Octave up, Balanced | 22 to 46 / **13.9 to 14.9** ms | 14.9 / **3.0** c | 5.8 / **1.0** c | 31.6 / **5.6** c |
+| Octave up, Clean | 22 to 46 / **17.7 to 20.1** ms | 14.9 / **4.8** c | 5.8 / **1.8** c | 31.6 / **9.5** c |
+
+### The three responses, shifting up
+
+Everything above is the Fast response. The same tests with the other two, at +2 / +7 / +12 (the scorecard's rows
+for them are under "What you can run yourself"):
+
+| | Fast | Balanced | Clean | Reference device |
+|---|---|---|---|---|
+| Attack late by, median (DI takes) | 8.1 / 8.0 / 7.8 ms | 12.0 / 12.0 / 11.7 | 16.2 / 15.9 / 15.8 | 12.0 / 12.1 / 12.2 |
+| Slowest tenth of attacks | 12 / 11 / 11 ms | 14 / 13 / 14 | 20 / 19 / 19 | 30 / 33 / 37 |
+| Two DI takes mixed | -29.3 / -26.6 / -21.1 dB | **-30.0** / -26.7 / -22.7 | -29.9 / **-28.8** / **-24.7** | -25.7 / -22.8 / -20.6 |
+| Twelve pairs of DI takes mixed | -24.3 / -22.4 / -20.8 dB | -24.5 / -23.8 / -21.5 | -24.5 / **-24.5** / **-23.3** | **-27.5** / **-24.5** / -22.1 |
+| Chords from single notes | -33.9 / **-32.4** / -29.1 dB | **-34.4** / **-32.4** / -30.7 | -33.1 / -31.6 / **-31.0** | -32.1 / -29.0 / -26.2 |
+| Loop mixes | -21.5 / -20.7 / -19.9 dB | -22.9 / **-22.7** / **-21.9** | -21.9 / -22.4 / -21.1 | **-23.9** / -21.6 / -19.6 |
+| The middle note of a full chord: loudness off by | 2.2 / 2.2 / 4.5 dB | 3.6 / **0.4** / 2.5 | 1.6 / 0.6 / 0.7 | **0.5** / 0.5 / **0.5** |
+| Partials that stand alone in a full chord: loudness off by | 2.6 / 1.6 / 2.4 dB | 2.0 / 1.2 / 1.9 | 1.2 / 0.9 / **0.9** | **0.3** / **0.5** / 1.0 |
+| Held chords at +12: dirt / flutter | -27.7 / **-21.0** dB | -28.0 / **-21.0** | -27.5 / -20.5 | **-28.4** / -20.8 |
+
+The middle note is the third of six of the scorecard's full chords (its fundamental, rms over the six); the
+partials that stand alone are those of all ten chords with no other partial within 20 Hz.
+
+In words: Balanced is as late as the reference device and cleaner than Fast on nearly everything, by 5 to 7 dB on
+pure intervals and up to 2 dB on chords and mixes; a vibrato wobbles a little more (5.6 cents against 3.9 at octave
+up). Clean is 8 ms later than Fast. It is the one that gets a chord's middle note right, and it is 2 to 3.6 dB
+cleaner than Fast on mixes of DI takes at +7 and +12. What it costs besides the 8 ms: pitch that moves is followed
+less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 ms), and pure intervals at +2 and +7 are 1
+to 3 dB less clean than on Fast.
 
 ## Where Ben's Polyphonic Pitch Shifter is behind
 
-- **Mixes going up**: on twelve pairs of DI takes the reference device is 1.3 to 3.2 dB cleaner at up-shifts (most
-  at +2, most on strummed chords mixed with another take), and on loop mixes 2.4 dB cleaner at +2 and 0.9 dB at +7.
-  The reason has not been found.
+- **Mixes going up**: on twelve pairs of DI takes the reference device is 1.3 to 3.2 dB cleaner than the Fast
+  response at up-shifts (most at +2, most on strummed chords mixed with another take), and on loop mixes 2.4 dB
+  cleaner at +2 and 0.9 dB at +7. The Clean response is level with it on the twelve pairs at +7 and 1.2 dB ahead at
+  +12, and Balanced is ahead on loop mixes at +7 and +12. At +2 the reference device stays ahead whatever the
+  response: by 3 dB on the twelve pairs and 1 to 2 dB on loop mixes. The reason has not been found.
 - **Held chords when shifting up**: 0.7 dB rougher than the reference device on average, and 1.5 to 4.7 dB on five
-  of the eleven. On clean, sparse chords (`tests/held_chords.py`) the gap is 2.3 dB. What made them rough, and what
-  is left of it, is in `docs/design-notes.md`.
+  of the eleven. On clean, sparse chords (`tests/held_chords.py`) the gap is 2.3 dB on Fast and 0.9 dB on
+  Balanced. What made them rough, and what is left of it, is in `docs/design-notes.md`.
 - **A fast slide at octave down** wobbles a little more around the right pitch (3.3 cents against 2.1).
-- **The middle note of a full chord at octave up.** On the scorecard's synthetic chords the third of an open E, an
-  A barre and a B minor barre chord has its fundamental 6, 9 and 13 dB too quiet and up to a hertz flat; the
-  reference device has it within 0.3 dB. Two other notes' partials sit 30 to 50 Hz either side of it and share its
-  bands. Over all the partials of those chords that have no other partial within 20 Hz, the loudness is off by
-  2.4 dB (rms) against 1.0 dB for the reference device. Partials that share their place with another note's
-  partial are 4 to 5 dB off on both, for a different reason: their slow beat keeps its old rate.
-- **Pure tones going up**: where the reference device is clean it reaches -60 dB; Ben's Polyphonic Pitch Shifter sits around -52 dB.
-- **Tuning of chord notes**: 0.1 to 0.4 cents against 0.0 to 0.1.
+- **The middle note of a full chord at octave up, unless the response is Clean.** On the scorecard's synthetic
+  chords, with the Fast response, the third of an open E and of an A barre chord has its fundamental 6 and 9 dB too
+  quiet and up to a hertz flat, and the third of a B minor barre chord has its second harmonic 13 dB too quiet; the
+  reference device has all three within 0.7 dB, and so does Clean (within 1.0 dB, and on pitch). Two other notes'
+  partials sit 30 to 50 Hz either side of that partial and share its bands; in Clean's half-width bands each has
+  one of its own. Balanced helps the open E (1.6 dB) and not the other two. Partials that share their place with
+  another note's partial are 4 to 5 dB off in every response and on the reference device, for a different reason:
+  their slow beat keeps its old rate.
+- **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 and 0.9 dB off at +2
+  and +7 on Clean (2.6 and 1.6 on Fast), against 0.3 and 0.5 for the reference device.
+- **Pure tones going up**: where the reference device is clean it reaches -60 dB. Fast sits around -53 to -56 dB;
+  Balanced reaches -60.
+- **Tuning of chord notes**: 0.1 to 0.4 cents against 0.0 to 0.1 (Clean going up: 0.0 to 0.1).
 
 ## Cost
 
@@ -162,6 +219,11 @@ Measured with `build/tools/polypitch_load` on DI chord takes at 48 kHz, one core
 
 The worst block is high because the engine does its analysis in one lump every 128 samples. Until that is spread
 out (see `ROADMAP.md`), use a buffer of 128 samples or more.
+
+Shifting up, the three responses cost the same on average: 19 to 21 % on Fast and on Balanced, 18 to 22 % on Clean
+(at +7 and +12, same takes). Clean's worst block measured higher, 80 to 90 % of its time slot against 60 to 70 %,
+with other programs running on the machine; its filter is twice as long, and so is what has to be redone at an
+attack.
 
 ## Sample rates
 

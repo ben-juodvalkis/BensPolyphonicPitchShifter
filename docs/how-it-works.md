@@ -29,8 +29,9 @@ number: how loud the band is and where its phase stands. Those per-band tracks a
 
 Two properties of the filters matter:
 
-- **The bands add back up to the input**, delayed by a fixed time (8 ms when shifting up, 12 ms when shifting
-  down). If every band is played back from the same place, the result is the input itself.
+- **The bands add back up to the input**, delayed by a fixed time (12 ms when shifting down; 8 ms when shifting
+  up, or 12 or 16 with the Response control, step 6). If every band is played back from the same place, the result
+  is the input itself.
 - **A band lets through very little from outside itself.** What a note leaks into other bands is what the engine
   later cannot treat correctly, so the filters are designed by least squares for the least leak at the chosen
   delay (`reference/filterdesign.py`). They are stored as tables because designing one takes seconds.
@@ -100,7 +101,7 @@ recent peak and treats a doubling within a millisecond as an attack.
 - **Shifting up** there is no such trick, because the playback would have to read ahead of the input. Instead,
   just before the attack reaches the bands, every band's phase is set equal to the input's, so the bands add up to
   the attack itself; from there the phases run at the shifted rate. The attack is as late as the filter: about
-  7.5 ms.
+  7.5 ms on the Fast response.
 
 ## Step 5: shifting up runs twice the bands
 
@@ -108,6 +109,26 @@ Going up there is no direct playback to lean on, so held chords depend entirely 
 crowd into one band's width, a reader can only get two of them right. Shifting up therefore runs 1024 bands, half a
 band apart, each as wide as before. The filter is the same, so nothing gets later, and each of the three partials
 now has a band in which only it and one neighbor matter.
+
+## Step 6: the Response control (shifting up only)
+
+How clean the bands can be depends on how long the filter is allowed to be, and the filter's length is how late an
+attack comes out. Shifting down that cost is hidden by the direct playback of step 4. Shifting up it is not, so
+the player chooses:
+
+- **Fast** (the default): the 8 ms filter. One band away from its center it is 30 dB down.
+- **Balanced**: the same bands behind the 12 ms filter that shifting down uses, 41 dB down one band away. Less of
+  every partial reaches the bands around it, so less is treated wrongly there: pure intervals come out 5 to 7 dB
+  cleaner, chords and mixes up to 2 dB. Attacks are 4 ms later.
+- **Clean**: bands half as wide (43 Hz), 1024 of them, behind a 16 ms filter. A filter twice as long is what a band
+  half as wide needs to be as tight. This is the setting for full chords: a chord's middle note often has a
+  partial with other notes' partials 30 to 50 Hz either side of it. In 86 Hz bands all three share every band
+  there and the middle one comes out several dB too quiet; in 43 Hz bands each has a band of its own. Attacks are
+  8 ms later than Fast, and a narrow band is also slower to follow a pitch that moves: a vibrato wobbles 7 to
+  10 cents around the right pitch instead of 2 to 4.
+
+Nothing else differs between the three: the same decisions, the same thresholds. `docs/benchmarks.md` has each
+one's numbers. Changing the response while shifting up restarts the bands, as changing the interval does.
 
 ## Around the engine
 
@@ -122,7 +143,8 @@ now has a band in which only it and one neighbor matter.
 ## What limits it
 
 - **Three or more partials in one band** have no common beat within reach. A reader gets two of them right; the
-  rest come out smeared. This is the main source of leftover roughness on dense, low chords.
+  rest come out smeared. This is the main source of leftover roughness on dense, low chords. (Shifting up, the
+  Clean response halves the band width, which gives most of them a band each, 8 ms later.)
 - **The first beat after an attack, shifting up.** A beating band cannot be recognized until its beat has gone by
   once, so for that long (10 to 100 ms, depending on how close the two partials are) the weaker partial is treated
   as in a plain band.
@@ -137,7 +159,9 @@ now has a band in which only it and one neighbor matter.
 | | Shifting down | Shifting up |
 |---|---|---|
 | Bands (44.1 kHz) | 512, 86 Hz apart | 1024, 43 Hz apart, each 86 Hz wide |
-| Filter delay / length | 12 ms / 72 ms | 8 ms / 48 ms |
+| Filter delay / length | 12 ms / 72 ms | 8 ms / 48 ms (the Fast response) |
+| With Response on Balanced | | the same bands, filter 12 ms / 72 ms |
+| With Response on Clean | | 1024 bands, 43 Hz apart, each 43 Hz wide; filter 16 ms / 96 ms |
 | Frame (how often a band's value is taken) | 32 samples | 32 samples |
 | How often decisions are made | every 128 samples (2.9 ms) | same |
 | Window for the likeness check | 24 ms | 24 ms |

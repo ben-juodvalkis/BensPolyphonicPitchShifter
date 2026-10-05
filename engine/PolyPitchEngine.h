@@ -13,7 +13,9 @@
 //       repeat of the band's envelope (one beat), with the phase carried across. Both partials come out right.
 // Attacks, shifting down: played straight from the input (the bridge); the bands take over where they are the same
 // signal. Attacks, shifting up: every band's phase is set equal to the input's just before the attack reaches it.
-// Shifting up runs twice as many bands (half a band apart, same filter) than shifting down.
+// Shifting up runs twice as many bands (half a band apart, same filter) than shifting down, and the response picks the
+// filter: fast (8 ms), balanced (the same bands behind 12 ms) or clean (bands half as wide behind 16 ms). Each step is
+// cleaner and lets an attack out 4 ms later.
 //
 // Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).
 #pragma once
@@ -59,7 +61,7 @@ public:
         fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
         lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0); runR.assign ((size_t) NF + 8, 0.0f); runI.assign ((size_t) NF + 8, 0.0f);
         pvR.assign (4 * M, 0.0); pvI.assign (4 * M, 0.0);
-        makeBank (false); makeBank (true);      // both directions' filters now, so that crossing between them while playing allocates nothing
+        for (int b = 0; b < 4; ++b) makeBank (b);      // every filter now, so that changing direction or response while playing allocates nothing
         configured = false; prepared = false;
         setSemitones (semis);
         reset();
@@ -68,9 +70,9 @@ public:
     void setSemitones (double st)
     {
         semis = st; ratio = std::pow (2.0, st / 12.0);
-        const bool wasUp = up; up = ratio > 1.0001; unity = std::abs (ratio - 1.0) < 1e-9;
+        up = ratio > 1.0001; unity = std::abs (ratio - 1.0) < 1e-9;
         if (sr <= 0.0) return;
-        if (! configured || wasUp != up) loadFilter();
+        if (! configured || bankFor() != loaded) loadFilter();
         // shifting up: twice the bands (half a band apart, same filter), a finer threshold for calling a band "beating", and a band on a reader stays longer
         dropIn = up ? 0.001 : 0.004; dropOut = up ? 0.00025 : dropIn; nOut = up ? 8 : 3;
         // in both directions: a beat slower than 50 ms has to hold before a reader takes it (and a plain band's phase advance is smoothed over 5 ms: analyzeFrame)
@@ -84,6 +86,20 @@ public:
         for (size_t k = 0; k < stC.size(); ++k) { stC[k] = std::cos (wk[k] * ratio); stS[k] = std::sin (wk[k] * ratio); }      // a reader's carrier turns this much per sample
         if (prepared) softReset();
     }
+
+    // shifting up only: how late an attack may come out for a cleaner sound. 0 = fast (the attack as early as it can be: an 8 ms
+    // band filter), 1 = balanced (the same bands behind a 12 ms filter: attacks 4 ms later), 2 = clean (bands half as wide behind a
+    // 16 ms filter: attacks 8 ms later than fast; the middle note of a full chord, crowded by other notes' partials in the wide
+    // bands, gets bands of its own). Changing it while shifting up restarts the bands, as changing the interval does; while
+    // shifting down it changes nothing until the interval goes up.
+    void setResponse (int r)
+    {
+        r = std::max (0, std::min (2, r));
+        if (r == response) return;
+        response = r;
+        if (sr > 0.0 && bankFor() != loaded) setSemitones (semis);
+    }
+    int getResponse() const { return response; }
 
     void reset()
     {
@@ -169,7 +185,7 @@ public:
 
 private:
     static constexpr double kPi = 3.14159265358979323846;
-    static constexpr int K = 512, KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48;
+    static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48;
     static constexpr double fmax = 10000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
     double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, twait = 1764.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
@@ -178,8 +194,10 @@ private:
     int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, nls = 135;
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
     std::vector<char> rdirty, ordirty;
-    struct Bank { std::vector<double> h, twC, twS; int tau = 0, L = 0; bool designed = false; };      // one direction's band filter and FFT twiddles
-    Bank banks[2];                                                                                      // [0] shifting down, [1] shifting up; made in prepare()
+    struct Bank { std::vector<double> h, twC, twS; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
+    Bank banks[4];                                                    // [0] shifting down; shifting up: [1] fast, [2] balanced, [3] clean. Made in prepare()
+    int response = 0, loaded = -1;
+    int bankFor() const { return up ? 1 + response : 0; }
     const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr;                // the ones in use
     std::vector<double> xring, fftRe, fftIm, Am, Um, Us, fsm, ebm, epm, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, Js, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
     std::vector<float> Zr, Zi, runR, runI;
@@ -193,36 +211,44 @@ private:
 
     static inline double wrap (double a) { return a - 2.0 * kPi * std::round (a / (2.0 * kPi)); }
 
-    // called from prepare(), never while audio runs: one direction's band filter and FFT twiddles
-    void makeBank (bool upward)
+    // called from prepare(), never while audio runs: one band filter and its FFT twiddles.
+    //   which 0: shifting down             512 bands (86 Hz apart at 44.1 kHz), 12 ms delay (the attack bridge hides it)
+    //   which 1: shifting up, fast         the same bands behind an 8 ms filter, and twice as many of them, half a band apart
+    //   which 2: shifting up, balanced     as fast, behind the 12 ms filter (the one shifting down uses): less of a partial leaks
+    //                                      into the bands around it
+    //   which 3: shifting up, clean        1024 bands half as wide, 16 ms delay: where three partials 30 to 50 Hz apart crowd together
+    //                                      (the third of a full chord between its neighbours' harmonics) each has a band of its own
+    void makeBank (int which)
     {
-        // the designed filter for this rate and direction, or (other sample rates) the simple one: a sinc under a lopsided Hann window
-        Bank& b = banks[upward ? 1 : 0];
+        static const int Ks[4] = { 512, 512, 512, 1024 }, overs[4] = { 1, 2, 2, 1 };
+        static const double delayMs[4] = { 12.0, 8.0, 12.0, 16.0 }, simpleTailMs[4] = { 40.0, 28.0, 40.0, 56.0 };
+        Bank& b = banks[which]; b.K = Ks[which]; b.over = overs[which]; b.tau = (int) std::lround (delayMs[which] * sr / 1000.0);
+        // the designed filter for this rate, band count and delay, or (other sample rates) the simple one: a sinc under a lopsided Hann window
         const filters::Table* tb = nullptr;
         for (int i = 0; i < filters::numTables; ++i)
-            if (filters::tables[i].sampleRate == (int) std::lround (sr) && filters::tables[i].up == upward) tb = &filters::tables[i];
-        if (tb != nullptr) { b.tau = tb->tau; b.L = tb->length; b.h.assign (tb->h, tb->h + b.L); b.designed = true; }
+            if (filters::tables[i].sampleRate == (int) std::lround (sr) && filters::tables[i].K == b.K && filters::tables[i].tau == b.tau) tb = &filters::tables[i];
+        if (tb != nullptr) { b.L = tb->length; b.h.assign (tb->h, tb->h + b.L); b.designed = true; }
         else
         {
-            b.tau = (int) std::lround ((upward ? 8.0 : 12.0) * sr / 1000.0); const int tail = (int) std::lround ((upward ? 28.0 : 40.0) * sr / 1000.0);
+            const int tail = (int) std::lround (simpleTailMs[which] * sr / 1000.0);
             b.L = std::min (b.tau + tail + 1, XN - 64); b.h.assign ((size_t) b.L, 0.0); b.designed = false;
             for (int n = 0; n < b.L; ++n)
             {
-                const double c = (double) (n - b.tau), w = c <= 0.0 ? 0.5 + 0.5 * std::cos (kPi * c / (b.tau + 1)) : 0.5 + 0.5 * std::cos (kPi * c / (tail + 1)), a = c / K;
-                b.h[(size_t) n] = (std::abs (a) < 1e-12 ? 1.0 : std::sin (kPi * a) / (kPi * a)) * w / K;
+                const double c = (double) (n - b.tau), w = c <= 0.0 ? 0.5 + 0.5 * std::cos (kPi * c / (b.tau + 1)) : 0.5 + 0.5 * std::cos (kPi * c / (tail + 1)), a = c / b.K;
+                b.h[(size_t) n] = (std::abs (a) < 1e-12 ? 1.0 : std::sin (kPi * a) / (kPi * a)) * w / b.K;
             }
         }
-        const int kb = K * (upward ? 2 : 1); b.twC.assign ((size_t) kb, 0.0); b.twS.assign ((size_t) kb, 0.0);
+        const int kb = b.K * b.over; b.twC.assign ((size_t) kb, 0.0); b.twS.assign ((size_t) kb, 0.0);
         for (int i = 0; i < kb; ++i) { b.twC[(size_t) i] = std::cos (2.0 * kPi * i / kb); b.twS[(size_t) i] = std::sin (2.0 * kPi * i / kb); }
     }
 
-    // switch to the filter for the current direction (both were made in prepare(), so nothing is allocated here)
+    // switch to the filter for the current direction and response (all were made in prepare(), so nothing is allocated here)
     void loadFilter()
     {
-        const Bank& b = banks[up ? 1 : 0];
+        loaded = bankFor(); const Bank& b = banks[loaded];
         h = b.h.data(); twC = b.twC.data(); twS = b.twS.data(); tau = b.tau; L = b.L; designed = b.designed;
         tauD = (double) tau;
-        over = up ? 2 : 1; Kb = K * over; dw = 2.0 * kPi / Kb; kB = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS);     // bands this bank has below 10 kHz
+        over = b.over; Kb = b.K * over; dw = 2.0 * kPi / Kb; kB = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS);     // bands this bank has below 10 kHz
         for (int k = 0; k < kS; ++k) wk[(size_t) k] = k * dw;
         if (configured) clearFrames();          // frames made with the other filter are no use
         configured = true;

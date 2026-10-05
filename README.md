@@ -28,9 +28,12 @@ source (below).
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
 Measured against a well-regarded commercial polyphonic shifter on the same tests, Ben's Polyphonic Pitch Shifter is clearly cleaner and
-about 8 ms earlier shifting down, and close to it in cleanliness with attacks 4 ms earlier shifting up. It is
-behind on a few things, most of all mixes of several parts at small upward shifts and clean high chords held at
-octave up. `docs/benchmarks.md` has the method, every number, and the list of where it loses.
+about 8 ms earlier shifting down, and close to it in cleanliness with attacks 4 ms earlier shifting up. Shifting
+up, the Response control spends that head start on a cleaner sound: Balanced is as late as that shifter, Clean
+4 ms later, and Clean brings the middle note of a full chord, which Fast leaves too quiet, up to its right
+loudness. It is behind on a few things, most of all mixes of several parts at small upward shifts and clean high
+chords held at octave up.
+`docs/benchmarks.md` has the method, every number, and the list of where it loses.
 
 ## Build and install (macOS)
 
@@ -41,7 +44,7 @@ scripts/build.sh tools plugin                               # the command-line t
 C74_SDK=/path/to/max-sdk-base scripts/build.sh max          # the Max object (needs Cycling '74's max-sdk-base)
 
 scripts/install-macos.sh                                    # plug-in and Max package into your user folders
-scripts/gate.sh                                             # the tests: about two minutes
+scripts/gate.sh                                             # the tests: about three minutes
 ```
 
 The plug-in needs CMake and JUCE 8 (a checkout at `~/JUCE` is used if present, otherwise it is fetched). Details,
@@ -54,6 +57,7 @@ and how to run each test, are in `docs/building.md`. The Max side is described i
 | **Semitones** | -12 to +12 |
 | **Mix** | 0 = dry only, 50 = both at full level, 100 = shifted only |
 | **Tone** | How much of a tone curve fitted to the interval is applied to the shifted sound. An octave down is brightened above 1 kHz; an octave up is darkened a little. 0 = flat. |
+| **Response** | Shifting up only: how late an attack may come out for a cleaner sound. **Fast** (the default): about 8 ms. **Balanced**: about 12 ms; pure intervals and mixes come out cleaner. **Clean**: about 16 ms; the middle note of a full chord comes out at its right loudness and dense playing is cleanest, but a vibrato is followed less closely. Shifting down it changes nothing. |
 
 The shifted sound is mono (the inputs summed); the dry signal passes in stereo.
 
@@ -69,11 +73,11 @@ played straight from the input when shifting down, which is why they are only 2 
 
 ## Limits
 
-- Changing Semitones while playing restarts the bands and can click.
+- Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
 - The work arrives in lumps: use a buffer of 128 samples or more for now.
-- Held chords shifted up are a little rougher than the best commercial shifter, and the middle note of a full
-  chord comes out too quiet at octave up.
+- Held chords shifted up are a little rougher than the best commercial shifter. With Response on Fast the middle
+  note of a full chord comes out too quiet at octave up; Clean puts it right, 8 ms later.
 - Nothing below about 60 Hz is shifted (bass guitar's lowest notes).
 
 `ROADMAP.md` is the plan for all of these.

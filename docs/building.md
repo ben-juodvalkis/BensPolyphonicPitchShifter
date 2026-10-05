@@ -41,7 +41,7 @@ Developer ID signature and notarization (see `ROADMAP.md`).
 ## Test
 
 ```
-scripts/gate.sh                                 # the gate: builds the tools, engine against reference, scorecard at -12 and +12
+scripts/gate.sh                                 # the gate: builds the tools, engine against reference, scorecard at -12 and +12 (+12 in each response)
 .venv/bin/python tests/scorecard.py engine all  # all six intervals
 .venv/bin/python tests/held_chords.py           # sustained chords after the attack (octave up; another interval as an argument)
 .venv/bin/python tests/moving_pitch.py          # a slide, a bend and a vibrato: how far the pitch trails and how much it wobbles
@@ -50,7 +50,8 @@ scripts/gate.sh                                 # the gate: builds the tools, en
 ```
 
 Run the Python tests from the repository root as shown or from `tests/`. `scorecard.py` takes a target (`engine`,
-`reference` or `plugin`) and a list of intervals.
+`reference` or `plugin`) and a list of intervals; it, `held_chords.py` and `moving_pitch.py` also take `balanced`
+or `clean` to run that response (shifting up only; Fast is the default).
 
 The Max object and the device are checked inside Max with `max/tools/check_in_max.py` (see `docs/max.md`).
 
@@ -59,7 +60,8 @@ The Max object and the device are checked inside Max with `max/tools/check_in_ma
 ```
 build/tools/polypitch_cli in.f32 out.f32 48000 -12            # raw 32-bit float mono in and out; the bare engine
 build/tools/polypitch_cli in.f32 out.f32 48000 -12 50 100     # with Mix 50 and Tone 100: the whole processor
-build/tools/polypitch_load in.f32 48000 12                    # CPU load and the worst 64-sample block
+build/tools/polypitch_cli in.f32 out.f32 48000 12 response=2  # shifting up with another response: 0 fast, 1 balanced, 2 clean
+build/tools/polypitch_load in.f32 48000 12                    # CPU load and the worst 64-sample block (a fourth argument sets the response)
 ```
 
 ## The band-filter tables
@@ -71,7 +73,7 @@ build/tools/polypitch_load in.f32 48000 12                    # CPU load and the
 cd reference && ../.venv/bin/python make_filters.py
 ```
 
-The engine picks the table for its sample rate and direction. If there is none it uses a simpler filter that needs
+The engine picks the table for its sample rate, band count and delay (`makeBank`). If there is none it uses a simpler filter that needs
 no table and leaks more; `Engine::usingDesignedFilter()` says which. Adding a rate means adding it to `RATES` in
 `make_filters.py`. Rates of 88.2 kHz and above also need more bands to keep the same band width, which the engine
 does not do yet.

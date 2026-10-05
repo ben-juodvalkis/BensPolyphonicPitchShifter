@@ -13,7 +13,7 @@
 			100,
 			100,
 			780,
-			560
+			620
 		],
 		"boxes": [
 			{
@@ -90,7 +90,7 @@
 					"numoutlets": 2,
 					"patching_rect": [
 						20,
-						260,
+						320,
 						150,
 						22
 					],
@@ -202,13 +202,46 @@
 			},
 			{
 				"box": {
+					"id": "a_resp",
+					"maxclass": "attrui",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"patching_rect": [
+						200,
+						248,
+						200,
+						22
+					],
+					"outlettype": [
+						""
+					],
+					"attr": "response"
+				}
+			},
+			{
+				"box": {
+					"id": "c_resp",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						410,
+						244,
+						330,
+						34
+					],
+					"text": "shifting up: 0 = fast, 1 = balanced (attacks 4 ms later, cleaner), 2 = clean (8 ms later; a full chord's middle note comes out right)"
+				}
+			},
+			{
+				"box": {
 					"id": "m_clear",
 					"maxclass": "message",
 					"numinlets": 2,
 					"numoutlets": 1,
 					"patching_rect": [
 						200,
-						248,
+						282,
 						45,
 						22
 					],
@@ -226,7 +259,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						250,
-						248,
+						282,
 						200,
 						20
 					],
@@ -241,7 +274,7 @@
 					"numoutlets": 2,
 					"patching_rect": [
 						20,
-						300,
+						360,
 						22,
 						100
 					],
@@ -261,7 +294,7 @@
 					"numoutlets": 2,
 					"patching_rect": [
 						150,
-						300,
+						360,
 						22,
 						100
 					],
@@ -281,7 +314,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						20,
-						420,
+						480,
 						45,
 						45
 					]
@@ -295,7 +328,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						75,
-						432,
+						492,
 						100,
 						20
 					],
@@ -310,7 +343,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						20,
-						480,
+						540,
 						620,
 						34
 					],
@@ -431,6 +464,18 @@
 				"patchline": {
 					"source": [
 						"a_tone",
+						0
+					],
+					"destination": [
+						"pp",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"a_resp",
 						0
 					],
 					"destination": [

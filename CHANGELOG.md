@@ -8,6 +8,9 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
 - The engine (`engine/PolyPitchEngine.h`): a bank of narrow band filters; a band with one partial has its phase
   advanced at the shifted rate, a band with two partials is played by a reader that repeats exactly one beat.
   Shifts of -12 to +12 semitones. Attacks about 2 ms late shifting down, about 7.5 ms shifting up.
+- A Response setting for shifting up (Fast, Balanced, Clean): attacks about 8, 12 or 16 ms late, each step
+  cleaner on chords and mixes. Clean runs bands half as wide, which brings the middle note of a full chord up to
+  its right loudness.
 - The processor (`engine/PolyPitchProcessor.h`): mix and tone around the engine, shared by every build.
 - A plug-in (AU and VST3, macOS, universal), a Max object (`polypitch~`, macOS, universal) and a Max for Live
   device that uses the object.

@@ -21,8 +21,13 @@ Revisit this if the CPU load or the 128-sample buffer gets in the way of live pl
 
 ## 1. Before a first public release
 
-- **Run the Max object and the device inside Max.** They are built but untested there. `max/tools/check_in_max.py`
-  does it in under a minute; done when it prints `ALL MATCH`. Then freeze the device so it travels as one file.
+- **Run the Max object and the device inside Max.** They are built but untested there, the device's Response
+  buttons included. `max/tools/check_in_max.py` does it in under a minute; done when it prints `ALL MATCH`. Then
+  freeze the device so it travels as one file.
+- **Choose the default response by ear.** Shifting up there are three (Fast, Balanced, Clean: attacks 8, 12 and
+  16 ms late, each cleaner in its own way; `docs/benchmarks.md`). Fast is the default because it was the engine's
+  sound before the choice existed. Balanced is as late as the reference device and measures cleaner than Fast on
+  nearly everything.
 - **A listening pass on real rigs.** The numbers say "better than the reference device shifting down, close to it
   shifting up". One player has confirmed it by ear at octave down and octave up; more ears and more instruments
   are needed.
@@ -55,31 +60,39 @@ Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, A
   lies between two partials is on a reader, and its jumps leave sidebands about 35 dB down. Taking the two
   partials apart from what the bands on either side know, with no reader, would remove them; a first sketch of
   that is in the design notes. Done when `tests/held_chords.py` reaches the reference device's -40 dB.
-- **Mixes of several parts, shifting up.** On twelve pairs of DI takes the reference device is 1.3 to 3.2 dB
-  cleaner at up-shifts, most at +2 and most where strummed chords meet another take; loop mixes show the same at
-  +2. Cause unknown. (Setting the phase only in the bands an attack reaches, instead of in all of them, was tried
-  and changed nothing.)
+- **Mixes of several parts at small upward shifts.** On twelve pairs of DI takes the reference device is 3 dB
+  cleaner at +2 in every response, most where strummed chords meet another take; loop mixes show 1 to 2.4 dB at +2.
+  (At +7 and +12 the Clean response is level with it or ahead; on Fast it is 1.3 to 2.1 dB behind there.) Cause
+  unknown: not band width, not filter leak, and setting the phase only in the bands an attack reaches, instead of
+  in all of them, changed nothing.
 - **Slides shifting down.** The pitch wobbled 11 cents around the right value on a one-octave slide and 4 on a
   vibrato; it is now 3.3 and 0.3 (reference device: 2.1 and 1.5). Both causes are in `docs/design-notes.md`.
   What is left on the slide are short disturbances where a partial crosses from one band into the next and the
   bands change between plain and reader. Done when `tests/moving_pitch.py` shows 2 cents or less at -12 and -5.
-- **Three partials in one band.** A reader gets two right. Separating them by using what the neighboring bands
-  know about each partial would get all three. (Four or more steady partials in one band's width got worse when
-  slow beats stopped being trusted at once: -9 dB of dirt where it was -15, on a synthetic test.)
+- **Three partials in one band, without the lateness.** A reader gets two right. Shifting up, the Clean response
+  gives each a band of its own by halving the band width, and pays 8 ms for it. Separating them by using what the
+  neighboring bands know about each partial would get all three at the Fast response's 8 ms, and when shifting
+  down. (Four or more steady partials in one band's width got worse when slow beats stopped being trusted at once:
+  -9 dB of dirt where it was -15, on a synthetic test.)
 - **The first beat after an attack, shifting up.** Until a beating band's beat has gone by once it is treated as
   plain. Carrying the previous note's knowledge across an attack on the same pitch would shorten that.
-- **Timbre on dense chords: the middle note is too quiet at octave up.** The third of a full chord loses 6 to
-  13 dB of its fundamental (reference device: exact), because two other notes' partials sit 30 to 50 Hz either side
-  and all three share every band there. This is "three partials in one band" below, heard. Bands half as wide
-  (1024 of them with a 16 ms filter) get it right: partials that stand alone are then 0.9 dB off instead of 2.4
-  (reference device 1.0), and attacks come out 15 ms late instead of 7.4. That is the trade the response setting
-  below would expose. The other 3 to 6 dB in the old figure are partials that two notes share: their slow beat
-  keeps its old rate, on the reference device as well.
+- **The middle note of a full chord on the Fast and Balanced responses.** At octave up the third of a full chord
+  loses 6 to 9 dB of its fundamental, or 13 dB of its second harmonic, because two other notes' partials sit 30 to
+  50 Hz either side and all three share every band there ("three partials in one band", heard). The Clean response
+  has it within 1 dB, as the reference device does. Done when Fast has it too; that is the item above. (The other
+  3 to 6 dB in the old "timbre" figure are partials that two notes share: their slow beat keeps its old rate, on
+  the reference device as well.)
+- **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 and 0.9 dB off at +2
+  and +7 on Clean, 2.6 and 1.6 on Fast; the reference device has 0.3 and 0.5.
 - **Chord-note tuning** from 0.1 to 0.6 cents to zero.
 - **Below 60 Hz.** The lowest band is unused, so bass-guitar fundamentals below that are lost.
-- **A response setting for shifting up.** A longer band filter is cleaner and later: 10 ms gives about 1 dB cleaner
-  chords with attacks 9.5 ms late; 12 ms matches the reference device's chords with attacks 11.3 ms late. Expose
-  the choice.
+- **A cleaner Clean: its bands twice over.** 2048 bands (Clean's 43 Hz bands, half a band apart, as Fast does
+  with the wide ones) measured -29.6 dB on the real held chords in the reference implementation, the only thing
+  tried that beats the reference device's -28.4, and two-note chords 3 dB cleaner than Clean. It is about twice
+  the work, so it waits for the faster transform (section 2).
+- **Vibrato on the Clean response** wobbles 7 to 10 cents (Fast: 2.4 to 3.9), because a band half as wide follows
+  a moving pitch half as fast. An idea, untried: let a plain band's phase advance lean on its neighbors when the
+  pitch is moving.
 
 ## 4. Features
 

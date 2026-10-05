@@ -20,8 +20,8 @@ and judges by behavior and by ear, not by code.
 
 ## From edit to main
 
-1. `scripts/gate.sh` (about two minutes): builds the tools, engine against reference at 44.1 and 48 kHz, scorecard
-   at -12 and +12 inside its limits. It must pass before a commit.
+1. `scripts/gate.sh` (about three minutes): builds the tools, engine against reference at 44.1 and 48 kHz, scorecard
+   at -12 and +12 (and at +12 in the balanced and clean responses) inside its limits. It must pass before a commit.
 2. If the sound changed, run `python tests/scorecard.py engine all` and put the before and after lines in the
    commit message. If a number in `docs/benchmarks.md` or the README moved, update it in the same commit.
 3. Commit to `main`. Push only when Ben asks.
@@ -49,6 +49,9 @@ and judges by behavior and by ear, not by code.
   step, or the partial comes out quiet (see "followers" and "placement" in `docs/how-it-works.md`).
 - Shifting up and shifting down use different settings on purpose (`setSemitones` in the engine, the `None`
   defaults in the reference). A change that helps one direction often hurts the other; score both.
+- Shifting up has three responses (`setResponse`: fast, balanced, clean; different band filters, and clean has
+  bands half as wide). Fast is the default and what a number means when it does not say. A change to the up-shift
+  logic moves all three: `python tests/scorecard.py engine balanced 2 7 12`, and the same with `clean`.
 - The scorecard averages. Held chords after the attack and pitch that moves have their own tables in
   `docs/benchmarks.md` because the average hid them.
 - numba: unifying a `prange` index with an int32 array element gives float64. Cast to `np.int64` before indexing.

@@ -6,6 +6,7 @@
 //     octave up gains harshness; at 100 % the curve restores the balance, at 0 % it is flat);
 //   - Mix: both signals at full level at 50 %; below that the quieter side falls away on a dB curve
 //     (0 % = dry only, 100 % = shifted only);
+//   - Response (shifting up only): fast, balanced or clean (attacks about 8, 12 or 16 ms late, each step cleaner);
 //   - the dry signal is never delayed, and no latency is reported.
 //
 // Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).
@@ -21,7 +22,7 @@ public:
     void prepare (double sampleRate)
     {
         sr = sampleRate;
-        engine.setSemitones ((double) semis); engine.prepare (sr);
+        engine.setSemitones ((double) semis); engine.setResponse (response); engine.prepare (sr);
         gsm = 1.0 - std::exp (-1.0 / (0.010 * sr));
         updateTone(); clearState();
     }
@@ -31,6 +32,7 @@ public:
     void setSemitones (int st)       { st = std::max (-12, std::min (12, st)); if (st != semis) { semis = st; engine.setSemitones ((double) st); updateTone(); } }
     void setMix (double zeroToOne)   { mix = std::max (0.0, std::min (1.0, zeroToOne)); gwTarget = mixGain (mix); gdTarget = mixGain (1.0 - mix); }
     void setTone (double zeroToOne)  { const double v = std::max (0.0, std::min (1.0, zeroToOne)); if (v != tone) { tone = v; updateTone(); } }
+    void setResponse (int r)         { r = std::max (0, std::min (2, r)); if (r != response) { response = r; engine.setResponse (r); } }      // shifting up only: 0 = fast, 1 = balanced, 2 = clean
     int getSemitones() const { return semis; }
     const Engine& getEngine() const { return engine; }
 
@@ -55,7 +57,7 @@ private:
     Engine engine;
     double sr = 44100.0, mix = 1.0, tone = 1.0, gwTarget = 1.0, gdTarget = 0.0, gWet = 1.0, gDry = 0.0, gsm = 0.0;
     double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0, c0 = 1, c1 = 0, c2 = 0, e1 = 0, e2 = 0, s1 = 0, s2 = 0, u1 = 0, u2 = 0;
-    int semis = -12;
+    int semis = -12, response = 0;
     bool first = true;
 
     void clearState() { s1 = s2 = u1 = u2 = 0.0; first = true; gwTarget = mixGain (mix); gdTarget = mixGain (1.0 - mix); }

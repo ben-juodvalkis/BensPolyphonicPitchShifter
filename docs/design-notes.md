@@ -127,6 +127,50 @@ gained more from the rest than it lost there (loop mixes 1 dB, twelve pairs of D
 A side effect to know about: with the smoothed advance, the shifted pitch follows a bend 4 ms *sooner* at octave
 down (8 ms behind instead of 12). The loudness still arrives when it did.
 
+## The response setting: what a longer filter and narrower bands buy, shifting up
+
+Three roadmap items turned out to be one question: "timbre on dense chords", "three partials in one band" and "a
+response setting".
+
+The timbre item had no cause of its own. The partials of a full chord that came out 3 to 6 dB off at octave up
+were of two kinds. Those that two notes share (a string's second harmonic on the fundamental of the string an
+octave above) are a slow beat, which keeps its old rate after the shift; they read 4 to 5 dB off in this engine
+and in the reference device alike. The rest was three partials in one band, heard: the third of a chord has a
+partial with other notes' partials 30 to 50 Hz either side, all three inside every 86 Hz band there, and a reader
+gets two of three right. The third of an open E lost 6 dB of its fundamental, of an A barre chord 9 dB, and the
+third of a B minor barre chord 13 dB of its second harmonic. (An earlier note here and in the benchmarks said
+"fundamental" for all three. For the B minor chord it was the second harmonic; its fundamental is right.)
+
+What was measured, shifting up, in the reference implementation (dirt on the scorecard's full chords and on the
+eleven real held chords, both at octave up; the reference device has -28.9 and -28.4 dB):
+
+| Tried | Result |
+|---|---|
+| The bands as they were (1024, 86 Hz wide), 8 ms filter | Full chords -28.8 dB, held chords -27.7. A chord's middle note 4.5 dB off (rms of six chords). Attacks 7.4 ms late. This is the Fast response. |
+| The same bands behind the 12 ms filter (the one shifting down uses: 41 dB down one band away instead of 30) | Full chords -30.2, held -27.9, the middle note 2.5 dB off, pure intervals 5 to 7 dB cleaner, loop mixes 1.4 to 2 dB. Attacks 11.3 ms late, the reference device's figure. The Balanced response. |
+| Bands half as wide (1024, 43 Hz wide), 16 ms filter | Full chords -33.5, held -27.5, the middle note 0.7 dB off (reference device 0.5), mixes of DI takes 2 to 3.6 dB cleaner at +7 and +12. Attacks 15.4 ms late, and a 6 Hz vibrato wobbles 9.5 cents instead of 3.9. The Clean response. |
+| Bands half as wide behind a 12 ms filter | Worse than either neighbor: full chords -31.0, held -26.1, and only 24 of 28 pure pairs under -40 dB. A band half as wide needs a filter twice as long to be as tight; with less it leaks. |
+| Clean's bands twice over (2048, half a band apart, as Fast does with the wide ones), 16 ms | Held chords -29.6 dB, the only thing tried so far that beats the reference device there; two-note chords -38.2 (Clean: -35.1); full chords -33.0. About twice the work. Not built: it wants the faster transform first (`ROADMAP.md`). |
+
+What it taught:
+
+- **Lateness buys cleanliness in two different ways.** A longer filter on the same bands leaks less (Balanced). A
+  longer filter spent on narrower bands separates partials that were sharing (Clean). They help different things:
+  Balanced is the cleanest of the three on pure intervals and on loop mixes, Clean on full chords, on the middle
+  note and on dense DI mixes.
+- **Narrow bands follow moving pitch more slowly.** Vibrato wobble at octave up: 3.9, 5.6 and 9.5 cents for
+  Fast, Balanced and Clean. Still far below the reference device's 32.
+- **Neither helps mixes at +2.** Twelve pairs of DI takes: -24.3, -24.5 and -24.5 dB, against the reference
+  device's -27.5. Whatever it does better at small upward shifts is not a matter of band width or filter leak.
+- **Neither helps real held chords** (within half a dB), as the longer and narrower filters tried before the
+  smoothed phase advance did not. Twice the narrow bands does.
+- **Balanced is not uniformly kinder to the middle note**: at +2 the third of an open A minor chord is 8.7 dB too
+  quiet on Balanced, 4.0 on Fast and right on Clean.
+- The engine keeps every filter ready (`prepare()`), so the response can change while playing without allocating;
+  shifting up, the change restarts the bands as a change of interval does.
+
+Fast stays the default: which of the three should be is a question for ears and hands, not for these tables.
+
 ## Things worth knowing about measuring
 
 - **Chord scores need each note's tuning**, read from a partial that no other note shares. A score that allows a

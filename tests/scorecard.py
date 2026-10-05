@@ -3,6 +3,7 @@
     python tests/scorecard.py                     the C++ engine at -12 and +12, checked against the gate
     python tests/scorecard.py reference -12 7     another target (engine | reference | plugin), other intervals
     python tests/scorecard.py engine all          all six intervals (-12 -5 -2 +2 +7 +12)
+    python tests/scorecard.py engine clean 12     with the response set to balanced or clean (it only matters shifting up)
 
 What is measured (per interval, one test signal of about two minutes):
   pairs    28 pairs of sines (4 registers x 7 intervals): power that is not the two shifted tones, dB re them.
@@ -12,8 +13,8 @@ What is measured (per interval, one test signal of about two minutes):
   notes    6 single plucked notes: how late the attack comes out, tuning, and timbre (how far each partial's
            loudness is from the ideal shift, rms dB over the partials within 30 dB of the strongest)
 
-Exit status 1 if a gated interval (-12, +12) falls outside the limits in GATE: a regression guard, set a little
-looser than what the engine scores today (docs/benchmarks.md).
+Exit status 1 if a gated interval (-12 and +12; +12 for the balanced and clean responses) falls outside the limits in
+GATE or GATE_RESPONSE: a regression guard, set a little looser than what the engine scores today (docs/benchmarks.md).
 """
 import sys, time, json, os
 import numpy as np
@@ -32,6 +33,9 @@ PL = ("E2", "A2", "G3", "E4", "A4", "E5")
 # limits for the regression gate: (key, worst allowed, "max" = must not exceed / "min" = must reach)
 GATE = {-12: (("pairs_clean", 26, "min"), ("dyads_db", -37.0, "max"), ("chords_db", -34.0, "max"), ("chord_cents", 1.5, "max"), ("attack_ms", 3.0, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),
         12: (("pairs_clean", 23, "min"), ("dyads_db", -31.0, "max"), ("chords_db", -27.0, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 8.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))}
+# the same for the balanced (1) and clean (2) responses, which only matter shifting up
+GATE_RESPONSE = {1: {12: (("pairs_clean", 24, "min"), ("dyads_db", -31.5, "max"), ("chords_db", -28.5, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 12.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))},
+                 2: {12: (("pairs_clean", 25, "min"), ("dyads_db", -31.0, "max"), ("chords_db", -31.5, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 16.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))}}
 
 
 def build(st):
@@ -91,19 +95,20 @@ COLS = (("pairs_db", "pairs dB", 1), ("pairs_clean", "clean/28", 0), ("dyads_db"
         ("attack_ms", "attack ms", 1), ("note_cents", "note c", 1), ("timbre_db", "timbre dB", 1))
 
 
-def run(target="engine", sts=(-12, 12), save=None):
-    fn = engines.BY_NAME[target]; ok = True; out = {}
-    print(f"{target:>10} | " + " ".join(f"{h:>9}" for _, h, _ in COLS))
+def run(target="engine", sts=(-12, 12), save=None, response=0):
+    fn = engines.BY_NAME[target]; ok = True; out = {}; gate = GATE_RESPONSE[response] if response else GATE
+    print(f"{engines.RESPONSES[response] if response else target:>10} | " + " ".join(f"{h:>9}" for _, h, _ in COLS))
     for st in sts:
-        t0 = time.time(); x, segs, ideal = build(st); y = fn(x, st); c = card(score(y, st, segs, ideal)); out[str(st)] = c
-        fails = [f"{k} {c[k]:.1f} (limit {lim})" for k, lim, how in GATE.get(st, ()) if (c[k] > lim if how == "max" else c[k] < lim)]
-        print(f"{st:+10d} | " + " ".join(f"{c[k]:9.{p}f}" for k, _, p in COLS) + f"   [{time.time() - t0:.0f} s]" + ("   OUTSIDE THE GATE: " + "; ".join(fails) if fails else ("   gate ok" if st in GATE else "")))
+        t0 = time.time(); x, segs, ideal = build(st); y = fn(x, st, response=response); c = card(score(y, st, segs, ideal)); out[str(st)] = c
+        fails = [f"{k} {c[k]:.1f} (limit {lim})" for k, lim, how in gate.get(st, ()) if (c[k] > lim if how == "max" else c[k] < lim)]
+        print(f"{st:+10d} | " + " ".join(f"{c[k]:9.{p}f}" for k, _, p in COLS) + f"   [{time.time() - t0:.0f} s]" + ("   OUTSIDE THE GATE: " + "; ".join(fails) if fails else ("   gate ok" if st in gate else "")))
         ok = ok and not fails
     if save: json.dump(out, open(save, "w"), indent=1)
     return ok
 
 
 if __name__ == "__main__":
-    a = sys.argv[1:]; target = a[0] if a and a[0] in engines.BY_NAME else "engine"; rest = [v for v in a if v not in engines.BY_NAME]
-    sts = ALL if rest == ["all"] else tuple(int(v) for v in rest) or (-12, 12)
-    sys.exit(0 if run(target, sts) else 1)
+    a = sys.argv[1:]; target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
+    rest = [v for v in a if v not in engines.BY_NAME and v not in engines.RESPONSES]
+    sts = ALL if rest == ["all"] else tuple(int(v) for v in rest) or ((12,) if resp else (-12, 12))
+    sys.exit(0 if run(target, sts, response=resp) else 1)

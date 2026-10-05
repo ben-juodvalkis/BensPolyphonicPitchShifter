@@ -500,22 +500,32 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
             quiet_until = pend + settle; pend = -1
     return et, em, ed, ep, el, ej, ef, en, diag, br0[:nbr], br1[:nbr], drt[:ndr]
 
-def shift(x, st, sr=SR, K=512, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
+def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
           n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=50.0, slow_hold=0.5, debug=False):
     """Shift mono signal x by st semitones (-12 .. +12). -> the shifted signal, same length, no dry signal mixed in.
-    Everything after sr is a tuning constant of the engine; the defaults are what the C++ engine uses. The ones set
-    to None differ between shifting up and shifting down and are filled in below.
+    response (shifting up only) trades how late an attack comes out for how clean the sound is: 0 = fast, the attack as
+    early as it can be (an 8 ms band filter); 1 = balanced, the same bands behind a 12 ms filter, attacks 4 ms later;
+    2 = clean, bands half as wide behind a 16 ms filter: attacks 8 ms later than fast, and the middle note of a full
+    chord, crowded by other notes' partials in the wide bands, gets bands of its own.
+    Everything after that is a tuning constant of the engine; the defaults are what the C++ engine uses. The ones set
+    to None differ between shifting up and shifting down (and with the response) and are filled in below.
     debug=True also returns per-hop diagnostics; debug="bands" returns every band's output and the event lists."""
-    x = np.asarray(x, np.float64); r = 2 ** (st / 12); up = r > 1.0001
-    if tau_ms is None: tau_ms = 8.0 if up else 12.0
-    if tail_ms is None: tail_ms = 40.0 if up else 60.0
+    x = np.asarray(x, np.float64); r = 2 ** (st / 12); up = r > 1.0001; resp = min(max(int(response), 0), 2) if up else 0; clean = resp == 2
+    # The band filter. Shifting down: 512 bands 86 Hz apart, 12 ms delay (the bridge hides it). Shifting up, fast: the same bands
+    # behind an 8 ms filter, and twice as many of them (`over`, below). Balanced: as fast, behind the 12 ms filter, which lets
+    # less of each partial into the bands around it. Clean: 1024 bands 43 Hz apart, each half as wide, 16 ms delay. Where three
+    # partials 30 to 50 Hz apart crowd together (the third of a full chord between its neighbours' harmonics), half-width bands
+    # give each a band of its own; with the wide ones the middle partial came out 6 to 13 dB quiet.
+    if K is None: K = 1024 if clean else 512
+    if tau_ms is None: tau_ms = (8.0, 12.0, 16.0)[resp] if up else 12.0
+    if tail_ms is None: tail_ms = (40.0, 60.0, 80.0)[resp] if up else 60.0
     if place is None: place = 2 if up else 3            # shifting up: place readers when they start and nudge them at jumps; down: nudge only (the bridge starts them in step)
     if pgain is None: pgain = 0.3 if up else 0.5
     # Shifting up there is no bridge, so sustained chords lean on the readers more. There the engine runs twice the
     # bands, calls a band "beating" at a finer threshold (a second partial 30 dB down counts) and keeps a band on its
     # reader longer. On held chords at +12 that took the dirt between the notes from -22.6 to -26.4 dB
     # (docs/benchmarks.md). Shifting down the same settings cost 2 to 5 dB on mixes of real takes, so they stay off.
-    if over is None: over = 2 if up else 1
+    if over is None: over = 2 if (up and not clean) else 1
     if drop is None: drop = 0.001 if up else 0.004
     if drop_out is None: drop_out = 0.00025 if up else drop
     if n_out is None: n_out = 8 if up else 3
