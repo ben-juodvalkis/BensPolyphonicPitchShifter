@@ -324,6 +324,31 @@ Against the build before: 78 of 88 renders bit-identical, the other ten differen
 samples, every scorecard row the same. At octave up the band loop went from 4.9 to 1.7 % of a core and the whole
 engine from 9.9 to 6.4 %; the heavy block from 17 to 13 % of its slot.
 
+**The work at each frame, down by two fifths.**
+
+- *The transform* made 1024 complex outputs from 1024 real inputs, and 213 of them are bands. It is still the
+  plain stage-by-stage transform. But its input is put in order as it is made; the first two stages, where the
+  numbers are still real and the turns are by 1 and by a quarter, take one multiplication for four numbers; every
+  later stage has its turns side by side, so that two go at a time; and in the last three stages what would only
+  feed outputs nobody reads is left out. It gives the same numbers as the loop it replaced, to the last bit
+  (1.9 million outputs compared, four sizes). That took writing the multiply-and-add steps the way the compiler
+  had happened to place them in the old loop: one way in the third stage, the other from the fourth on. 0.65 to
+  0.53 % of a core at octave up. A platform's own transform was not needed.
+- *Each band's angle* is found for all bands in one go (one division and a polynomial each; within two units in
+  the last place of the library's, signed zeros included), twelve times as fast as the library call. By itself
+  that gained nothing: with the angle out of the way, the loop turned out to be waiting for memory.
+- *Where a frame's numbers are kept.* Each band's loudness, phase and smoothed phase were kept band by band, so a
+  new frame wrote to 213 places 4 KB apart in each of three arrays, and every vector set at a frame's start read
+  them back the same way. They are now kept frame by frame, all bands of a frame side by side. The energy that
+  leaves the comparison window is kept in a small ring of its own, where it was read back from the frames; the
+  ring of window energies is written once per frame, not twice. The band's envelope and its running energy stay
+  band by band, because the curves and the readers go through them along time. Per-band work at a frame: 1.0 to
+  0.55 % of a core at octave up.
+
+Against the build before: all 88 renders within -178 dB (a last bit, in up to 4,400 samples of a render: the
+angles are the engine's own now, and a running sum takes its outgoing energy from the ring), every scorecard row
+the same. The storage change alone is bit-identical.
+
 **What could not be done.**
 
 | Tried | Result |

@@ -90,6 +90,7 @@ public:
         rc.assign (n, 1.0); rs.assign (n, 0.0); rdc.assign (n, 1.0); rds.assign (n, 0.0); ramp.assign (n, 0.0); rdamp.assign (n, 0.0); rdirty.assign (n, 1);
         orc.assign (n, 1.0); ors.assign (n, 0.0); ordc.assign (n, 1.0); ords.assign (n, 0.0); oramp.assign (n, 0.0); ordamp.assign (n, 0.0); ordirty.assign (n, 1); stC.assign (n, 1.0); stS.assign (n, 0.0);
         rframes.assign (n, ReaderFrames()); rdGen = 0; imSeen = -1;
+        fRe.assign (n, 0.0); fIm.assign (n, 0.0); fAng.assign (n, 0.0);
         tPh.assign (n, 0.0); tSl.assign (n, 0.0); tC.assign (n, 0.0); tS.assign (n, 0.0); tDc.assign (n, 0.0); tDs.assign (n, 0.0);
         rai.assign (n, 0.0); orai.assign (n, 0.0); bandV.assign (n, 0.0); rdList.assign (n, 0); fdList.assign (n, 0); fti.assign (n, -1); nRd = 0; nFd = 0; dirty = true;
         {
@@ -100,7 +101,8 @@ public:
             for (int q = 0; q < 4; ++q) for (int j = 0; j <= fl[q]; ++j) { const double g = (double) j / (double) fl[q]; fadeG[(size_t) (fadeOff[q] + j)] = 0.5 - 0.5 * std::cos (kPi * g); }
         }
         E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0); scnt.assign (n, 0); Js.assign (n, 0.0);
-        Lr.assign ((size_t) nPar * n * (size_t) nl, 0.0); Li.assign ((size_t) nPar * n * (size_t) nl, 0.0); Ei.assign (n * 2 * NW, 0.0); Ew.assign (n * 2, 0.0); Lpk.assign ((size_t) nPar * n, 0.0);
+        Lr.assign ((size_t) nPar * n * (size_t) nl, 0.0); Li.assign ((size_t) nPar * n * (size_t) nl, 0.0); Ei.assign (n * NW, 0.0); eN = 4; while (eN < 2 * Wn + 2) eN *= 2;
+        Eh.assign ((size_t) eN * n, 0.0); Ew.assign (n * 2, 0.0); Lpk.assign ((size_t) nPar * n, 0.0);
         fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
         lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0);
         pvR.assign (4 * M, 0.0); pvI.assign (4 * M, 0.0);
@@ -315,7 +317,7 @@ private:
     int fresh[2] = { 1, 1 };
     int64_t sumsFor[2] = { 0, 1 };
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
-    std::vector<double> rai, orai, bandV, fadeG, tPh, tSl, tC, tS, tDc, tDs;
+    std::vector<double> rai, orai, bandV, fadeG, tPh, tSl, tC, tS, tDc, tDs, fRe, fIm, fAng;
     std::vector<int> rdList, fdList, fti;                    // the bands on readers; the bands in a cross-fade; where each band's fade is in fadeG
     int nRd = 0, nFd = 0, fadeLen[4] = { 1, 1, 1, 1 }, fadeOff[4] = { 0, 0, 0, 0 };
     bool dirty = true;
@@ -325,14 +327,15 @@ private:
     std::vector<ReaderFrames> rframes;
     int64_t rdGen = 0, imSeen = -1;
     std::vector<char> rdirty, ordirty;
-    struct Bank { std::vector<double> h, twC, twS; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
+    struct Bank { std::vector<double> h, twC, twS, swC, swS; std::vector<int> rev; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
     Bank banks[4];                                                    // [0] shifting down; shifting up: [1] fast, [2] balanced, [3] clean. Made in prepare()
     int response = 0, loaded = -1;
     int bankFor() const { return up ? 1 + response : 0; }
-    const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr;                // the ones in use
+    const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr; const double* swC = nullptr; const double* swS = nullptr; const int* rev = nullptr;      // the ones in use
     std::vector<double> xring, fftRe, fftIm, Am, Um, Us, fsm, ebm, epm, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, Js, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
     std::vector<float> Zr, Zi;
-    std::vector<double> pvR, pvI, Lr, Li, Lpk, Ew, Ei;
+    std::vector<double> pvR, pvI, Lr, Li, Lpk, Ew, Ei, Eh;
+    int eN = 64;
     double fitT[M] = {}, fitC[M] = {}, fitS[M] = {}, fitEn[M] = {}, fitOr[M] = {}, fitOi[M] = {}, fitVr[M] = {}, fitVi[M] = {}, fitWr[M] = {}, fitWi[M] = {};      // what a fit works with (fitPrepare)
     bool fitOk[M] = {};
     int lockN = 0;
@@ -344,6 +347,27 @@ private:
     bool brActive = false, dirAct = false;
 
     static inline double wrap (double a) { return a - 2.0 * kPi * std::round (a / (2.0 * kPi)); }
+
+    // the angle of n points (y, x), several at a time: atan2 (y, x). One division each: the smaller of |x| and |y| over the larger
+    // (or, more than a sixteenth of a turn from the nearer axis, their difference over their sum, which is the same angle less an
+    // eighth of a turn), a polynomial, and the eighth and quarter turns put back. Within two units in the last place of the
+    // library's atan2, signed zeros included.
+    static inline void atan2Many (const double* POLYPITCH_RESTRICT y, const double* POLYPITCH_RESTRICT x, double* POLYPITCH_RESTRICT a, int n)
+    {
+        for (int i = 0; i < n; ++i)
+        {
+            const double ax = std::abs (x[i]), ay = std::abs (y[i]), mx = ax > ay ? ax : ay, mn = ax > ay ? ay : ax;
+            const bool far = mn > 0.41421356237309503 * mx;
+            const double num = far ? mn - mx : mn, den = far ? mn + mx : (mx > 0.0 ? mx : 1.0), u = num / den, z = u * u, w = z * z;
+            const double s1 = z * (3.33333333333329318027e-01 + w * (1.42857142725034663711e-01 + w * (9.09088713343650656196e-02 + w * (6.66107313738753120669e-02 + w * (4.97687799461593236017e-02 + w * 1.62858201153657823623e-02)))));
+            const double s2 = w * (-1.99999999998764832476e-01 + w * (-1.11111104054623557880e-01 + w * (-7.69187620504482999495e-02 + w * (-5.83357013379057348645e-02 + w * -3.65315727442169155270e-02))));
+            double r = u - u * (s1 + s2);
+            r = far ? 0.7853981633974483 + (r + 3.061616997868383e-17) : r;
+            r = ay > ax ? 1.5707963267948966 - (r - 6.123233995736766e-17) : r;
+            r = std::signbit (x[i]) ? 3.141592653589793 - (r - 1.2246467991473532e-16) : r;
+            a[i] = std::signbit (y[i]) ? -r : r;
+        }
+    }
 
     // cos and sin of n angles, several at a time. Where the machine multiplies and adds in one step (FP_FAST_FMA) the angle is
     // brought into -pi/4 .. pi/4 by taking out a whole number of quarter turns (pi/2 in three parts, so that nothing is lost
@@ -397,13 +421,18 @@ private:
         }
         const int kb = b.K * b.over; b.twC.assign ((size_t) kb, 0.0); b.twS.assign ((size_t) kb, 0.0);
         for (int i = 0; i < kb; ++i) { b.twC[(size_t) i] = std::cos (2.0 * kPi * i / kb); b.twS[(size_t) i] = std::sin (2.0 * kPi * i / kb); }
+        // for the transform: the order its input goes in (bit-reversed), and the turns of each stage side by side (stage 4, then 8, ...)
+        b.rev.assign ((size_t) kb, 0); b.swC.assign ((size_t) kb, 0.0); b.swS.assign ((size_t) kb, 0.0);
+        for (int i = 0, j = 0; i < kb; ++i) { b.rev[(size_t) i] = j; int bit = kb >> 1; for (; j & bit; bit >>= 1) j ^= bit; j ^= bit; }
+        for (int len = 4, off = 0; len <= kb; off += len / 2, len <<= 1)
+            for (int j = 0; j < len / 2; ++j) { b.swC[(size_t) (off + j)] = b.twC[(size_t) (j * (kb / len))]; b.swS[(size_t) (off + j)] = b.twS[(size_t) (j * (kb / len))]; }
     }
 
     // switch to the filter for the current direction and response (all were made in prepare(), so nothing is allocated here)
     void loadFilter()
     {
         loaded = bankFor(); const Bank& b = banks[loaded];
-        h = b.h.data(); twC = b.twC.data(); twS = b.twS.data(); tau = b.tau; L = b.L; designed = b.designed;
+        h = b.h.data(); twC = b.twC.data(); twS = b.twS.data(); swC = b.swC.data(); swS = b.swS.data(); rev = b.rev.data(); tau = b.tau; L = b.L; designed = b.designed;
         tauD = (double) tau;
         over = b.over; Kb = b.K * over; dw = 2.0 * kPi / Kb; kB = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS);     // bands this bank has below 10 kHz
         for (int k = 0; k < kS; ++k) wk[(size_t) k] = k * dw;
@@ -416,7 +445,7 @@ private:
         std::fill (Zr.begin(), Zr.end(), 0.0f); std::fill (Zi.begin(), Zi.end(), 0.0f);
         std::fill (Am.begin(), Am.end(), 0.0); std::fill (Um.begin(), Um.end(), 0.0); std::fill (Cm.begin(), Cm.end(), 0.0); std::fill (lastAng.begin(), lastAng.end(), 0.0);
         std::fill (Us.begin(), Us.end(), 0.0); std::fill (fsm.begin(), fsm.end(), 0.0); std::fill (ebm.begin(), ebm.end(), 0.0); std::fill (epm.begin(), epm.end(), 0.0);
-        std::fill (Lr.begin(), Lr.end(), 0.0); std::fill (Li.begin(), Li.end(), 0.0); std::fill (Lpk.begin(), Lpk.end(), 0.0); std::fill (Ew.begin(), Ew.end(), 0.0); std::fill (Ei.begin(), Ei.end(), 1e30);
+        std::fill (Lr.begin(), Lr.end(), 0.0); std::fill (Li.begin(), Li.end(), 0.0); std::fill (Lpk.begin(), Lpk.end(), 0.0); std::fill (Ew.begin(), Ew.end(), 0.0); std::fill (Ei.begin(), Ei.end(), 1e30); std::fill (Eh.begin(), Eh.end(), 0.0);
         ++rdGen;
         const int64_t mNext = (t + H - 1) / H;                     // with no frames behind them the sums are right (zero) for the next frame of either kind
         for (int c = 0; c < 2; ++c) { fresh[c] = 1; sumsFor[c] = mNext + ((mNext ^ c) & 1); }
@@ -435,29 +464,58 @@ private:
     }
 
     // ---- analysis: one frame of every band's envelope
-    void fft (bool inverse)
+    // The transform: Kb real numbers (in fftRe, already in bit-reversed order: analyzeFrame puts them there) to Kb complex ones, of
+    // which only the first kB are finished, because only those are bands. A plain radix-2 transform, stage by stage, written so
+    // that it gives the same numbers to the last bit as the textbook loop it replaces:
+    //   - the first two stages are done together. The numbers are still real there, turning by 1 needs no multiplication and the
+    //     quarter turn one (by the cosine of a quarter turn as the table has it, which is not quite nothing);
+    //   - each later stage has its turns side by side (swC, swS), so that the compiler takes two at a time;
+    //   - in the last stages what would only feed outputs nobody reads is left out.
+    // TURN_R / TURN_I say where the machine's multiply-and-add in one step goes (stage 8 one way, the later stages the other), which
+    // is how this loop was compiled when the engine's sound was settled; without that instruction they are plain sums.
+   #if defined (FP_FAST_FMA) || defined (__FP_FAST_FMA)
+    #define POLYPITCH_TURN_R8(rb, ib, c, s) std::fma (rb, c, -(ib * s))
+    #define POLYPITCH_TURN_R(rb, ib, c, s)  std::fma (-ib, s, rb * c)
+    #define POLYPITCH_TURN_I(rb, ib, c, s)  std::fma (ib, c, rb * s)
+   #else
+    #define POLYPITCH_TURN_R8(rb, ib, c, s) (rb * c - ib * s)
+    #define POLYPITCH_TURN_R(rb, ib, c, s)  (rb * c - ib * s)
+    #define POLYPITCH_TURN_I(rb, ib, c, s)  (rb * s + ib * c)
+   #endif
+    void transform()
     {
-        const int n = Kb;
-        for (int i = 1, j = 0; i < n; ++i)
+        const int n = Kb; double* re = fftRe.data(); double* im = fftIm.data();
         {
-            int bit = n >> 1;
-            for (; j & bit; bit >>= 1) j ^= bit;
-            j ^= bit;
-            if (i < j) { std::swap (fftRe[(size_t) i], fftRe[(size_t) j]); std::swap (fftIm[(size_t) i], fftIm[(size_t) j]); }
+            const double e = swC[1];
+            for (int i = 0; i < n; i += 4)
+            {
+                const double s1 = re[i] + re[i + 1], d1 = re[i] - re[i + 1], s2 = re[i + 2] + re[i + 3], d2 = re[i + 2] - re[i + 3], xr = d2 * e;
+                re[i] = s1 + s2; re[i + 2] = s1 - s2; re[i + 1] = d1 + xr; re[i + 3] = d1 - xr; im[i] = 0.0; im[i + 2] = 0.0; im[i + 1] = d2; im[i + 3] = -d2;
+            }
         }
-        for (int len = 2; len <= n; len <<= 1)
+        for (int len = 8, off = 2; len <= n; off += len / 2, len <<= 1)
         {
-            const int step = n / len;
+            const int half = len / 2, need = std::min (kB, len), na = std::min (need, half), nb = std::max (need - half, 0);       // of each block: outputs wanted in its first half, and in its second
+            const double* POLYPITCH_RESTRICT c = swC + off; const double* POLYPITCH_RESTRICT s = swS + off;
             for (int i = 0; i < n; i += len)
-                for (int j = 0; j < len / 2; ++j)
+            {
+                double* POLYPITCH_RESTRICT ra = re + i; double* POLYPITCH_RESTRICT rb = ra + half; double* POLYPITCH_RESTRICT ia = im + i; double* POLYPITCH_RESTRICT ib = ia + half;
+                if (len == 8)
                 {
-                    const double c = twC[(size_t) (j * step)], s = inverse ? twS[(size_t) (j * step)] : -twS[(size_t) (j * step)];
-                    const size_t a = (size_t) (i + j), b = (size_t) (i + j + len / 2);
-                    const double xr = fftRe[b] * c - fftIm[b] * s, xi = fftRe[b] * s + fftIm[b] * c;
-                    fftRe[b] = fftRe[a] - xr; fftIm[b] = fftIm[a] - xi; fftRe[a] += xr; fftIm[a] += xi;
+                    for (int j = 0; j < nb; ++j) { const double xr = POLYPITCH_TURN_R8 (rb[j], ib[j], c[j], s[j]), xi = POLYPITCH_TURN_I (rb[j], ib[j], c[j], s[j]); rb[j] = ra[j] - xr; ib[j] = ia[j] - xi; ra[j] += xr; ia[j] += xi; }
+                    for (int j = nb; j < na; ++j) { const double xr = POLYPITCH_TURN_R8 (rb[j], ib[j], c[j], s[j]), xi = POLYPITCH_TURN_I (rb[j], ib[j], c[j], s[j]); ra[j] += xr; ia[j] += xi; }
                 }
+                else
+                {
+                    for (int j = 0; j < nb; ++j) { const double xr = POLYPITCH_TURN_R (rb[j], ib[j], c[j], s[j]), xi = POLYPITCH_TURN_I (rb[j], ib[j], c[j], s[j]); rb[j] = ra[j] - xr; ib[j] = ia[j] - xi; ra[j] += xr; ia[j] += xi; }
+                    for (int j = nb; j < na; ++j) { const double xr = POLYPITCH_TURN_R (rb[j], ib[j], c[j], s[j]), xi = POLYPITCH_TURN_I (rb[j], ib[j], c[j], s[j]); ra[j] += xr; ia[j] += xi; }
+                }
+            }
         }
     }
+   #undef POLYPITCH_TURN_R8
+   #undef POLYPITCH_TURN_R
+   #undef POLYPITCH_TURN_I
 
     void analyzeFrame()
     {
@@ -467,13 +525,15 @@ private:
         {
             double acc = 0.0;
             for (int n = q; n < L; n += Kb) acc += xring[(size_t) ((t - n) & (XN - 1))] * h[(size_t) n];
-            fftRe[(size_t) q] = acc; fftIm[(size_t) q] = 0.0;
+            fftRe[(size_t) rev[q]] = acc;
         }
         POLYPITCH_STAGE_NEXT (sTransform);
-        fft (true);
+        transform();
         POLYPITCH_STAGE_NEXT (sFrameBands);
         const int64_t m = t / H; mNow = m; ++rdGen; const size_t col = (size_t) (m & FM);
         const int tm = (int) (t % Kb);
+        // each band's value at this frame, and its angle (all the angles in one go)
+        fRe[0] = 0.0; fIm[0] = 0.0;
         for (int k = 0; k < kB; ++k)
         {
             float zr = 0.0f, zi = 0.0f;
@@ -484,12 +544,16 @@ private:
                 zr = (float) (ar * c - ai * s); zi = (float) (ar * s + ai * c);
             }
             const size_t b = (size_t) k * 2 * NF;
-            Zr[b + col] = zr; Zr[b + col + NF] = zr; Zi[b + col] = zi; Zi[b + col + NF] = zi;
-            const double re = zr, im = zi, ang = std::atan2 (im, re);
-            const size_t c1 = (size_t) k * NF + col, c0 = (size_t) k * NF + (size_t) ((m - 1) & FM);
-            Am[c1] = std::sqrt (re * re + im * im);
+            Zr[b + col] = zr; Zr[b + col + NF] = zr; Zi[b + col] = zi; Zi[b + col + NF] = zi; fRe[(size_t) k] = zr; fIm[(size_t) k] = zi;
+        }
+        atan2Many (fIm.data(), fRe.data(), fAng.data(), kB);
+        for (int k = 0; k < kB; ++k)
+        {
+            const double re = fRe[(size_t) k], im = fIm[(size_t) k], ang = fAng[(size_t) k];
+            const size_t c1 = (size_t) k * NF + col, c0 = (size_t) k * NF + (size_t) ((m - 1) & FM), f1 = col * (size_t) kS + (size_t) k, f0 = (size_t) ((m - 1) & FM) * (size_t) kS + (size_t) k;
+            Am[f1] = std::sqrt (re * re + im * im);
             Cm[c1] = (m == 0 ? 0.0 : Cm[c0]) + re * re + im * im;                           // energy so far (for the readers' loudness correction)
-            Um[c1] = m == 0 ? ang : Um[c0] + wrap (ang - lastAng[(size_t) k]);          // the phase, never wrapped back
+            Um[f1] = m == 0 ? ang : Um[f0] + wrap (ang - lastAng[(size_t) k]);          // the phase, never wrapped back
             lastAng[(size_t) k] = ang;
             {
                 // The same phase with its frame-to-frame advance smoothed and summed up again: what a plain band's phase advance is taken
@@ -503,7 +567,7 @@ private:
                 // little out of step. Where a frame or the one before it holds nothing at all (digital silence has no phase) the advance is
                 // zero. Only the advance is ever used, so the smoothed phase starts at 0.
                 const size_t kk = (size_t) k;
-                if (m == 0) { Us[c1] = 0.0; fsm[kk] = 0.0; ebm[kk] = 0.0; epm[kk] = 0.0; }
+                if (m == 0) { Us[f1] = 0.0; fsm[kk] = 0.0; ebm[kk] = 0.0; epm[kk] = 0.0; }
                 else
                 {
                     const double e = re * re + im * im;
@@ -514,17 +578,18 @@ private:
                         if (e < 0.1 * eb) g = smA * e / (0.1 * eb);
                         if (e > 2.0 * eb) g = eb > 0.0 ? smA + (1.0 - smA) * std::min ((e - 2.0 * eb) / (2.0 * eb), 1.0) : 1.0;
                         if (t <= smHold) g = 1.0;
-                        fsm[kk] += g * (Um[c1] - Um[c0] - fsm[kk]);
+                        fsm[kk] += g * (Um[f1] - Um[f0] - fsm[kk]);
                     }
-                    ebm[kk] += smE * (e - ebm[kk]); epm[kk] = e; Us[c1] = Us[c0] + fsm[kk];
+                    ebm[kk] += smE * (e - ebm[kk]); epm[kk] = e; Us[f1] = Us[f0] + fsm[kk];
                 }
             }
             {
                 // the band's energy over the comparison window that ends at this frame (Wn frames, every second one) as a running sum, and
-                // one over it kept for the last NW frames: what the likeness curves are scaled by (control)
-                const double qr = Zr[b + col + NF - 2 * Wn], qi = Zi[b + col + NF - 2 * Wn]; const size_t wb = (size_t) k * 2 * NW, wc = (size_t) (m & (NW - 1));
-                double& w = Ew[(size_t) k * 2 + (size_t) (m & 1)]; w += (re * re + im * im) - (qr * qr + qi * qi);
-                const double r = 1.0 / (std::max (w, 0.0) + 1e-30); Ei[wb + wc] = r; Ei[wb + wc + NW] = r;
+                // one over it kept for the last NW frames: what the likeness curves are scaled by (control). The frame that leaves the
+                // window is 2 Wn frames old: each frame's energy is kept that long (Eh, frame by frame like Am).
+                const double e = re * re + im * im; Eh[(size_t) (m & (eN - 1)) * (size_t) kS + (size_t) k] = e;
+                double& w = Ew[(size_t) k * 2 + (size_t) (m & 1)]; w += e - Eh[(size_t) ((m - 2 * Wn) & (eN - 1)) * (size_t) kS + (size_t) k];
+                Ei[(size_t) k * NW + (size_t) (m & (NW - 1))] = 1.0 / (std::max (w, 0.0) + 1e-30);
             }
         }
         POLYPITCH_STAGE_NEXT (sCurves);
@@ -571,8 +636,7 @@ private:
                 {
                     double w = 0.0;
                     for (int j = 0; j < Wn; ++j) { const double a = pr[-q - 2 * j], b = pi[-q - 2 * j]; w += a * a + b * b; }
-                    const size_t wb = (size_t) k * 2 * NW, wc = (size_t) ((m - q) & (NW - 1)); const double r = 1.0 / (w + 1e-30);
-                    Ew[(size_t) k * 2 + (size_t) ((m - q) & 1)] = w; Ei[wb + wc] = r; Ei[wb + wc + NW] = r;
+                    Ew[(size_t) k * 2 + (size_t) ((m - q) & 1)] = w; Ei[(size_t) k * NW + (size_t) ((m - q) & (NW - 1))] = 1.0 / (w + 1e-30);
                     if (q == 0) Lpk[kc] = w;
                 }
                 continue;
@@ -616,7 +680,7 @@ private:
     {
         const double q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
         if (! frameOk (i) || ! frameOk (i + 1)) return 0.0;
-        const double* u = leadPhase(); const double a = u[(size_t) k * NF + (size_t) (i & FM)], b = u[(size_t) k * NF + (size_t) ((i + 1) & FM)];
+        const double* u = leadPhase(); const double a = u[(size_t) (i & FM) * (size_t) kS + (size_t) k], b = u[(size_t) ((i + 1) & FM) * (size_t) kS + (size_t) k];
         return a + f * (b - a);
     }
 
@@ -643,10 +707,10 @@ private:
     {
         const double p = tt - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
         if (! frameOk (i) || ! frameOk (i + 1)) return false;
-        const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
-        a = Am[bk + c0] + f * (Am[bk + c1] - Am[bk + c0]); const double* ul = leadPhase();
-        ph = Um[bk + c0] + f * (Um[bk + c1] - Um[bk + c0]) + wk[(size_t) k] * (p - tauD)
-           + (ratio - 1.0) * (ul[bl + c0] + f * (ul[bl + c1] - ul[bl + c0]) + wk[(size_t) Ld] * (p - tauD)) + ps;
+        const size_t r0 = (size_t) (i & FM) * (size_t) kS, r1 = (size_t) ((i + 1) & FM) * (size_t) kS, kk = (size_t) k, ll = (size_t) Ld;
+        a = Am[r0 + kk] + f * (Am[r1 + kk] - Am[r0 + kk]); const double* ul = leadPhase();
+        ph = Um[r0 + kk] + f * (Um[r1 + kk] - Um[r0 + kk]) + wk[kk] * (p - tauD)
+           + (ratio - 1.0) * (ul[r0 + ll] + f * (ul[r1 + ll] - ul[r0 + ll]) + wk[ll] * (p - tauD)) + ps;
         return true;
     }
 
@@ -658,11 +722,11 @@ private:
         {
             const double p = (double) t - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
             if (! frameOk (i) || ! frameOk (i + 1)) { ph = 0.0; sl = 0.0; amp = 0.0; damp = 0.0; return; }
-            const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
+            const size_t r0 = (size_t) (i & FM) * (size_t) kS, r1 = (size_t) ((i + 1) & FM) * (size_t) kS, kk = (size_t) k, ll = (size_t) Ld;
             const double* lp = leadPhase();
-            const double a0 = Am[bk + c0], a1 = Am[bk + c1], uk = Um[bk + c1] - Um[bk + c0], ul = lp[bl + c1] - lp[bl + c0];
+            const double a0 = Am[r0 + kk], a1 = Am[r1 + kk], uk = Um[r1 + kk] - Um[r0 + kk], ul = lp[r1 + ll] - lp[r0 + ll];
             amp = a0 + f * (a1 - a0); damp = (a1 - a0) / H;
-            ph = Um[bk + c0] + f * uk + wk[(size_t) k] * (p - tauD) + (ratio - 1.0) * (lp[bl + c0] + f * ul + wk[(size_t) Ld] * (p - tauD)) + ps;
+            ph = Um[r0 + kk] + f * uk + wk[kk] * (p - tauD) + (ratio - 1.0) * (lp[r0 + ll] + f * ul + wk[ll] * (p - tauD)) + ps;
             sl = uk / H + wk[(size_t) k] + (ratio - 1.0) * (ul / H + wk[(size_t) Ld]); return;
         }
         const double p = t0 - d0 + ratio * ((double) t - t0);
@@ -984,14 +1048,18 @@ private:
             if (! on[(size_t) k]) continue;
             const double* sr = &Lr[(pc * (size_t) kS + (size_t) k) * (size_t) nl]; const double* si = &Li[(pc * (size_t) kS + (size_t) k) * (size_t) nl];
             const float* pr = zrp (k, m0); const float* pi = zip (k, m0); const float* xr = pr - lmax; const float* xi = pi - lmax; const double nr = pr[0], ni = pi[0];
-            const double* ri = &Ei[(size_t) k * 2 * NW + (size_t) (m0 & (NW - 1)) + NW] - lmax;     // ri[u] = 1 / the window energy lmax - u frames ago
             double* c = &CO[(size_t) k * (size_t) nl] + (nl - 1); const double r0 = 1.0 / (E0[(size_t) k] + 1e-30), rHi = 10.0 * r0, rLo = 0.1 * r0;
-            for (int u = 0; u < nl; ++u)
+            const double* e = &Ei[(size_t) k * NW]; const int first = (int) ((m0 - lmax) & (NW - 1)), n1 = std::min (nl, NW - first);
+            for (int seg = 0; seg < 2; ++seg)                    // (the ring of energies comes round once at most within a curve: two straight runs)
             {
-                const double a = xr[u], b = xi[u], r1 = ri[u]; double cr = sr[u], ci = si[u];
-                cr += nr * a; cr += ni * b; ci += ni * a; ci -= nr * b;
-                const double v = std::sqrt ((cr * cr + ci * ci) * (r0 * r1));
-                c[-u] = (r1 > rHi || r1 < rLo) ? 0.0 : v;                                            // (0: the two stretches more than 10 dB apart in level)
+                const int u0 = seg == 0 ? 0 : n1, u1 = seg == 0 ? n1 : nl; const double* ri = seg == 0 ? e + first : e;      // ri[u - u0] = 1 / the window energy lmax - u frames ago
+                for (int u = u0; u < u1; ++u)
+                {
+                    const double a = xr[u], b = xi[u], r1 = ri[u - u0]; double cr = sr[u], ci = si[u];
+                    cr += nr * a; cr += ni * b; ci += ni * a; ci -= nr * b;
+                    const double v = std::sqrt ((cr * cr + ci * ci) * (r0 * r1));
+                    c[-u] = (r1 > rHi || r1 < rLo) ? 0.0 : v;                                        // (0: the two stretches more than 10 dB apart in level)
+                }
             }
         }
         POLYPITCH_STAGE_NEXT (sDecisions);

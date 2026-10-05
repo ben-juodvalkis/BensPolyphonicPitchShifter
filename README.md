@@ -23,7 +23,7 @@ source (below).
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
 | Chord notes in tune to | 0.4 cents | 0.2 cents |
 | Dirt on full plucked chords (lower is cleaner) | -37.4 dB | -28.8 dB |
-| CPU, one core at 48 kHz (Apple M4) | 3 % | 6.5 % |
+| CPU, one core at 48 kHz (Apple M4) | 3 % | 6 % |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 

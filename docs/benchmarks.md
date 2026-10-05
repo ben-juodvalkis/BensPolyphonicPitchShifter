@@ -261,10 +261,10 @@ with the build before, the lowest of six):
 
 | | Average load | The 99.9th-percentile 64-sample block, share of its 1.33 ms |
 |---|---|---|
-| Octave down | 3.2 % | 7.5 % |
-| +2 | 5.9 % | 10.7 % |
-| Octave up | 6.4 % | 13.4 % |
-| Octave up, Clean | 6.5 % | 13.3 % |
+| Octave down | 2.8 % | 7.1 % |
+| +2 | 5.3 % | 10.1 % |
+| Octave up | 5.9 % | 12.7 % |
+| Octave up, Clean | 6.0 % | 13.3 % |
 
 The heavy blocks matter more than the average: a buffer of 64 samples has to be finished inside its 1.33 ms every
 time. Until they are lighter still (see `ROADMAP.md`), use a buffer of 128 samples or more.
@@ -284,20 +284,22 @@ worked out once, and one sine and cosine do for all sixteen moments a reader is 
 The band loop, the part that makes every output sample, costs a third as well: all bands are taken in one pass that
 the compiler works through several bands at a time, a reader keeps the frames it stands between instead of
 fetching them at every sample, and at the start of a frame all the sines and cosines are worked out in one go.
+The work at each frame is down by two fifths: every frame's loudness and phase are kept side by side for all
+bands, where each band's used to lie 4 KB from the next, and the transform no longer works out what nobody reads.
 
 Where the time goes now (`build/tools/polypitch_profile`, the same take, Fast response, the least disturbed of
 three runs; the profile's own timers add a little):
 
 | Stage | How often | Octave up | Octave down |
 |---|---|---|---|
-| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.7 % of a core | 0.9 % |
+| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.8 % of a core | 0.9 % |
 | The band loop: one output sample from every band | every sample | 1.7 | 1.0 |
 | Decisions: plain or reader, jumps, who follows whom | every 128 samples | 1.2 | 0.5 |
 | (of the decisions: fitting a reader to its neighbors) | | (0.3) | (0.1) |
-| Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 1.0 | 0.6 |
-| The transform | every 32 samples | 0.7 | 0.3 |
+| Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 0.6 | 0.3 |
+| The transform | every 32 samples | 0.5 | 0.3 |
 | The window | every 32 samples | 0.2 | 0.2 |
-| All | | 6.6 | 3.6 |
+| All | | 6.0 | 3.2 |
 
 In the heaviest hundredth of the blocks at octave up, 4 to 5 of the 12 to 14 % of the slot are the decisions (2 of
 them fitting readers), 4 to 5 the band loop (more bands are fading from one stretch to the next there, and more

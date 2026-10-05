@@ -36,9 +36,9 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 3.2 % of a core shifting down and
-6 to 6.5 % shifting up, and the 99.9th-percentile 64-sample block takes 7.5 % of its time slot at octave down and
-13 % at octave up. That is inside the targets below as they scale to the M4, shifting up by a small margin. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 2.8 % of a core shifting down and
+5 to 6 % shifting up, and the 99.9th-percentile 64-sample block takes 7 % of its time slot at octave down and
+13 % at octave up. That is inside the targets below as they scale to the M4. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
 targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and has not
 been measured since; on the M4 they come to about 3.3 %, 6.6 % and 15 %.
 
@@ -66,14 +66,17 @@ Done:
   and add in one step. The same sums: 78 of 88 renders are bit-identical to the build before and the other ten
   differ by a last bit in at most 144 samples.
 
-In this order:
+- **The work at each frame is down by two fifths** (1.7 points of a core at octave up before, 1.1 now). The
+  transform is the same plain one, bit for bit, without the work nobody reads (1024 outputs were made, 213 are
+  bands) and with its turns laid out side by side. The bands' angles are found in one go. And each frame's
+  loudness and phase are stored side by side for all bands, which is what the loop had been waiting for: the
+  angles alone gained nothing. A platform's own transform (vDSP on Apple, pffft elsewhere) was not needed and not
+  added: the transform is 0.5 % of a core.
 
-- **The transform and the per-band work at each frame**: 1.7 points together at octave up. A cheaper phase and
-  loudness per band, and a transform that does not do work whose result nobody reads. A platform's own transform
-  (vDSP on Apple, pffft elsewhere, behind the same call so the engine keeps its no-dependency fallback) only if
-  that is not enough.
-- **Do less of the curves, or look at a quarter of the bands at each frame**, only if the three above do not reach
-  the target: both change which bands are looked at when, so both are sound changes (reference first). The first
+Left, in this order:
+
+- **Do less of the curves, or look at a quarter of the bands at each frame**, only if a measurement on the slower
+  computer says the target is not reached: both change which bands are looked at when, so both are sound changes (reference first). The first
   also needs a better idea than the one this file used to hold, that most awake bands "hold one steady partial"
   and could be checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at
   octave up; 83 fall and stay down, 41 fall and come back).
