@@ -33,6 +33,12 @@
 #else
  #define POLYPITCH_RESTRICT
 #endif
+// a b + c in one step where the machine has that step (FP_FAST_FMA); elsewhere the plain product and sum
+#if defined (FP_FAST_FMA) || defined (__FP_FAST_FMA)
+ #define POLYPITCH_MULADD(a, b, c) std::fma (a, b, c)
+#else
+ #define POLYPITCH_MULADD(a, b, c) ((a) * (b) + (c))
+#endif
 #ifdef POLYPITCH_PROFILE
  #include <chrono>
  #define POLYPITCH_STAGE_START(s) StageTimer stageTimer (stageTime, s)
@@ -645,14 +651,14 @@ private:
             for (int64_t f = sumsFor[pc]; f < target; f += 2)                                          // frame f comes in, frame f - back goes out
             {
                 const float* pr = zrp (k, f); const float* pi = zip (k, f);                           // p[-j] = frame f - j
-                const double nr = pr[0], ni = pi[0], qr = pr[-back], qi = pi[-back];
+                const double nr = pr[0], ni = pi[0], qr = pr[-back], qi = pi[-back], mnr = -nr, mqr = -qr, mqi = -qi;
                 if (nr == 0.0 && ni == 0.0 && qr == 0.0 && qi == 0.0) continue;                       // (silence coming in and going out: nothing changes)
                 const float* xr = pr - lmax; const float* xi = pi - lmax; const float* yr = xr - back; const float* yi = xi - back;
-                for (int u = 0; u < nl; ++u)
+                for (int u = 0; u < nl; ++u)                                                          // (four terms into each sum, each in one step)
                 {
-                    const double a = xr[u], b = xi[u], c = yr[u], d = yi[u]; double vr = sr[u], vi = si[u];
-                    vr += nr * a; vr += ni * b; vr -= qr * c; vr -= qi * d; sr[u] = vr;
-                    vi += ni * a; vi -= nr * b; vi -= qi * c; vi += qr * d; si[u] = vi;
+                    const double a = xr[u], b = xi[u], c = yr[u], d = yi[u];
+                    sr[u] = POLYPITCH_MULADD (mqi, d, POLYPITCH_MULADD (mqr, c, POLYPITCH_MULADD (ni, b, POLYPITCH_MULADD (nr, a, sr[u]))));
+                    si[u] = POLYPITCH_MULADD (qr, d, POLYPITCH_MULADD (mqi, c, POLYPITCH_MULADD (mnr, b, POLYPITCH_MULADD (ni, a, si[u]))));
                 }
             }
         }
@@ -796,11 +802,10 @@ private:
     {
         if (md == 1)
         {
-            for (int j = 0; j < M; ++j)
-            {
-                double a, ph;
-                if (plainAt (k, (double) t - j * step, ps, Ld, a, ph)) { vr[j] = a * std::cos (ph); vi[j] = a * std::sin (ph); } else { vr[j] = 0.0; vi[j] = 0.0; }
-            }
+            double a[M], ph[M], c[M], sn[M];
+            for (int j = 0; j < M; ++j) if (! plainAt (k, (double) t - j * step, ps, Ld, a[j], ph[j])) { a[j] = 0.0; ph[j] = 0.0; }
+            sincosMany (ph, c, sn, M);
+            for (int j = 0; j < M; ++j) { vr[j] = a[j] * c[j]; vi[j] = a[j] * sn[j]; }
             return;
         }
         const double w = wk[(size_t) k], ph = w * (t0 - d0 + ratio * ((double) t - t0) - tauD) + ps, dph = -w * ratio * step, dc = std::cos (dph), ds = std::sin (dph);
@@ -1227,3 +1232,4 @@ private:
 #undef POLYPITCH_STAGE_START
 #undef POLYPITCH_STAGE_NEXT
 #undef POLYPITCH_RESTRICT
+#undef POLYPITCH_MULADD

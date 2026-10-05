@@ -18,5 +18,8 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
   the working name, stays in code and file names; Line 6 uses "Poly Pitch" for a Helix effect.
 - A Python reference implementation the engine is tested against, a scorecard with a regression gate, and the
   band-filter design that generates the engine's tables.
+- The engine's work is spread out and about half of what it was: about 3 % of a core shifting down and 6 %
+  shifting up at 48 kHz on an Apple M4, with the heaviest 64-sample blocks at 7 and 12 % of their time
+  (`docs/benchmarks.md`, "Cost"). Its likeness sums are in double precision, as the reference's are.
 
 Known gaps are listed in `ROADMAP.md`. The Max object and the device have been built but not yet run inside Max.

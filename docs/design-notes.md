@@ -349,6 +349,27 @@ Against the build before: all 88 renders within -178 dB (a last bit, in up to 4,
 angles are the engine's own now, and a running sum takes its outgoing energy from the ring), every scorecard row
 the same. The storage change alone is bit-identical.
 
+**Two small things after that.** A running sum's four new terms each go in with one multiply-and-add where the
+machine has that step (the compiler had made eleven operations of what can be eight), and a plain stretch's
+sixteen sines and cosines in a fit are worked out in one go. 0.1 to 0.3 % of a core; all 88 renders within
+-181 dB, every scorecard row the same.
+
+**Where it ended, and what was learned on the way.**
+
+- On an Apple M4 at 48 kHz, a DI chord take: 5.6 to 2.8 % of a core at octave down and 12.3 to 5.7 % at octave
+  up; the 99.9th-percentile 64-sample block from 14 to 6.6 % of its slot and from 31.5 to 12.3 %.
+- Only the first step changed what a listener could, in principle, hear, and it did so through rounding. Every
+  later step compares with the build before it to -137 dB or better, most to a last bit.
+- The time was not where the instructions were. Twice the cost turned out to be memory: a reader fetching its
+  frames at every sample, and a frame's numbers lying a page apart. A faster angle gained nothing until the
+  second was dealt with.
+- An Intel build, which has no multiply-and-add in one step and so takes the plain paths (the library's sines
+  and cosines, plain sums in the transform), run under Rosetta, gives the Apple Silicon build's output to -180 dB.
+- The compiler's choices are part of the sound. Which products it fused in the old transform differed between
+  the small stages and the large ones; the likeness sums' last digits depended on the order it added in. Where
+  that matters the code now says what it wants (the transform's turns, the running sums) and does not leave it
+  to the compiler.
+
 **What could not be done.**
 
 | Tried | Result |

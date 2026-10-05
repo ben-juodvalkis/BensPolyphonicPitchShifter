@@ -257,57 +257,73 @@ lines), which lost 3 dB on Clean when small shifts got their own settings while 
 ## Cost
 
 At 48 kHz on one core of an Apple M4, one DI chord take, measured with `build/tools/polypitch_load` (runs interleaved
-with the build before, the lowest of six):
+with the build before the performance work, the lowest of eight):
 
 | | Average load | The 99.9th-percentile 64-sample block, share of its 1.33 ms |
 |---|---|---|
-| Octave down | 2.8 % | 7.1 % |
-| +2 | 5.3 % | 10.1 % |
-| Octave up | 5.9 % | 12.7 % |
-| Octave up, Clean | 6.0 % | 13.3 % |
+| Octave down | 2.8 % | 6.6 % |
+| +2 | 5.0 % | 9.5 % |
+| Octave up | 5.7 % | 12.3 % |
+| Octave up, Clean | 6.1 % | 13.5 % |
 
 The heavy blocks matter more than the average: a buffer of 64 samples has to be finished inside its 1.33 ms every
-time. Until they are lighter still (see `ROADMAP.md`), use a buffer of 128 samples or more.
+time. Heavier material costs more: a DI take of chord stabs 6.5 % at octave up with 14 % of the slot in the heavy
+block (17 % on Clean), and a synthetic signal that keeps 84 bands on readers 7.7 % and 17 %.
 
-**Before the performance work** (the engine of commit `83187b0`) the same computer took 5.6, 11.2, 12.2 and 11.8 %
-on average and 14.4, 25.9, 30.7 and 31.2 % of the slot in the heavy block. That engine was also measured on an Apple
-M1 Max, which took 1.5 to 1.6 times as long (8.5 % at octave down and 18.6 % at octave up; 24 % and 51 % of the
-slot). The engine as it is now has not been measured on an M1 Max.
+**Before the performance work** (the engine of commit `83187b0`) the same computer, in the same sitting, took 5.6,
+11.2, 12.3 and 12.5 % on average and 14.0, 25.9, 31.5 and 33.9 % of the slot in the heavy block (the stab take
+14.3 % and 36 % at octave up, the synthetic signal 15.5 % and 41 %). That engine was also measured on an Apple M1
+Max, which took 1.5 to 1.6 times as long (8.5 % at octave down and 18.6 % at octave up; 24 % and 51 % of the slot).
+**The engine as it is now has not been measured on an M1 Max.** If that computer is slower by the same factor it
+would take about 4.3 % and 8.7 % on the chord take, with 11 % and 20 % of the slot in the heavy block; on the stab
+take about 10 % at octave up and 23 % of the slot (28 % on Clean).
 
-What has changed so far: the likeness curves (how the engine tells a band with one partial from a band with two,
-`docs/how-it-works.md`) used to be worked out from nothing for every band at every check, on the one sample in 128
-where the decisions are made as well. Their sums are now kept running as the frames arrive, on a frame that has no
-check, so they never fall in the same 64 samples as the decisions, and they cost the same whatever is being played.
-The output is not sample for sample what it was: `docs/design-notes.md` ("Speed") has why, and what was measured.
-And fitting a reader to its neighbors costs a third of what it did: what is the same for every position tried is
-worked out once, and one sine and cosine do for all sixteen moments a reader is compared at.
-The band loop, the part that makes every output sample, costs a third as well: all bands are taken in one pass that
-the compiler works through several bands at a time, a reader keeps the frames it stands between instead of
-fetching them at every sample, and at the start of a frame all the sines and cosines are worked out in one go.
-The work at each frame is down by two fifths: every frame's loudness and phase are kept side by side for all
-bands, where each band's used to lie 4 KB from the next, and the transform no longer works out what nobody reads.
+For scale, the reference device's shifter was timed as a black box: its plug-in with nothing in it but that
+shifter, hosted the same way as this project's own plug-in and timed in the same 64-sample blocks on the same take
+and computer. It takes 1.9 % of a core whatever the interval, and 6 % of the slot in its 99.9th-percentile block.
+This shifter's plug-in, timed in that host: 2.9 % at octave down and 5.8 % at octave up, 9 % and 15 % of the slot.
 
-Where the time goes now (`build/tools/polypitch_profile`, the same take, Fast response, the least disturbed of
-three runs; the profile's own timers add a little):
+What changed (`docs/design-notes.md`, "Speed", has the measurements):
+
+- The likeness curves (how the engine tells a band with one partial from a band with two,
+  `docs/how-it-works.md`) used to be worked out from nothing for every band at every check, on the one sample in
+  128 where the decisions are made as well. Their sums are now kept running as the frames arrive, on a frame that
+  has no check, so they never fall in the same 64 samples as the decisions, and they cost the same whatever is
+  being played. This is the one change after which the output is not sample for sample what it was.
+- Fitting a reader to its neighbors costs a third of what it did: what is the same for every position tried is
+  worked out once, and one sine and cosine do for all sixteen moments a reader is compared at.
+- The band loop, the part that makes every output sample, costs a third as well: all bands are taken in one pass
+  that the compiler works through several bands at a time, a reader keeps the frames it stands between instead of
+  fetching them at every sample, and at the start of a frame all the sines and cosines are worked out in one go.
+- The work at each frame is down by two fifths: every frame's loudness and phase are kept side by side for all
+  bands, and the transform no longer works out what nobody reads.
+
+Where the time goes now (`build/tools/polypitch_profile`, the chord take, Fast response, the least disturbed of
+four runs; the profile's own timers add a little):
 
 | Stage | How often | Octave up | Octave down |
 |---|---|---|---|
-| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.8 % of a core | 0.9 % |
-| The band loop: one output sample from every band | every sample | 1.7 | 1.0 |
+| The band loop: one output sample from every band | every sample | 1.8 % of a core | 1.0 % |
+| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.7 | 0.9 |
 | Decisions: plain or reader, jumps, who follows whom | every 128 samples | 1.2 | 0.5 |
 | (of the decisions: fitting a reader to its neighbors) | | (0.3) | (0.1) |
 | Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 0.6 | 0.3 |
-| The transform | every 32 samples | 0.5 | 0.3 |
+| The transform | every 32 samples | 0.6 | 0.3 |
 | The window | every 32 samples | 0.2 | 0.2 |
-| All | | 6.0 | 3.2 |
+| All | | 6.1 | 3.3 |
 
-In the heaviest hundredth of the blocks at octave up, 4 to 5 of the 12 to 14 % of the slot are the decisions (2 of
+| 64-sample blocks, share of their time slot | Median | 99th percentile | 99.9th | Heaviest |
+|---|---|---|---|---|
+| Octave up | 6 % | 12 % | 13 to 14 % | 16 to 21 % |
+| Octave down | 3 % | 6 % | 8 % | 10 to 15 % |
+
+In the heaviest hundredth of the blocks at octave up, 4 to 5 of the 12 to 13 % of the slot are the decisions (2 of
 them fitting readers), 4 to 5 the band loop (more bands are fading from one stretch to the next there, and more
-are on readers) and 2 the curves. The single heaviest block is a noisy number (it depends on
-what else the computer is doing); the 99.9th percentile repeats.
+are on readers) and 1 to 2 the curves. The single heaviest block is a noisy number (it depends on what else the
+computer is doing); the 99.9th percentile repeats.
 
-Shifting up by less than a fifth costs a point less (fewer bands are on readers), and the three responses cost the
-same.
+Shifting up by less than a fifth costs a little less (fewer bands are on readers), and the three responses cost
+about the same.
 
 ## Sample rates
 

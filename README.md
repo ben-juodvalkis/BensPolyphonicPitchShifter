@@ -75,7 +75,9 @@ played straight from the input when shifting down, which is why they are only 2 
 
 - Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
-- The work arrives in lumps: use a buffer of 128 samples or more for now.
+- The work is not quite even: at octave up one 64-sample block in a thousand takes 12 % of its time on an Apple M4,
+  against 6 % on average (`docs/benchmarks.md`, "Cost"). On a slower computer, measure before trusting a 64-sample
+  buffer: `build/tools/polypitch_load`.
 - Held chords shifted up are a little rougher than the best commercial shifter. With Response on Fast the middle
   note of a full chord comes out too quiet at octave up; Clean puts it right, 8 ms later.
 - Nothing below about 60 Hz is shifted (bass guitar's lowest notes).
