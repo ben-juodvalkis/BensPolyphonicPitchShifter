@@ -20,6 +20,7 @@ How it works: docs/how-it-works.md. In short, a bank of narrow band-pass filters
         such repeat, with the band's phase carried across the jump. Both partials come out right. (Advancing the
         phase as for a plain band would move the weaker partial to a wrong frequency.) A repeat is looked for up to
         `reach_ms` back; one longer than `slow_ms` counts only once it has held for half as long as it lasts.
+        Only the bands below `read_hz` of the input are looked at for this; the ones above are always plain.
 
   attacks, shifting down: the attack is played straight from the input (the bridge); the bands take over as
         readers at the same position and each then settles into one of the two ways.
@@ -268,10 +269,11 @@ def _render(Z, A, U, US, CE, n, ratio, H, K, tau, dpv, flr, et, em, ed, ep, el, 
     return y
 
 @njit(parallel=True, cache=True)
-def _coh(Z, m0, Wn, ws, lmin, nl, on, CO):
+def _coh(Z, m0, Wn, ws, lmin, nl, on, CO, kr):
     """CO[k, i] = how alike band k's newest stretch and the one (lmin + i) frames earlier are, a common turn and a
-    common gain allowed (1 = the earlier stretch is the same thing; 0 also when the two differ a lot in level)"""
-    for k in prange(Z.shape[0]):
+    common gain allowed (1 = the earlier stretch is the same thing; 0 also when the two differ a lot in level).
+    Only for the bands below kr: the ones above are never looked at for a beat."""
+    for k in prange(min(Z.shape[0], kr)):
         if on[k] == 0: continue
         Zk = Z[k]; e0 = 1e-30
         for j in range(Wn):
@@ -332,7 +334,7 @@ def _emit(et, em, ed, ep, el, ej, ef, en, k, t, mode, d, psi, L, Jn, flen):
     et[k, j] = t; em[k, j] = mode; ed[k, j] = d; ep[k, j] = psi; el[k, j] = L; ej[k, j] = Jn; ef[k, j] = flen; en[k] = j + 1
 
 @njit(cache=True)
-def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, bridge, dA0, tau, drop, rho, cabs, tol2, n_in, n_out, twait, M, sel, rd_on, pre, clock, Wl, lock_on, nb_on, pgain, wmin, gain_on, drop_out, slj, slq):
+def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, bridge, dA0, tau, drop, rho, cabs, tol2, n_in, n_out, twait, M, sel, rd_on, pre, clock, Wl, lock_on, nb_on, pgain, wmin, gain_on, drop_out, slj, slq, kr):
     kmax = Z.shape[0]; hop = hopf * H; up = ratio > 1.0001; xfu = max(xf // 2, 2) if up else xf; xa = 48
     dpv = float(H + 1); flr = float(2 * H + 2 + (int((ratio - 1.0) * xfu) + 2 if up else 0)); drift = 1.0 - ratio; dw = 2.0 * np.pi / K
     nh = n // hop + 1; nl = lmax - lmin + 1; cap = nh + nh // 2 + 64
@@ -373,11 +375,11 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                 E0[k] = e
                 if e > emax: emax = e
             for k in range(kmax): on[k] = 1 if (k > 0 and E0[k] > efloor * emax and E0[k] > 1e-13) else 0
-            if rd_on == 1: _coh(Z, m0, Wn, ws, lmin, nl, on, CO)
+            if rd_on == 1: _coh(Z, m0, Wn, ws, lmin, nl, on, CO, kr)
             nrd = 0
             for k in range(1, kmax):
                 st = 0; Jf = -1.0; cf = 0.0
-                if on[k] == 1 and rd_on == 1:
+                if on[k] == 1 and rd_on == 1 and k < kr:          # (above kr a band is always plain)
                     dr = drop if mode[k] == 1 else drop_out          # (a band already on a reader stays on it down to a shallower dip)
                     if slj > 0.0:
                         # A slow beat (longer than slj) is a matter of trust. Two steady partials 10 to 20 Hz apart repeat exactly and a reader gets
@@ -501,7 +503,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
     return et, em, ed, ep, el, ej, ef, en, diag, br0[:nbr], br1[:nbr], drt[:ndr]
 
 def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
-          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=None, slow_hold=0.5, debug=False):
+          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=None, slow_hold=0.5, read_hz=5000.0, debug=False):
     """Shift mono signal x by st semitones (-12 .. +12). -> the shifted signal, same length, no dry signal mixed in.
     response (shifting up only) trades how late an attack comes out for how clean the sound is: 0 = fast, the attack as
     early as it can be (an 8 ms band filter); 1 = balanced, the same bands behind a 12 ms filter, attacks 4 ms later;
@@ -546,6 +548,9 @@ def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fma
     # over = 2: twice as many bands, half a band apart, each as wide as before (the same filter, so no extra delay). Every
     # partial then has bands in which it is the main thing, also where three partials crowd into one band's width.
     Kb = K * int(over); kmax = int(min(fmax, 0.45 * sr / max(r, 1.0)) * Kb / sr); Z = analyze(x, Kb, h, H, kmax); Z[0] = 0.0
+    # Beating is looked for only in the bands below read_hz of the input. Above 5 kHz it changed no measure, synthetic or real,
+    # to treat every band as plain (docs/design-notes.md, "Doing less"), and those are half the bands.
+    kr = int(read_hz * Kb / sr)
     Zc = Z.astype(np.complex128); A = np.abs(Zc); U = np.unwrap(np.angle(Zc), axis=1); CE = np.cumsum(A * A, axis=1)
     ons = onsets(x, sr); hold = int(0.012 * sr); settle = int(settle_ms * sr / 1000); pre = int(pre_ms * sr / 1000)
     US = _smooth(Zc, U, smooth_ms * sr / 1000 / H, 15.0 * sr / 1000 / H, _holds(ons, Z.shape[1], H, hold, tau - pre + settle)) if smooth_ms > 0 else U; del Zc
@@ -553,7 +558,7 @@ def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fma
     lmin = max(int(round(lmin_ms * sr / 1000 / H)), 1); lmax = int(reach_ms * sr / 1000 / H); xf = int(2.6667 * sr / 1000)
     flr = float(2 * H + 2 + (int((r - 1.0) * (max(xf // 2, 2))) + 2 if up else 0))
     ev = _control(Z, A, U, US, CE, len(x), ons, r, H, Kb, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, 1 if bridge else 0, dA_ms * sr / 1000, float(tau),
-                    drop, rho, cabs, tol2, int(n_in), int(n_out), wait_ms * sr / 1000, int(M), float(sel), 1 if rd else 0, pre, float(clock), max(int(lock_ms * sr / 1000 / H), 4), 1 if lock else 0, int(place), float(pgain), 0.012 * sr, 1 if gain else 0, drop_out, slow_ms * sr / 1000, float(slow_hold))
+                    drop, rho, cabs, tol2, int(n_in), int(n_out), wait_ms * sr / 1000, int(M), float(sel), 1 if rd else 0, pre, float(clock), max(int(lock_ms * sr / 1000 / H), 4), 1 if lock else 0, int(place), float(pgain), 0.012 * sr, 1 if gain else 0, drop_out, slow_ms * sr / 1000, float(slow_hold), kr)
     dpv = float(H + 1); dw = 2.0 * np.pi / Kb
     if debug == "bands":
         return [_render_band(Z, A, U, US, CE, k, len(x), r, H, dw, float(tau), dpv, flr, ev[0][k], ev[1][k], ev[2][k], ev[3][k], ev[4][k], ev[5][k], ev[6][k], ev[7][k]) for k in range(kmax)], ev

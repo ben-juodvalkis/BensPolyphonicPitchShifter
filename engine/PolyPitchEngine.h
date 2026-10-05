@@ -315,12 +315,12 @@ public:
 private:
     static constexpr double kPi = 3.14159265358979323846;
     static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48, NW = 256;
-    static constexpr double fmax = 10000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
+    static constexpr double fmax = 10000.0, fread = 5000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
     double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, twait = 1764.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
     double smA = 0.0, smE = 0.0, slj = 0.0, slq = 0.5;
     bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false;
-    int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, nls = 135, nPar = 1;
+    int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, kR = 58, nls = 135, nPar = 1;
     int fresh[2] = { 1, 1 };
     int64_t sumsFor[2] = { 0, 1 };
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
@@ -442,6 +442,9 @@ private:
         h = b.h.data(); twC = b.twC.data(); twS = b.twS.data(); swC = b.swC.data(); swS = b.swS.data(); rev = b.rev.data(); tau = b.tau; L = b.L; designed = b.designed;
         tauD = (double) tau;
         over = b.over; Kb = b.K * over; dw = 2.0 * kPi / Kb; kB = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS);     // bands this bank has below 10 kHz
+        // Beating is looked for only in the bands below 5 kHz of the input: above that it changed no measure, synthetic or real, to
+        // treat every band as plain, and those are half the bands (docs/design-notes.md, "Doing less").
+        kR = std::min ((int) (fread * Kb / sr), kB);
         for (int k = 0; k < kS; ++k) wk[(size_t) k] = k * dw;
         if (configured) clearFrames();          // frames made with the other filter are no use
         configured = true;
@@ -610,7 +613,8 @@ private:
     // precision (each term is a product of single-precision numbers and so exact): Lr / Li hold, for the frame `sumsFor`, the sum
     // without its newest term (j = 1 .. Wn - 1), which needs nothing of that frame. At a check control() adds the newest term
     // for the bands that are awake and scales. All the rest is done here, on a frame that has no check, so that it never falls
-    // into the same 64 samples as the decisions; it is the same work whatever the bands hold.
+    // into the same 64 samples as the decisions; it is the same work whatever the bands hold. (Only for the bands below kR: the ones
+    // above are never looked at for a beat.)
     // A running sum keeps the rounding of everything that has passed through it, which is nothing beside a loud band and would be
     // something beside the same band 100 dB quieter. So a band is summed afresh, from the frames themselves, when its level has
     // fallen 40 dB below the highest it has been since the last time (at most 16 bands in one call, so that a sudden silence is
@@ -622,8 +626,8 @@ private:
         const int64_t target = check ? m : m + 2;                   // at a check the sums have to be those for this frame; otherwise for the next one
         if (sumsFor[pc] >= target) return;
         const int back = 2 * Wn - 2; int spare = 16;
-        if (fresh[pc] >= kB) fresh[pc] = 1;
-        for (int k = 1; k < kB; ++k)
+        if (fresh[pc] >= kR) fresh[pc] = 1;
+        for (int k = 1; k < kR; ++k)
         {
             const size_t kc = (size_t) pc * (size_t) kS + (size_t) k; double* sr = &Lr[kc * (size_t) nl]; double* si = &Li[kc * (size_t) nl];
             const double wNow = Ew[(size_t) k * 2 + (size_t) (m & 1)];                              // the band's level: its energy over the window that ends here
@@ -1048,8 +1052,8 @@ private:
         for (int k = 1; k < kmax; ++k) on[(size_t) k] = (E0[(size_t) k] > efloor * emax && E0[(size_t) k] > 1e-13) ? 1 : 0;
         // how alike each band's newest stretch and the one `lag` frames earlier are (a common turn and gain allowed): the running
         // sums (slideCurves) with the newest frame's term added, scaled by the energies of the two stretches
-        const size_t pc = (size_t) (m0 & 1) < (size_t) nPar ? (size_t) (m0 & 1) : 0;
-        for (int k = 1; k < kmax; ++k)
+        const size_t pc = (size_t) (m0 & 1) < (size_t) nPar ? (size_t) (m0 & 1) : 0; const int kCurves = std::min (kmax, kR);
+        for (int k = 1; k < kCurves; ++k)
         {
             if (! on[(size_t) k]) continue;
             const double* sr = &Lr[(pc * (size_t) kS + (size_t) k) * (size_t) nl]; const double* si = &Li[(pc * (size_t) kS + (size_t) k) * (size_t) nl];
@@ -1075,7 +1079,7 @@ private:
         for (int k = 1; k < kmax; ++k)
         {
             const size_t i = (size_t) k; int st = 0; double Jf = -1.0, cf = 0.0;
-            if (on[i])
+            if (on[i] && k < kR)                                 // (above kR a band is always plain)
             {
                 if (slj > 0.0)
                 {

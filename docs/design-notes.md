@@ -378,6 +378,48 @@ sixteen sines and cosines in a fit are worked out in one go. 0.1 to 0.3 % of a c
 | The exact old sums only where they matter: for a band whose curve never falls no number of the curve is used, so a rough curve would do for those | Nothing to gain. On DI takes at octave up 0.1 of 125 awake bands has a curve that never falls; 83 have one that falls and stays down, 41 one that comes back (62 awake shifting down: 0.1, 41 and 22). A real band is not a steady line (see "Held chords" above), and the roadmap's "do less of the curves", which counted on settled bands, needs another idea of settled. |
 | Running sums only for the bands that are awake | Not built: a band that wakes needs its sums at once, which is the old work for that band, and after a loud note stops many bands wake in the same check. The lump would be back in the rare block, which is the one that counts. |
 
+## Doing less
+
+After the speed work the engine took 2.7 % of a core shifting down and 5.5 % shifting up (48 kHz, Apple M4), and the
+reference device's shifter 1.9 % whatever the interval (`docs/benchmarks.md`, "Cost"). What was left of the speed
+work keeps the sound, and would not close that gap. So the question became what can be left out. Each idea below
+was a switch in a copy of the engine outside the repository, timed on the DI chord take (runs interleaved, the
+lowest of six) and scored on the scorecard, on `held_chords`, `strummed_chords` and `moving_pitch`, and on the real
+recordings (twelve pairs of DI takes, chords built from single notes, loop mixes, held chords).
+
+**Where beating is worth looking for.** A likeness curve costs the same for every band, and with bands evenly
+spaced half of them lie above 5 kHz of the input and three quarters above 2.5 kHz. A band that is never looked at
+is always plain.
+
+| Beating looked for below | Octave down / octave up | The scorecard | Held chords at +12, synthetic | Real recordings |
+|---|---|---|---|---|
+| (everywhere) | 2.7 % / 5.6 % | | -37.7 dB | |
+| 5 kHz | 2.3 / 4.6 | every row the same, in all three responses | the same | within 0.02 dB |
+| 3.5 kHz | | every row the same at -12, +7, +12 | 1.0 dB dirtier | |
+| 3 kHz | | full chords 0.9 dB dirtier at -12 | 2.0 dB dirtier | |
+| 2.5 kHz | 1.9 / 3.6 | two-note chords 2.3 dB dirtier at -12, 2.8 at +7, 2.0 at +12 | 2.3 dB dirtier (one chord 9 dB) | within 0.3 dB |
+| 1.5 kHz | | two-note chords 5 to 7 dB dirtier | | |
+
+**5 kHz is in the engine** (`kR` in the engine's `loadFilter`, `read_hz` in the reference). It moved no scorecard row, no held chord and no moving-pitch number; strummed chords moved by 0.1 to
+0.6 dB, shifting up for the better. Split by where in the shifted sound the dirt is (the twelve DI pairs), one
+thing shows: at octave down the top octave of the output, 2.5 to 5 kHz, is 2 dB dirtier without readers. That
+region is 22 dB below the whole in level, and the total did not move.
+
+The synthetic tests and the real recordings disagree below 5 kHz, and for a reason. A synthetic chord's upper
+harmonics are steady lines, two of them in a band beat exactly, and a reader gets both right. A real string's
+upper harmonics are weak, short-lived clusters, and there a reader gains nothing that was measured: with the
+cutoff at 2.5 kHz the DI pairs at octave down came out 1 dB cleaner between 1.25 and 2.5 kHz of the output, and
+with it at 1.25 kHz no dirtier anywhere.
+
+**What did not earn its keep.**
+
+| Tried | Result |
+|---|---|
+| The likeness curve at every second lag only, or every fourth | 5.0 % and 4.4 % at octave up. Every second: loop mixes at +2 1.8 dB dirtier. Every fourth: chords built from single notes 2.2 dB dirtier at +2 and 1.2 at +12. More sound lost per point of CPU than the cutoff loses. |
+| A repeat looked for only 50 ms back instead of 100 | 4.6 % at octave up. Two-note chords 4.6 dB dirtier at octave down and 4.3 at octave up, full chords 3.4 and 1.2: the slow beats of low intervals are in the second 50 ms. |
+| Decisions every 5.8 ms instead of 2.9 | No faster. A hop of an odd number of frames needs the running sums for both kinds of frame. |
+| No bands above 6 kHz of the input | 4.2 % at octave up, and the scorecard does not notice. But the shifted sound then ends at 3 kHz at octave down and at 6.7 kHz at +2. |
+
 ## Things worth knowing about measuring
 
 - **Chord scores need each note's tuning**, read from a partial that no other note shares. A score that allows a

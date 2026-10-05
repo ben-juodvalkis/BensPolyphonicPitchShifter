@@ -23,7 +23,7 @@ source (below).
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
 | Chord notes in tune to | 0.4 cents | 0.2 cents |
 | Dirt on full plucked chords (lower is cleaner) | -37.4 dB | -28.8 dB |
-| CPU, one core at 48 kHz (Apple M4) | 3 % | 6 % |
+| CPU, one core at 48 kHz (Apple M4) | 2 % | 5 % |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
@@ -75,8 +75,8 @@ played straight from the input when shifting down, which is why they are only 2 
 
 - Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
-- The work is not quite even: at octave up one 64-sample block in a thousand takes 12 % of its time on an Apple M4,
-  against 6 % on average (`docs/benchmarks.md`, "Cost"). On a slower computer, measure before trusting a 64-sample
+- The work is not quite even: at octave up one 64-sample block in a thousand takes 11 % of its time on an Apple M4,
+  against 5 % on average (`docs/benchmarks.md`, "Cost"). On a slower computer, measure before trusting a 64-sample
   buffer: `build/tools/polypitch_load`.
 - Held chords shifted up are a little rougher than the best commercial shifter. With Response on Fast the middle
   note of a full chord comes out too quiet at octave up; Clean puts it right, 8 ms later.

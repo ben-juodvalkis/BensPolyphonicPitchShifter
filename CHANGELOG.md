@@ -18,9 +18,10 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
   the working name, stays in code and file names; Line 6 uses "Poly Pitch" for a Helix effect.
 - A Python reference implementation the engine is tested against, a scorecard with a regression gate, and the
   band-filter design that generates the engine's tables.
-- The engine's work is spread out and about half of what it was: about 3 % of a core shifting down and 6 %
-  shifting up at 48 kHz on an Apple M4, with the heaviest 64-sample blocks at 7 and 12 % of their time
-  (`docs/benchmarks.md`, "Cost"). Its likeness sums are in double precision, as the reference's are.
+- The engine's work is spread out and well under half of what it was: about 2 % of a core shifting down and 5 %
+  shifting up at 48 kHz on an Apple M4, with the heaviest 64-sample blocks at 6 and 11 % of their time
+  (`docs/benchmarks.md`, "Cost"). Its likeness sums are in double precision, as the reference's are. Beating is
+  looked for only in the bands below 5 kHz of the input, which changed no score.
 - An input sample that is not a number, or is infinite, counts as silence, in the shifted sound and in the dry
   one. Before, one such sample from the host left the output not a number until the next reset.
 

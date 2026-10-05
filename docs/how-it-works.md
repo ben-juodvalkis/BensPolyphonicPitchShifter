@@ -65,6 +65,10 @@ plain band that likeness stays near 1 at every distance. For a beating band it f
 distance at which it is back is the beat. A band becomes a reader band when that pattern has held for three checks
 in a row, and goes back to plain when it has been gone for a while.
 
+Only the bands below 5 kHz of the input are checked this way. Above that every band is treated as plain: a real
+note's harmonics up there are weak and short-lived, and looking for beats among them changed nothing that could be
+measured, at a sixth of the engine's work.
+
 A slow beat (longer than 50 ms: two partials less than 20 Hz apart) has to earn that. Two steady partials that
 close repeat exactly, and a reader gets both right. But a real note's partial, being a cluster that wanders, looks
 like a slow beat for a moment and then does not, and so does a single partial with vibrato on it (its pitch comes
@@ -173,6 +177,7 @@ one's numbers. Changing the response while shifting up restarts the bands, as ch
 | How often decisions are made | every 128 samples (2.9 ms) | same |
 | Window for the likeness check | 24 ms | 24 ms |
 | How far back a repeat is looked for | 2.2 to 100 ms | same |
+| Bands that are checked for beating | below 5 kHz of the input | same |
 | A band counts as beating when the likeness dips by | 0.004 | 0.001 |
 | Checks in a row to become a reader / to stop | 3 / 3 | 3 / 8 (3 / 3 below a fifth up) |
 | A plain band's phase advance is smoothed over | 5 ms, resting for 35 ms after an attack | 5 ms, resting for 30 ms after an attack |

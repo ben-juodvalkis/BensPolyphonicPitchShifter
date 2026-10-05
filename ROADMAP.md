@@ -36,15 +36,15 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): on a DI chord take 2.8 % of a
-core shifting down and 5 to 6 % shifting up, and the 99.9th-percentile 64-sample block takes 7 % of its time slot
-at octave down and 12 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
-of the slot. Heavier material (chord stabs, or many bands on readers) takes 6.5 to 7.7 % at octave up and 14 to
-17 % of the slot.
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): on a DI chord take 2.3 % of a
+core shifting down and 4 to 5 % shifting up, and the 99.9th-percentile 64-sample block takes 6 % of its time slot
+at octave down and 11 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
+of the slot. Heavier material (chord stabs, or many bands on readers) takes 4.6 to 5.8 % at octave up and 9 to
+12 % of the slot.
 
 The targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and
-has not been measured since. On the M4 they come to about 3.3 %, 6.6 % and 15 %: the chord take is inside them,
-the heavier material at their edge.
+has not been measured since. On the M4 they come to about 3.3 %, 6.6 % and 15 %: the chord take and the heavier
+material are inside them.
 
 Done:
 
@@ -77,12 +77,20 @@ Done:
   angles alone gained nothing. A platform's own transform (vDSP on Apple, pffft elsewhere) was not needed and not
   added: the transform is 0.5 % of a core.
 
+- **Beating is looked for only in the bands below 5 kHz of the input**, which are half the bands: 5.5 to 4.6 %
+  of a core at octave up, 2.7 to 2.3 % at octave down. This one leaves something out instead of doing the same
+  faster, so it went through the reference and the whole scoring: no scorecard row, held chord, moving-pitch
+  number or real-recording figure moved, and strummed chords by 0.1 to 0.6 dB (`docs/design-notes.md`, "Doing
+  less", which also has what was tried and dropped: fewer lags, a shorter reach, rarer decisions, fewer bands at
+  the top).
+
 Left, in this order:
 
 - **Measure on the M1 Max** (`build/tools/polypitch_load` and `polypitch_profile`, a minute). Target: under 5 %
   shifting down and under 10 % shifting up, and the 99.9th-percentile 64-sample block under 25 % of its slot, so
   that a 64-sample buffer is safe. By the old engine's ratio between the two computers the chord take would be at
-  4.3 %, 8.7 % and 20 % there; the stab take at about 10 % and 23 %, and at 28 % of the slot on Clean.
+  3.5 %, 7.0 % and 17 % there. A first sitting on that computer (2026-10-05, before the 5 kHz change) was
+  disturbed by other programs and is not recorded here; its gate and scorecard matched this computer's exactly.
 - **If more is needed, what is left that keeps the sound**: the readers (a reader's sample still costs about
   fifteen times a plain band's; its envelope could be kept as a ready polynomial per frame, and old readers in a
   fade go the slow way), and the plain stretches in a fit.
@@ -92,7 +100,7 @@ Left, in this order:
   checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at octave up; 83
   fall and stay down, 41 fall and come back).
 - For scale: the reference device's shifter, timed as a black box, takes 1.9 % of a core on the M4 whatever the
-  interval. Getting near that would take doing less, not doing the same faster.
+  interval; this shifter's plug-in in the same host 2.4 % at octave down and 4.7 % at octave up.
 
 ## 3. Sound
 
