@@ -36,9 +36,9 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 4.9 % of a core shifting down and
-9 to 10 % shifting up, and the 99.9th-percentile 64-sample block takes 10 % of its time slot at octave down and
-17 % at octave up. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 3.2 % of a core shifting down and
+6 to 6.5 % shifting up, and the 99.9th-percentile 64-sample block takes 7.5 % of its time slot at octave down and
+13 % at octave up. That is inside the targets below as they scale to the M4, shifting up by a small margin. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
 targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and has not
 been measured since; on the M4 they come to about 3.3 %, 6.6 % and 15 %.
 
@@ -58,11 +58,16 @@ Done:
   row is unchanged. Spreading the fits over the following frames, the other idea, would move when a reader
   starts: a sound change, and not needed.
 
+- **The band loop costs a third of what it did** (4.9 % of a core at octave up before, 1.7 % now). Every band is
+  one spinning vector with a loudness, so all bands go through one pass with nothing to decide in it, and the
+  compiler takes eight at a time. A reader keeps the frames it stands between, and fetches again only when it
+  moves on to the next frame. Bands fading from one stretch to the next are a short list. At the start of a frame
+  all the sines and cosines are worked out in one go, by the engine's own routine where the machine can multiply
+  and add in one step. The same sums: 78 of 88 renders are bit-identical to the build before and the other ten
+  differ by a last bit in at most 144 samples.
+
 In this order:
 
-- **Vectorize the band loop.** The largest part of the average: the same few multiplications for every band at
-  every sample, with branches in the way (plain or reader, fading or not), and a reader's sample costs many times
-  a plain band's. The same sums done faster; the output must not move.
 - **The transform and the per-band work at each frame**: 1.7 points together at octave up. A cheaper phase and
   loudness per band, and a transform that does not do work whose result nobody reads. A platform's own transform
   (vDSP on Apple, pffft elsewhere, behind the same call so the engine keeps its no-dependency fallback) only if

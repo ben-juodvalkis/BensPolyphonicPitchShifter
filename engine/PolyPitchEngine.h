@@ -27,6 +27,12 @@
 
 // Built with -DPOLYPITCH_PROFILE (tools/polypitch_profile.cpp does) the engine keeps the time it spends in each stage of
 // its work. No other build has any of it: the two macros below then stand for nothing.
+// (a promise to the compiler that two arrays are not the same one, so that it can work through them several bands at a time)
+#if defined (__GNUC__) || defined (__clang__) || defined (_MSC_VER)
+ #define POLYPITCH_RESTRICT __restrict
+#else
+ #define POLYPITCH_RESTRICT
+#endif
 #ifdef POLYPITCH_PROFILE
  #include <chrono>
  #define POLYPITCH_STAGE_START(s) StageTimer stageTimer (stageTime, s)
@@ -83,6 +89,16 @@ public:
         evT.assign (n, -1); busy.assign (n, 0); J.assign (n, 0.0); Jc.assign (n, 0.0); cin.assign (n, 0); cout.assign (n, 0); lcnt.assign (n, 0); want.assign (n, 0);
         rc.assign (n, 1.0); rs.assign (n, 0.0); rdc.assign (n, 1.0); rds.assign (n, 0.0); ramp.assign (n, 0.0); rdamp.assign (n, 0.0); rdirty.assign (n, 1);
         orc.assign (n, 1.0); ors.assign (n, 0.0); ordc.assign (n, 1.0); ords.assign (n, 0.0); oramp.assign (n, 0.0); ordamp.assign (n, 0.0); ordirty.assign (n, 1); stC.assign (n, 1.0); stS.assign (n, 0.0);
+        rframes.assign (n, ReaderFrames()); rdGen = 0; imSeen = -1;
+        tPh.assign (n, 0.0); tSl.assign (n, 0.0); tC.assign (n, 0.0); tS.assign (n, 0.0); tDc.assign (n, 0.0); tDs.assign (n, 0.0);
+        rai.assign (n, 0.0); orai.assign (n, 0.0); bandV.assign (n, 0.0); rdList.assign (n, 0); fdList.assign (n, 0); fti.assign (n, -1); nRd = 0; nFd = 0; dirty = true;
+        {
+            // the cross-fade from an old stretch to a new one, for each length a fade can have: as much of the old one as there is left
+            const int fl[4] = { xf, std::max (xf / 2, 2), xa, 1 }; int off = 0;
+            for (int q = 0; q < 4; ++q) { fadeLen[q] = fl[q]; fadeOff[q] = off; off += fl[q] + 1; }
+            fadeG.assign ((size_t) off, 0.0);
+            for (int q = 0; q < 4; ++q) for (int j = 0; j <= fl[q]; ++j) { const double g = (double) j / (double) fl[q]; fadeG[(size_t) (fadeOff[q] + j)] = 0.5 - 0.5 * std::cos (kPi * g); }
+        }
         E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0); scnt.assign (n, 0); Js.assign (n, 0.0);
         Lr.assign ((size_t) nPar * n * (size_t) nl, 0.0); Li.assign ((size_t) nPar * n * (size_t) nl, 0.0); Ei.assign (n * 2 * NW, 0.0); Ew.assign (n * 2, 0.0); Lpk.assign ((size_t) nPar * n, 0.0);
         fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
@@ -171,21 +187,90 @@ public:
 
         // the bands. Between frames a plain band's loudness and phase run in straight lines, and a reader's carrier turns
         // at a fixed rate, so each stretch is a spinning vector that is set exactly once per frame (and when it changes)
-        double y = 0.0; const bool tick = ((t - 1) % H) == 0;
+        const bool tick = ((t - 1) % H) == 0;
         POLYPITCH_STAGE_START (tick ? sLoopFrameStart : sLoop);
-        for (int k = 1; k < kmax; ++k)
+        if (tick)                                                 // a new frame is in: every vector is set afresh, all the sines and cosines in one go
         {
-            const size_t i = (size_t) k;
-            if (tick || rdirty[i]) { setVector (k, mode[i], st0[i], sd0[i], psi[i], lead[i], rc[i], rs[i], rdc[i], rds[i], ramp[i], rdamp[i]); rdirty[i] = 0; }
-            double s = stepVector (k, mode[i], st0[i], sd0[i], sjn[i], rc[i], rs[i], rdc[i], rds[i], ramp[i], rdamp[i]);
-            if (fade[i] > 0)
+            nRd = 0;
+            for (int k = 1; k < kmax; ++k)
             {
-                if (tick || ordirty[i]) { setVector (k, omode[i], ot0[i], od0[i], opsi[i], olead[i], orc[i], ors[i], ordc[i], ords[i], oramp[i], ordamp[i]); ordirty[i] = 0; }
-                double g = (double) fade[i] / (double) flen[i]; g = 0.5 - 0.5 * std::cos (kPi * g);
-                s = (1.0 - g) * s + g * stepVector (k, omode[i], ot0[i], od0[i], ojn[i], orc[i], ors[i], ordc[i], ords[i], oramp[i], ordamp[i]);
-                --fade[i];
+                const size_t i = (size_t) k; vectorAngles (k, mode[i], st0[i], sd0[i], psi[i], lead[i], tPh[i], tSl[i], ramp[i], rdamp[i]);
+                rai[i] = 0.0; rdirty[i] = 0; rframes[i].gen = -1;
+                if (mode[i] == 0) rdList[(size_t) nRd++] = k;
             }
-            y += s;
+            if (kmax > 1) { sincosMany (tPh.data() + 1, rc.data() + 1, rs.data() + 1, kmax - 1); sincosMany (tSl.data() + 1, rdc.data() + 1, rds.data() + 1, kmax - 1); }
+            for (int n = 0; n < nRd; ++n) { const size_t i = (size_t) rdList[(size_t) n]; rdc[i] = stC[i]; rds[i] = stS[i]; }
+            for (int n = 0; n < nFd; ++n)                       // and the old stretches still fading out
+            {
+                const size_t i = (size_t) fdList[(size_t) n]; vectorAngles ((int) i, omode[i], ot0[i], od0[i], opsi[i], olead[i], tPh[(size_t) n], tSl[(size_t) n], oramp[i], ordamp[i]);
+                orai[i] = 0.0; ordirty[i] = 0;
+            }
+            if (nFd > 0) { sincosMany (tPh.data(), tC.data(), tS.data(), nFd); sincosMany (tSl.data(), tDc.data(), tDs.data(), nFd); }
+            for (int n = 0; n < nFd; ++n)
+            {
+                const size_t i = (size_t) fdList[(size_t) n]; orc[i] = tC[(size_t) n]; ors[i] = tS[(size_t) n];
+                if (omode[i] == 1) { ordc[i] = tDc[(size_t) n]; ords[i] = tDs[(size_t) n]; } else { ordc[i] = stC[i]; ords[i] = stS[i]; }
+            }
+            dirty = false;
+        }
+        else if (dirty)                                           // between frames: only the stretches that have just changed
+        {
+            nRd = 0;
+            for (int k = 1; k < kmax; ++k)
+            {
+                const size_t i = (size_t) k;
+                if (rdirty[i]) { setVector (k, mode[i], st0[i], sd0[i], psi[i], lead[i], rc[i], rs[i], rdc[i], rds[i], ramp[i], rdamp[i]); rai[i] = 0.0; rdirty[i] = 0; rframes[i].gen = -1; }
+                if (mode[i] == 0) rdList[(size_t) nRd++] = k;
+            }
+            dirty = false;
+        }
+        // the readers: what each one reads at this sample
+        if (nRd > 0)
+        {
+            const double qn = ((double) t - flr) / H, fln = std::floor (qn), fn = qn - fln; const int64_t im = (int64_t) fln;      // (the band's level now is taken here: readerGain)
+            if (im != imSeen) { imSeen = im; ++rdGen; }
+            for (int n = 0; n < nRd; ++n)
+            {
+                const int k = rdList[(size_t) n]; const size_t i = (size_t) k; ReaderFrames& c = rframes[i];
+                const double p = st0[i] - sd0[i] + ratio * ((double) t - st0[i]), q = p / H, fl = std::floor (q), f = q - fl; const int64_t ip = (int64_t) fl;
+                if (ip != c.i || c.gen != rdGen) fetchReader (k, ip, im, sjn[i], c);
+                double zr = 0.0, zi = 0.0, g = 1.0;
+                if (c.okZ)
+                {
+                    zr = c.zr[1] + 0.5 * f * (c.zr[2] - c.zr[0] + f * (2 * c.zr[0] - 5 * c.zr[1] + 4 * c.zr[2] - c.zr[3] + f * (3 * (c.zr[1] - c.zr[2]) + c.zr[3] - c.zr[0])));
+                    zi = c.zi[1] + 0.5 * f * (c.zi[2] - c.zi[0] + f * (2 * c.zi[0] - 5 * c.zi[1] + 4 * c.zi[2] - c.zi[3] + f * (3 * (c.zi[1] - c.zi[2]) + c.zi[3] - c.zi[0])));
+                }
+                if (c.okG)
+                {
+                    const double ep = c.ep[0] + f * (c.ep[1] - c.ep[0]) - c.ep[2] - f * (c.ep[3] - c.ep[2]), en = c.en[0] + fn * (c.en[1] - c.en[0]) - c.en[2] - fn * (c.en[3] - c.en[2]);
+                    if (ep > 1e-24 && en > 0.0) g = std::min (2.0, std::max (0.5, std::sqrt (en / ep)));
+                }
+                ramp[i] = g * zr; rai[i] = g * zi;
+            }
+        }
+        // every band: one sample of its stretch (doubled: the band and its mirror image), then its vector turned on. The same few
+        // sums for each band, with nothing to decide: the compiler takes several bands at a time.
+        double y = 0.0;
+        {
+            double* POLYPITCH_RESTRICT c = rc.data(); double* POLYPITCH_RESTRICT sn = rs.data(); double* POLYPITCH_RESTRICT ar = ramp.data(); double* POLYPITCH_RESTRICT vo = bandV.data();
+            const double* POLYPITCH_RESTRICT dc = rdc.data(); const double* POLYPITCH_RESTRICT ds = rds.data(); const double* POLYPITCH_RESTRICT ai = rai.data(); const double* POLYPITCH_RESTRICT da = rdamp.data();
+            for (int k = 1; k < kmax; ++k)
+            {
+                const double cc = c[k], ss = sn[k], vk = 2.0 * (ar[k] * cc - ai[k] * ss);
+                vo[k] = vk; y += vk; c[k] = cc * dc[k] - ss * ds[k]; sn[k] = cc * ds[k] + ss * dc[k]; ar[k] += da[k];
+            }
+        }
+        // a band that has just changed: its old stretch fades out under the new one
+        for (int n = 0; n < nFd; )
+        {
+            const int k = fdList[(size_t) n]; const size_t i = (size_t) k;
+            if (ordirty[i]) { setVector (k, omode[i], ot0[i], od0[i], opsi[i], olead[i], orc[i], ors[i], ordc[i], ords[i], oramp[i], ordamp[i]); orai[i] = 0.0; ordirty[i] = 0; }
+            if (omode[i] == 0) readerNow (k, ot0[i], od0[i], ojn[i], oramp[i], orai[i]);
+            const double cc = orc[i], ss = ors[i], ov = 2.0 * (oramp[i] * cc - orai[i] * ss);
+            orc[i] = cc * ordc[i] - ss * ords[i]; ors[i] = cc * ords[i] + ss * ordc[i]; oramp[i] += ordamp[i];
+            const double g = fti[i] >= 0 ? fadeG[(size_t) (fti[i] + fade[i])] : 0.5 - 0.5 * std::cos (kPi * (double) fade[i] / (double) flen[i]);
+            y += g * (ov - bandV[i]);
+            if (--fade[i] == 0) fdList[(size_t) n] = fdList[(size_t) --nFd]; else ++n;
         }
         y /= (double) over;
         // the attack bridge: between br0 and br1 the output is the input itself at the shifted speed
@@ -230,6 +315,15 @@ private:
     int fresh[2] = { 1, 1 };
     int64_t sumsFor[2] = { 0, 1 };
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
+    std::vector<double> rai, orai, bandV, fadeG, tPh, tSl, tC, tS, tDc, tDs;
+    std::vector<int> rdList, fdList, fti;                    // the bands on readers; the bands in a cross-fade; where each band's fade is in fadeG
+    int nRd = 0, nFd = 0, fadeLen[4] = { 1, 1, 1, 1 }, fadeOff[4] = { 0, 0, 0, 0 };
+    bool dirty = true;
+    // what a reader reads changes frame only every H / ratio samples: the frames it is between (and the energies its loudness is
+    // scaled by) are kept here, per band, and fetched again when it moves on to the next frame, or when anything they hang on changes
+    struct ReaderFrames { int64_t i = -1, gen = -1; double zr[4] = {}, zi[4] = {}, ep[4] = {}, en[4] = {}; bool okZ = false, okG = false; };
+    std::vector<ReaderFrames> rframes;
+    int64_t rdGen = 0, imSeen = -1;
     std::vector<char> rdirty, ordirty;
     struct Bank { std::vector<double> h, twC, twS; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
     Bank banks[4];                                                    // [0] shifting down; shifting up: [1] fast, [2] balanced, [3] clean. Made in prepare()
@@ -250,6 +344,29 @@ private:
     bool brActive = false, dirAct = false;
 
     static inline double wrap (double a) { return a - 2.0 * kPi * std::round (a / (2.0 * kPi)); }
+
+    // cos and sin of n angles, several at a time. Where the machine multiplies and adds in one step (FP_FAST_FMA) the angle is
+    // brought into -pi/4 .. pi/4 by taking out a whole number of quarter turns (pi/2 in three parts, so that nothing is lost
+    // however large the angle) and a polynomial does the rest: within two units in the last place of the library's cos and sin
+    // for angles up to 1e13. Elsewhere the library's own functions are used.
+    static inline void sincosMany (const double* POLYPITCH_RESTRICT x, double* POLYPITCH_RESTRICT c, double* POLYPITCH_RESTRICT s, int n)
+    {
+       #if defined (FP_FAST_FMA) || defined (__FP_FAST_FMA)
+        for (int i = 0; i < n; ++i)
+        {
+            const double v = x[i], kf = std::round (v * 0.6366197723675814);
+            double r = std::fma (-kf, 1.5707963267948966, v); r = std::fma (-kf, 6.123233995736766e-17, r); r = std::fma (-kf, -1.4973849048591698e-33, r);
+            const double z = r * r;
+            const double ps = r + r * z * (-1.66666666666666324348e-01 + z * (8.33333333332248946124e-03 + z * (-1.98412698298579493134e-04 + z * (2.75573137070700676789e-06 + z * (-2.50507602534068634195e-08 + z * 1.58969099521155010221e-10)))));
+            const double pc = 1.0 - 0.5 * z + z * z * (4.16666666666666019037e-02 + z * (-1.38888888888741095749e-03 + z * (2.48015872894767294178e-05 + z * (-2.75573143513906633035e-07 + z * (2.08757232129817482790e-09 + z * -1.13596475577881948265e-11)))));
+            const int64_t q = (int64_t) kf; const bool odd = (q & 1) != 0;
+            const double a = odd ? pc : ps, b = odd ? ps : pc;
+            s[i] = (q & 2) != 0 ? -a : a; c[i] = ((q + 1) & 2) != 0 ? -b : b;
+        }
+       #else
+        for (int i = 0; i < n; ++i) { c[i] = std::cos (x[i]); s[i] = std::sin (x[i]); }
+       #endif
+    }
 
     // called from prepare(), never while audio runs: one band filter and its FFT twiddles.
     //   which 0: shifting down             512 bands (86 Hz apart at 44.1 kHz), 12 ms delay (the attack bridge hides it)
@@ -300,6 +417,7 @@ private:
         std::fill (Am.begin(), Am.end(), 0.0); std::fill (Um.begin(), Um.end(), 0.0); std::fill (Cm.begin(), Cm.end(), 0.0); std::fill (lastAng.begin(), lastAng.end(), 0.0);
         std::fill (Us.begin(), Us.end(), 0.0); std::fill (fsm.begin(), fsm.end(), 0.0); std::fill (ebm.begin(), ebm.end(), 0.0); std::fill (epm.begin(), epm.end(), 0.0);
         std::fill (Lr.begin(), Lr.end(), 0.0); std::fill (Li.begin(), Li.end(), 0.0); std::fill (Lpk.begin(), Lpk.end(), 0.0); std::fill (Ew.begin(), Ew.end(), 0.0); std::fill (Ei.begin(), Ei.end(), 1e30);
+        ++rdGen;
         const int64_t mNext = (t + H - 1) / H;                     // with no frames behind them the sums are right (zero) for the next frame of either kind
         for (int c = 0; c < 2; ++c) { fresh[c] = 1; sumsFor[c] = mNext + ((mNext ^ c) & 1); }
     }
@@ -313,6 +431,7 @@ private:
             rdirty[k] = 1; ordirty[k] = 1; evT[k] = -1; busy[k] = 0; J[k] = 0.0; Jc[k] = 0.0; cin[k] = 0; cout[k] = 0; lcnt[k] = 0; want[k] = (int) k; scnt[k] = 0; Js[k] = 0.0;
         }
         wait = t; quietUntil = 0; pendSwitch = -1; pend = -1; brActive = false; dirAct = false; dirFade = 0; brW = 0.0; brW0 = 0.0; smHold = -1;
+        nRd = 0; nFd = 0; dirty = true; ++rdGen;
     }
 
     // ---- analysis: one frame of every band's envelope
@@ -353,7 +472,7 @@ private:
         POLYPITCH_STAGE_NEXT (sTransform);
         fft (true);
         POLYPITCH_STAGE_NEXT (sFrameBands);
-        const int64_t m = t / H; mNow = m; const size_t col = (size_t) (m & FM);
+        const int64_t m = t / H; mNow = m; ++rdGen; const size_t col = (size_t) (m & FM);
         const int tm = (int) (t % Kb);
         for (int k = 0; k < kB; ++k)
         {
@@ -531,37 +650,57 @@ private:
         return true;
     }
 
-    // set a stretch's spinning vector exactly, for sample t
-    inline void setVector (int k, int md, double t0, double d0, double ps, int Ld, double& c, double& sn, double& dc, double& ds, double& amp, double& damp) const
+    // a stretch's spinning vector at sample t: where its phase stands (ph) and, for a plain stretch, how far it turns per sample
+    // (sl; a reader's carrier turns at its own fixed rate: stC, stS), its loudness and how that changes per sample
+    inline void vectorAngles (int k, int md, double t0, double d0, double ps, int Ld, double& ph, double& sl, double& amp, double& damp) const
     {
         if (md == 1)
         {
             const double p = (double) t - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
-            if (! frameOk (i) || ! frameOk (i + 1)) { c = 1.0; sn = 0.0; dc = 1.0; ds = 0.0; amp = 0.0; damp = 0.0; return; }
+            if (! frameOk (i) || ! frameOk (i + 1)) { ph = 0.0; sl = 0.0; amp = 0.0; damp = 0.0; return; }
             const size_t c0 = (size_t) (i & FM), c1 = (size_t) ((i + 1) & FM), bk = (size_t) k * NF, bl = (size_t) Ld * NF;
             const double* lp = leadPhase();
             const double a0 = Am[bk + c0], a1 = Am[bk + c1], uk = Um[bk + c1] - Um[bk + c0], ul = lp[bl + c1] - lp[bl + c0];
             amp = a0 + f * (a1 - a0); damp = (a1 - a0) / H;
-            const double ph = Um[bk + c0] + f * uk + wk[(size_t) k] * (p - tauD) + (ratio - 1.0) * (lp[bl + c0] + f * ul + wk[(size_t) Ld] * (p - tauD)) + ps;
-            const double sl = uk / H + wk[(size_t) k] + (ratio - 1.0) * (ul / H + wk[(size_t) Ld]);
-            c = std::cos (ph); sn = std::sin (ph); dc = std::cos (sl); ds = std::sin (sl); return;
+            ph = Um[bk + c0] + f * uk + wk[(size_t) k] * (p - tauD) + (ratio - 1.0) * (lp[bl + c0] + f * ul + wk[(size_t) Ld] * (p - tauD)) + ps;
+            sl = uk / H + wk[(size_t) k] + (ratio - 1.0) * (ul / H + wk[(size_t) Ld]); return;
         }
-        const double p = t0 - d0 + ratio * ((double) t - t0), ph = wk[(size_t) k] * (p - tauD) + ps;
-        c = std::cos (ph); sn = std::sin (ph); dc = stC[(size_t) k]; ds = stS[(size_t) k]; amp = 0.0; damp = 0.0;
+        const double p = t0 - d0 + ratio * ((double) t - t0);
+        ph = wk[(size_t) k] * (p - tauD) + ps; sl = 0.0; amp = 0.0; damp = 0.0;
     }
 
-    // one sample of a stretch (doubled: the band and its mirror image), then turn the vector on
-    inline double stepVector (int k, int md, double t0, double d0, int Jn, double& c, double& sn, double dc, double ds, double& amp, double damp) const
+    // set one stretch's spinning vector exactly, for sample t
+    inline void setVector (int k, int md, double t0, double d0, double ps, int Ld, double& c, double& sn, double& dc, double& ds, double& amp, double& damp) const
     {
-        double v;
-        if (md == 1) { v = 2.0 * amp * c; amp += damp; }
-        else
+        double ph, sl; vectorAngles (k, md, t0, d0, ps, Ld, ph, sl, amp, damp);
+        c = std::cos (ph); sn = std::sin (ph);
+        if (md == 1) { dc = std::cos (sl); ds = std::sin (sl); } else { dc = stC[(size_t) k]; ds = stS[(size_t) k]; }
+    }
+
+    // the frames a reader of band k is between when it stands in frame ip (zat), and the energies its loudness is scaled by (readerGain)
+    void fetchReader (int k, int64_t ip, int64_t im, int Jn, ReaderFrames& c) const
+    {
+        c.i = ip; c.gen = rdGen;
+        c.okZ = ! (ip < 1 || ip + 2 > mNow || ip - 1 <= mNow - NF);
+        if (c.okZ)
         {
-            const double p = t0 - d0 + ratio * ((double) t - t0); double zr, zi; zat (k, p, zr, zi);
-            v = 2.0 * readerGain (k, p, (double) t, Jn) * (zr * c - zi * sn);
+            const float* zr = &Zr[(size_t) k * 2 * NF]; const float* zi = &Zi[(size_t) k * 2 * NF];
+            for (int j = 0; j < 4; ++j) { const size_t ix = (size_t) ((ip - 1 + j) & FM); c.zr[j] = zr[ix]; c.zi[j] = zi[ix]; }
         }
-        const double c2 = c * dc - sn * ds; sn = c * ds + sn * dc; c = c2;
-        return v;
+        c.okG = Jn > 0 && frameOk (ip - Jn) && frameOk (ip + 1) && frameOk (im - Jn) && frameOk (im + 1);
+        if (c.okG)
+        {
+            const double* cm = &Cm[(size_t) k * NF]; auto at = [cm] (int64_t i) { return cm[(size_t) (i & FM)]; };
+            c.ep[0] = at (ip); c.ep[1] = at (ip + 1); c.ep[2] = at (ip - Jn); c.ep[3] = at (ip - Jn + 1);
+            c.en[0] = at (im); c.en[1] = at (im + 1); c.en[2] = at (im - Jn); c.en[3] = at (im - Jn + 1);
+        }
+    }
+
+    // what a reader reads at this sample: the band's envelope where the reader is, scaled to the band's level now
+    inline void readerNow (int k, double t0, double d0, int Jn, double& ar, double& ai) const
+    {
+        const double p = t0 - d0 + ratio * ((double) t - t0); double zr, zi; zat (k, p, zr, zi);
+        const double g = readerGain (k, p, (double) t, Jn); ar = g * zr; ai = g * zi;
     }
 
     inline double readDirect (double p) const
@@ -577,8 +716,11 @@ private:
     {
         const size_t i = (size_t) k;
         if (evT[i] < te) { omode[i] = mode[i]; ot0[i] = st0[i]; od0[i] = sd0[i]; opsi[i] = psi[i]; olead[i] = lead[i]; ojn[i] = sjn[i]; ordirty[i] = 1; }     // (same instant: replaces it)
-        rdirty[i] = 1;
+        rdirty[i] = 1; dirty = true;
+        if (fade[i] == 0 && k >= 1 && k < kmax) fdList[(size_t) nFd++] = k;
         mode[i] = md; st0[i] = (double) te; sd0[i] = d; psi[i] = ps; lead[i] = Ld; sjn[i] = Jn; flen[i] = std::max (flenNew, 1); fade[i] = flen[i]; evT[i] = te;
+        fti[i] = -1;
+        for (int q = 0; q < 4; ++q) if (flen[i] == fadeLen[q]) { fti[i] = fadeOff[q]; break; }
     }
 
     // ---- fitting a new stretch of band k to what is running. Everything is compared at M moments of the output, t - j step
@@ -1016,3 +1158,4 @@ private:
 
 #undef POLYPITCH_STAGE_START
 #undef POLYPITCH_STAGE_NEXT
+#undef POLYPITCH_RESTRICT

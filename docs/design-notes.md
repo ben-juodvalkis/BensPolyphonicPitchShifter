@@ -301,6 +301,29 @@ the same sums in another order: the 88 renders are within -137 dB of the build b
 -150 dB) and every scorecard row is the same. Reading the curves two lags abreast, which is exactly the same
 arithmetic, is in the same commit.
 
+**The band loop, at a third of the cost.** Every output sample is a sum over 105 to 231 bands, and it was the
+largest part of the average. Three things were in the way of doing the same sums fast.
+
+- *Deciding inside the loop.* Plain or reader, fading or not, set afresh or not was asked for every band at every
+  sample. A plain band is a spinning vector times a loudness that moves in a straight line; a reader is a spinning
+  vector times the band's envelope where the reader stands, which has two parts. With a second part that is zero
+  for plain bands, every band is the same six multiplications, and the compiler takes eight bands at a time. The
+  readers' envelopes are worked out before that pass, and the bands that are fading from an old stretch to a new
+  one (a short list, with the fade's shape from a table) after it.
+- *A reader fetched its frames at every sample*: eight values of the band's envelope and eight of its energy, from
+  arrays far larger than the processor's nearest cache, 31 to 84 readers at a time. It moves on to another frame
+  only every 16 samples at octave up (64 at octave down), so it now keeps them and does the same arithmetic on what
+  it kept. This alone took a fifth off the loop, and the output is bit-identical with and without it.
+- *Two sines and two cosines per band at the start of every frame*, one library call each. They are now worked out
+  for all bands in one go by the engine's own routine (bring the angle into a quarter turn, then a polynomial),
+  two at a time. It is within two units in the last place of the library's for angles up to 1e13, which a phase
+  that has been running for days does not reach. It needs the machine's multiply-and-add in one step to take the
+  quarter turns out exactly; where there is none (a plain Intel build) the library's functions are used as before.
+
+Against the build before: 78 of 88 renders bit-identical, the other ten different by a last bit in at most 144
+samples, every scorecard row the same. At octave up the band loop went from 4.9 to 1.7 % of a core and the whole
+engine from 9.9 to 6.4 %; the heavy block from 17 to 13 % of its slot.
+
 **What could not be done.**
 
 | Tried | Result |
