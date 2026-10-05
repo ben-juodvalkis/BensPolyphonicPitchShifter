@@ -1,8 +1,8 @@
 """The C++ engine against the Python reference on the same input.
 
 The engine is a line-for-line port, so on simple material the two agree to rounding (below -90 dB). On dense material
-a decision can tip the other way in one of them (single against double precision in the repeat-finding sums), after
-which the two outputs are both valid but no longer the same; then only the level has to agree.
+a decision can tip the other way in one of them (a last digit is enough, and the two do not round every sum alike),
+after which the two outputs are both valid but no longer the same; then only the level has to agree.
 
     python tests/test_engine_vs_reference.py            44.1 and 48 kHz: -12, +2 (a small shift up has settings of its own), and
                                                         +12 with each response (fast, balanced, clean)

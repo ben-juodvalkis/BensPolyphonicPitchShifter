@@ -16,8 +16,8 @@ this table (about four minutes; it needs no audio files):
 | -5 | -53.0 | 28 | -44.1 | -37.4 | 0.2 | 1.4 | 0.1 | 0.1 |
 | -2 | -53.9 | 28 | -45.3 | -40.1 | 0.1 | 1.2 | 0.3 | 0.1 |
 | +2 | -55.3 | 28 | -43.1 | -38.9 | 0.1 | 8.5 | 0.1 | 0.1 |
-| +7 | -54.5 | 28 | -41.8 | -35.9 | 0.2 | 7.9 | 0.1 | 0.1 |
-| +12 | -52.9 | 26 | -35.2 | -28.8 | 0.2 | 7.4 | 0.3 | 0.2 |
+| +7 | -54.5 | 28 | -41.7 | -35.9 | 0.2 | 7.9 | 0.1 | 0.1 |
+| +12 | -52.9 | 26 | -35.1 | -28.8 | 0.2 | 7.4 | 0.3 | 0.2 |
 
 What the columns mean:
 
@@ -40,12 +40,12 @@ Shifting up there are three **responses** (the Response control). The table abov
 | +2 | Fast | -55.3 dB | 28 | -43.1 dB | -38.9 dB | 0.1 c | 8.5 ms |
 | | Balanced | -60.7 | 28 | -46.9 | -42.2 | 0.1 | 12.5 |
 | | Clean | -53.4 | 24 | -42.9 | -40.4 | 0.1 | 16.5 |
-| +7 | Fast | -54.5 | 28 | -41.8 | -35.9 | 0.2 | 7.9 |
+| +7 | Fast | -54.5 | 28 | -41.7 | -35.9 | 0.2 | 7.9 |
 | | Balanced | -59.4 | 28 | -43.3 | -36.4 | 0.2 | 11.9 |
 | | Clean | -53.2 | 28 | -40.3 | -37.3 | 0.0 | 15.8 |
-| +12 | Fast | -52.9 | 26 | -35.2 | -28.8 | 0.2 | 7.4 |
+| +12 | Fast | -52.9 | 26 | -35.1 | -28.8 | 0.2 | 7.4 |
 | | Balanced | -60.1 | 27 | -35.7 | -30.2 | 0.2 | 11.3 |
-| | Clean | -55.2 | 28 | -35.1 | -33.5 | 0.0 | 15.4 |
+| | Clean | -55.2 | 28 | -35.1 | -33.4 | 0.0 | 15.4 |
 
 Balanced is the same bands behind a longer filter (12 ms instead of 8), which lets less of each partial into the
 bands around it. Clean has bands half as wide behind a 16 ms filter. Single notes are in tune to 0.1 to 0.3 cents
@@ -101,8 +101,8 @@ over this table.
 | -5 | 18 / **28** | -31.1 / **-44.1** | -21.7 / **-37.4** | 10.8 / **1.4** |
 | -2 | 19 / **28** | -36.3 / **-45.3** | -32.1 / **-40.1** | 11.4 / **1.2** |
 | +2 | 21 / **28** | -39.6 / **-43.1** | -33.9 / **-38.9** | 11.8 / **8.5** |
-| +7 | 21 / **28** | -31.5 / **-41.8** | -28.8 / **-35.9** | 12.0 / **7.9** |
-| +12 | 21 / **26** | -33.4 / **-35.2** | -28.9 / -28.8 | 11.7 / **7.4** |
+| +7 | 21 / **28** | -31.5 / **-41.7** | -28.8 / **-35.9** | 12.0 / **7.9** |
+| +12 | 21 / **26** | -33.4 / **-35.1** | -28.9 / -28.8 | 11.7 / **7.4** |
 
 The reference device is exactly in tune on every chord note (0.0 to 0.1 cents); Ben's Polyphonic Pitch Shifter is within 0.4. On pairs
 of pure sines the reference device's median is lower going up (-52 to -62 dB against -53 to -56 dB): where it is
@@ -112,6 +112,12 @@ clean it is very clean.
 
 These use material that is not in the repository: DI guitar and bass takes by the author, and notes and loops from
 a commercial sample library.
+
+The engine's likeness sums have since gone from single to double precision (`docs/design-notes.md`, "Speed"), which
+moves a borderline decision here and there. Everything below was measured again after that, and eight figures moved
+by 0.1 dB (one by 0.2), except the first table's "Two DI takes mixed" and the attack figures on DI takes (in
+that table and in the table of the three responses): their script is not on the computer the work was done on. A
+closely related measure of the same two mixes moved by 0.03 dB at most.
 
 **Two takes mixed** (shifting them together should equal shifting them apart and adding; the number is the new
 energy that appears only in the shifted mix), and **attack lateness** on the same takes:
@@ -163,8 +169,8 @@ sample library, built into 30 chords; shifting each note alone and adding them u
 | -5 | -33.1 / **-39.0** | -25.1 / **-27.8** |
 | -2 | -34.2 / **-42.5** | -25.7 / **-28.1** |
 | +2 | -32.1 / **-36.9** | -23.9 / **-24.2** |
-| +7 | -29.0 / **-32.4** | **-21.6** / -20.7 |
-| +12 | -26.2 / **-29.1** | -19.6 / **-19.9** |
+| +7 | -29.0 / **-32.4** | **-21.6** / -20.9 |
+| +12 | -26.2 / **-29.2** | -19.6 / **-19.9** |
 
 **Held chords at octave up**, measured from 0.4 s into each chord so that only the sustained part counts (11
 chords: two held DI chords, six sample-library guitar chords, three chords built from single notes):
@@ -199,12 +205,12 @@ for them are under "What you can run yourself"):
 | Attack late by, median (DI takes) | 8.1 / 8.0 / 7.8 ms | 12.1 / 12.0 / 11.7 | 16.0 / 15.9 / 15.8 | 12.0 / 12.1 / 12.2 |
 | Slowest tenth of attacks | 10 / 11 / 11 ms | 14 / 13 / 14 | 18 / 19 / 19 | 30 / 33 / 37 |
 | Two DI takes mixed | -31.1 / -26.6 / -21.1 dB | **-32.1** / -26.7 / -22.7 | -26.8 / **-28.8** / **-24.7** | -25.7 / -22.8 / -20.6 |
-| Twelve pairs of DI takes mixed | -27.1 / -22.4 / -20.8 dB | -27.7 / -23.8 / -21.5 | **-28.4** / **-24.5** / **-23.3** | -27.5 / **-24.5** / -22.1 |
-| Chords from single notes | -36.9 / **-32.4** / -29.1 dB | **-37.7** / **-32.4** / -30.7 | -36.3 / -31.6 / **-31.0** | -32.1 / -29.0 / -26.2 |
-| Loop mixes | -24.2 / -20.7 / -19.9 dB | -25.5 / **-22.7** / **-21.9** | **-26.3** / -22.4 / -21.1 | -23.9 / -21.6 / -19.6 |
+| Twelve pairs of DI takes mixed | -27.1 / -22.4 / -20.8 dB | -27.7 / -23.7 / -21.5 | **-28.4** / **-24.6** / **-23.3** | -27.5 / -24.5 / -22.1 |
+| Chords from single notes | -36.9 / **-32.4** / -29.2 dB | **-37.7** / **-32.4** / -30.6 | -36.3 / -31.5 / **-31.0** | -32.1 / -29.0 / -26.2 |
+| Loop mixes | -24.2 / -20.9 / -19.9 dB | -25.5 / **-22.7** / **-22.0** | **-26.3** / -22.4 / -21.1 | -23.9 / -21.6 / -19.6 |
 | The middle note of a full chord: loudness off by | 1.6 / 2.2 / 4.5 dB | 1.2 / **0.4** / 2.5 | 0.9 / 0.6 / 0.7 | **0.5** / 0.5 / **0.5** |
 | Partials that stand alone in a full chord: loudness off by | 1.4 / 1.6 / 2.4 dB | 1.2 / 1.2 / 1.9 | 2.0 / 0.9 / **0.9** | **0.3** / **0.5** / 1.0 |
-| Held chords at +12: dirt / flutter | -27.7 / **-21.0** dB | -28.0 / **-21.0** | -27.5 / -20.5 | **-28.4** / -20.8 |
+| Held chords at +12: dirt / flutter | -27.7 / **-21.0** dB | -27.9 / **-21.0** | -27.5 / -20.5 | **-28.4** / -20.8 |
 
 The middle note is the third of six of the scorecard's full chords (its fundamental, rms over the six); the
 partials that stand alone are those of all ten chords with no other partial within 20 Hz.
@@ -221,7 +227,7 @@ lines), which lost 3 dB on Clean when small shifts got their own settings while 
 ## Where Ben's Polyphonic Pitch Shifter is behind
 
 - **Mixes going up by a fifth or more, on the Fast response**: on twelve pairs of DI takes the reference device is
-  2.1 dB cleaner at +7 and 1.3 dB at +12, and on loop mixes 0.9 dB at +7. The Clean response is level with it on
+  2.1 dB cleaner at +7 and 1.3 dB at +12, and on loop mixes 0.7 dB at +7. The Clean response is level with it on
   the twelve pairs at +7 and 1.2 dB ahead at +12, and Balanced is ahead on loop mixes at both. The reason for what
   is left has not been found. (Below a fifth the gap is closed on the twelve pairs and on loop mixes; on all 45
   pairings the reference device is 1.1 to 1.8 dB ahead from +2 to +5 by the usual ruler, and within about 1 dB
@@ -250,45 +256,50 @@ lines), which lost 3 dB on Clean when small shifts got their own settings while 
 
 ## Cost
 
-Measured with `build/tools/polypitch_load` on DI chord takes at 48 kHz, one core of an Apple M1 Max:
+At 48 kHz on one core of an Apple M4, one DI chord take, measured with `build/tools/polypitch_load` (runs interleaved
+with the build before, the lowest of six):
 
-| | Average load | Worst 64-sample block |
+| | Average load | The 99.9th-percentile 64-sample block, share of its 1.33 ms |
 |---|---|---|
-| Shifting down | 8 to 10 % | 33 % of its time slot |
-| Shifting up | 19 to 21 % | 64 % of its time slot |
+| Octave down | 5.0 % | 10.8 % |
+| +2 | 9.8 % | 18.5 % |
+| Octave up | 10.8 % | 23.1 % |
+| Octave up, Clean | 10.6 % | 22.8 % |
 
-The worst block is high because the engine does its analysis in one lump every 128 samples. Until that is spread
-out (see `ROADMAP.md`), use a buffer of 128 samples or more.
+The heavy blocks matter more than the average: a buffer of 64 samples has to be finished inside its 1.33 ms every
+time. Until they are lighter still (see `ROADMAP.md`), use a buffer of 128 samples or more.
 
-Where the time goes (`build/tools/polypitch_profile`, one DI chord take, Fast response; the least disturbed of four
+**Before the performance work** (the engine of commit `83187b0`) the same computer took 5.6, 11.2, 12.2 and 11.8 %
+on average and 14.4, 25.9, 30.7 and 31.2 % of the slot in the heavy block. That engine was also measured on an Apple
+M1 Max, which took 1.5 to 1.6 times as long (8.5 % at octave down and 18.6 % at octave up; 24 % and 51 % of the
+slot). The engine as it is now has not been measured on an M1 Max.
+
+What has changed so far: the likeness curves (how the engine tells a band with one partial from a band with two,
+`docs/how-it-works.md`) used to be worked out from nothing for every band at every check, on the one sample in 128
+where the decisions are made as well. Their sums are now kept running as the frames arrive, on a frame that has no
+check, so they never fall in the same 64 samples as the decisions, and they cost the same whatever is being played.
+The output is not sample for sample what it was: `docs/design-notes.md` ("Speed") has why, and what was measured.
+
+Where the time goes now (`build/tools/polypitch_profile`, the same take, Fast response, the less disturbed of two
 runs):
 
 | Stage | How often | Octave up | Octave down |
 |---|---|---|---|
-| The band loop: one output sample from every band | every sample | 7.5 % of a core | 3.8 % |
-| Likeness curves: every band against its own past | every 128 samples | 4.7 | 2.1 |
-| Decisions: plain or reader, jumps, who follows whom | every 128 samples | 3.4 | 1.1 |
-| (of the decisions: fitting a reader to its neighbors) | | (1.5) | (0.2) |
-| Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 1.3 | 0.6 |
-| The transform | every 32 samples | 1.2 | 0.5 |
-| The window | every 32 samples | 0.3 | 0.3 |
-| All | | 18.6 | 8.5 |
+| The band loop: one output sample from every band | every sample | 4.9 % of a core | 2.4 % |
+| Decisions: plain or reader, jumps, who follows whom | every 128 samples | 2.4 | 0.8 |
+| (of the decisions: fitting a reader to its neighbors) | | (1.0) | (0.1) |
+| Likeness curves: the running sums, and their scaling at a check | every 128 samples, on two different frames | 1.7 | 0.8 |
+| Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 1.0 | 0.5 |
+| The transform | every 32 samples | 0.7 | 0.3 |
+| The window | every 32 samples | 0.2 | 0.2 |
+| All | | 10.9 | 5.1 |
 
-| 64-sample blocks, share of their time slot | Median | 99th percentile | 99.9th | Heaviest |
-|---|---|---|---|---|
-| Octave up | 15 % | 44 % | 51 % | 63 % |
-| Octave down | 6 % | 19 % | 24 % | 29 % |
+In the heaviest hundredth of the blocks at octave up, 11 of the 23 to 26 % of the slot are the decisions (6 to 7 of
+them fitting readers), 8 to 9 the band loop and about 2 the curves. The single heaviest block is a noisy number (it depends on
+what else the computer is doing); the 99.9th percentile repeats.
 
-In the heaviest hundredth of the blocks at octave up, 31 of the 47 % of the slot are the work done every 128
-samples, and 10 of those are fitting readers. The single heaviest block is a noisy number (it depends on what else
-the computer is doing); the 99.9th percentile repeats.
-
-Shifting up by less than a fifth costs a point less (17 to 19 % at +2 and +5): fewer bands are on readers.
-
-Shifting up, the three responses cost the same: 19 to 21 % on Fast and on Balanced, 18 to 22 % on Clean (at +7 and
-+12, same takes), and their heavy blocks are alike (99.9th percentile 51 % of the slot on Fast, 53 % on Clean). An
-earlier reading of 80 to 90 % for Clean's single worst block was taken while the computer was busier and did not
-repeat.
+Shifting up by less than a fifth costs a point less (fewer bands are on readers), and the three responses cost the
+same.
 
 ## Sample rates
 

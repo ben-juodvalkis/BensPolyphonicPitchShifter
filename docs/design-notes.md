@@ -247,6 +247,57 @@ estimate from how the check works, and would be wrong at every chord change. Not
 is taking a band's two partials apart frame by frame once their frequencies are known, instead of waiting for a
 repeat: the same direction as "no readers at all" in the held-chords table above.
 
+## Speed: the likeness curves as running sums, and what rounding decides
+
+The first performance item (`ROADMAP.md`, section 2). The likeness curves and the decisions were all worked out on
+one sample in every 128, and a 64-sample block took up to half of its time slot. CPU figures here are from an Apple
+M4.
+
+**What was built.** A band's curve at one lag is a sum of 17 or 18 products, one for every second frame of the
+24 ms being compared. The check 2.9 ms later needs the same sum with two terms more and two fewer. So the sums are
+kept running: on a frame that has no check, every lag of every band takes its new terms in and its oldest out, and
+at a check only the newest frame's term is added and the sum scaled. That is a quarter of the multiplications, the
+same work whatever is being played, and never in the same 64 samples as the decisions. At octave up the heavy
+blocks went from 31 % of their slot to 23 %, and the average from 12.2 % to 10.8 % of a core.
+
+**A running sum has to be exact to be kept.** Every step leaves its rounding behind, and what was rounding beside
+a loud band is an error beside the same band 100 dB quieter. In single precision one step's rounding is already a
+ten-millionth of the sum, and the checks ask about a thousandth. So the sums are in double precision, where a
+product of two single-precision numbers is exact, and a band is summed afresh from its frames whenever its level
+has fallen 40 dB (50 to 340 times a second on the test takes, a hundredth or two of the work) and once in a while
+whatever its level. On five minutes of takes whose level jumps by up to
+100 dB the output is the same as with sums made afresh at every check, to -160 dB; without the fresh sums the
+stretch after a 100 dB drop differed at -65 dB.
+
+**The old sums were in single precision, and that turned out to decide things.**
+
+| Compared | Result |
+|---|---|
+| Running sums against sums made afresh at every check, both in double precision (88 renders: two DI takes and two synthetic signals, eleven settings, 44.1 and 48 kHz) | The same to -174 dB or better: a last bit of the output here and there. Keeping the sums running changes nothing. |
+| Double precision against the single precision the engine had, the same 88 renders | Not the same. Single tones and pairs of tones: -102 to -125 dB in 16 of 22 renders, -58 to -92 dB in the other 6. DI takes: -22 to -123 dB, in the middle -55 to -71 dB. A dense chord of 32 steady partials: down to -36 dB. |
+| The scorecard, 15 rows (six intervals, +5, and the balanced and clean rows) | Three cells moved, by 0.005, 0.010 and 0.015 dB, each across the rounding of its last printed digit (two-note chords at +7 and +12, full chords at +12 Clean). Everything else is the same to three decimals. |
+| Held chords, moving pitch, strummed chords (`tests/`) | Every mean and every figure in the benchmarks the same; three single figures moved by 0.1 dB. |
+| Real material, kept outside the repository: twelve pairs of DI takes and all 45 pairings, chords from single notes, loop mixes, eleven held chords, a chord's middle note (68 figures over the intervals and responses of the benchmarks) | 63 the same to within 0.03 dB. The other five: loop mixes at +7 and the twelve pairs at +7 on Clean 0.16 dB cleaner, loop mixes at +12 on Balanced 0.11 dB cleaner and on Clean 0.09 dB rougher, the twelve pairs at +7 on Balanced 0.06 dB rougher. Single pairs moved by up to 2 dB either way. |
+| The engine against the reference (`tests/test_engine_vs_reference.py`, 40 cases) | Closer by more than 1 dB in 21 cases (by 20 dB or more in 7), farther in 2 (both still at -95 dB), the rest as before. A plucked note: at worst -50 dB before, -95 dB now. The worst case, a full chord, -42 dB before and -45 dB now. |
+
+Why: a band whose curve dips by just about the threshold (0.001 shifting up, 0.004 down) is called beating or not
+by the last digits of a sum, and in single precision those digits are rounding. From that check on the two builds
+treat the band differently, and both are right. It is what has always separated the engine from the reference,
+which sums in double precision; the engine is now on the reference's side of it. Shifting down the two builds
+differ far less than shifting up (the listening files: -85 to -160 dB against -32 to -128 dB), because the
+threshold there is four times as coarse.
+
+What it means for the work after this: a change that leaves the likeness sums alone can be compared with the build
+before it sample by sample, and one that touches them cannot, however small the change.
+
+**What could not be done.**
+
+| Tried | Result |
+|---|---|
+| Keeping the single-precision sums exactly as they were and only doing them earlier | Not possible. The sum's last digits depend on the order the terms were added in, and the newest frame's term went in first: nothing of the sum can be made ready before that frame is there. |
+| The exact old sums only where they matter: for a band whose curve never falls no number of the curve is used, so a rough curve would do for those | Nothing to gain. On DI takes at octave up 0.1 of 125 awake bands has a curve that never falls; 83 have one that falls and stays down, 41 one that comes back (62 awake shifting down: 0.1, 41 and 22). A real band is not a steady line (see "Held chords" above), and the roadmap's "do less of the curves", which counted on settled bands, needs another idea of settled. |
+| Running sums only for the bands that are awake | Not built: a band that wakes needs its sums at once, which is the old work for that band, and after a loud note stops many bands wake in the same check. The lump would be back in the rare block, which is the one that counts. |
+
 ## Things worth knowing about measuring
 
 - **Chord scores need each note's tuning**, read from a partial that no other note shares. A score that allows a

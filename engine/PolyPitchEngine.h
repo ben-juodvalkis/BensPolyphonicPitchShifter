@@ -63,6 +63,7 @@ public:
         Wn = std::max ((int) std::lround (24.0 * sr / 1000.0 / H / ws), 2);
         lmin = std::max ((int) std::lround (2.2 * sr / 1000.0 / H), 1);
         lmax = std::min ((int) (100.0 * sr / 1000.0 / H), NF / 3); nl = lmax - lmin + 1;
+        nPar = (hopf & 1) ? 2 : 1;                                                    // (checks fall on even frames only, unless a hop is an odd number of frames)
         xf = (int) (2.6667 * sr / 1000.0);
         hold = (int) (0.012 * sr); settle = (int) (25.0 * sr / 1000.0);
         dA0 = 1.0 * sr / 1000.0; twait = 40.0 * sr / 1000.0; pre = (int) (2.0 * sr / 1000.0);
@@ -83,8 +84,9 @@ public:
         rc.assign (n, 1.0); rs.assign (n, 0.0); rdc.assign (n, 1.0); rds.assign (n, 0.0); ramp.assign (n, 0.0); rdamp.assign (n, 0.0); rdirty.assign (n, 1);
         orc.assign (n, 1.0); ors.assign (n, 0.0); ordc.assign (n, 1.0); ords.assign (n, 0.0); oramp.assign (n, 0.0); ordamp.assign (n, 0.0); ordirty.assign (n, 1); stC.assign (n, 1.0); stS.assign (n, 0.0);
         E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0); scnt.assign (n, 0); Js.assign (n, 0.0);
+        Lr.assign ((size_t) nPar * n * (size_t) nl, 0.0); Li.assign ((size_t) nPar * n * (size_t) nl, 0.0); Ei.assign (n * 2 * NW, 0.0); Ew.assign (n * 2, 0.0); Lpk.assign ((size_t) nPar * n, 0.0);
         fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
-        lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0); runR.assign ((size_t) NF + 8, 0.0f); runI.assign ((size_t) NF + 8, 0.0f);
+        lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0);
         pvR.assign (4 * M, 0.0); pvI.assign (4 * M, 0.0);
         for (int b = 0; b < 4; ++b) makeBank (b);      // every filter now, so that changing direction or response while playing allocates nothing
         configured = false; prepared = false;
@@ -134,9 +136,10 @@ public:
     void reset()
     {
         std::fill (xring.begin(), xring.end(), 0.0);
+        t = 0;
         clearFrames();
         std::fill (onsBuf.begin(), onsBuf.end(), 0.0);
-        t = 0; ef = 0.0; pkh = 0.0; onsJ = 0;
+        ef = 0.0; pkh = 0.0; onsJ = 0;
         softReset();
         prepared = true;
     }
@@ -217,13 +220,15 @@ public:
 
 private:
     static constexpr double kPi = 3.14159265358979323846;
-    static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48;
+    static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48, NW = 256;
     static constexpr double fmax = 10000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
     double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, twait = 1764.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
     double smA = 0.0, smE = 0.0, slj = 0.0, slq = 0.5;
     bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false;
-    int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, nls = 135;
+    int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, nls = 135, nPar = 1;
+    int fresh[2] = { 1, 1 };
+    int64_t sumsFor[2] = { 0, 1 };
     std::vector<double> rc, rs, rdc, rds, ramp, rdamp, orc, ors, ordc, ords, oramp, ordamp, stC, stS;
     std::vector<char> rdirty, ordirty;
     struct Bank { std::vector<double> h, twC, twS; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
@@ -232,8 +237,8 @@ private:
     int bankFor() const { return up ? 1 + response : 0; }
     const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr;                // the ones in use
     std::vector<double> xring, fftRe, fftIm, Am, Um, Us, fsm, ebm, epm, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, Js, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
-    std::vector<float> Zr, Zi, runR, runI;
-    std::vector<double> pvR, pvI;
+    std::vector<float> Zr, Zi;
+    std::vector<double> pvR, pvI, Lr, Li, Lpk, Ew, Ei;
     std::vector<int> mode, omode, lead, olead, fade, flen, cin, cout, lcnt, want, on, sjn, ojn, scnt;
     std::vector<int64_t> evT, busy;
     int64_t t = 0, mNow = -1, wait = 0, quietUntil = 0, pendSwitch = -1, pend = -1, br0 = 0, br1 = 0, smHold = -1;
@@ -291,6 +296,9 @@ private:
         std::fill (Zr.begin(), Zr.end(), 0.0f); std::fill (Zi.begin(), Zi.end(), 0.0f);
         std::fill (Am.begin(), Am.end(), 0.0); std::fill (Um.begin(), Um.end(), 0.0); std::fill (Cm.begin(), Cm.end(), 0.0); std::fill (lastAng.begin(), lastAng.end(), 0.0);
         std::fill (Us.begin(), Us.end(), 0.0); std::fill (fsm.begin(), fsm.end(), 0.0); std::fill (ebm.begin(), ebm.end(), 0.0); std::fill (epm.begin(), epm.end(), 0.0);
+        std::fill (Lr.begin(), Lr.end(), 0.0); std::fill (Li.begin(), Li.end(), 0.0); std::fill (Lpk.begin(), Lpk.end(), 0.0); std::fill (Ew.begin(), Ew.end(), 0.0); std::fill (Ei.begin(), Ei.end(), 1e30);
+        const int64_t mNext = (t + H - 1) / H;                     // with no frames behind them the sums are right (zero) for the next frame of either kind
+        for (int c = 0; c < 2; ++c) { fresh[c] = 1; sumsFor[c] = mNext + ((mNext ^ c) & 1); }
     }
 
     void softReset()
@@ -389,7 +397,80 @@ private:
                     ebm[kk] += smE * (e - ebm[kk]); epm[kk] = e; Us[c1] = Us[c0] + fsm[kk];
                 }
             }
+            {
+                // the band's energy over the comparison window that ends at this frame (Wn frames, every second one) as a running sum, and
+                // one over it kept for the last NW frames: what the likeness curves are scaled by (control)
+                const double qr = Zr[b + col + NF - 2 * Wn], qi = Zi[b + col + NF - 2 * Wn]; const size_t wb = (size_t) k * 2 * NW, wc = (size_t) (m & (NW - 1));
+                double& w = Ew[(size_t) k * 2 + (size_t) (m & 1)]; w += (re * re + im * im) - (qr * qr + qi * qi);
+                const double r = 1.0 / (std::max (w, 0.0) + 1e-30); Ei[wb + wc] = r; Ei[wb + wc + NW] = r;
+            }
         }
+        POLYPITCH_STAGE_NEXT (sCurves);
+        if ((int) (m & 1) < nPar) slideCurves (m, (int) (m & 1), (t % hop) == 0);
+    }
+
+    // The likeness curves are built as the frames arrive. Band k's curve at lag l is, before scaling, a sum over the comparison
+    // window (Wn frames, every second one, ending at the frame m of the check):
+    //     sum over j = 0 .. Wn - 1 of  z[m - 2j] conj (z[m - 2j - l])
+    // The check two frames later needs the same sum with one term more and one term less. So the sums are kept running, in double
+    // precision (each term is a product of single-precision numbers and so exact): Lr / Li hold, for the frame `sumsFor`, the sum
+    // without its newest term (j = 1 .. Wn - 1), which needs nothing of that frame. At a check control() adds the newest term
+    // for the bands that are awake and scales. All the rest is done here, on a frame that has no check, so that it never falls
+    // into the same 64 samples as the decisions; it is the same work whatever the bands hold.
+    // A running sum keeps the rounding of everything that has passed through it, which is nothing beside a loud band and would be
+    // something beside the same band 100 dB quieter. So a band is summed afresh, from the frames themselves, when its level has
+    // fallen 40 dB below the highest it has been since the last time (at most 16 bands in one call, so that a sudden silence is
+    // no lump of work either), and one band per call in turn whatever its level, so that nothing wrong can stay in a sum for good
+    // (a number that is not a number, say).
+    // Lr / Li [u] hold lag lmax - u, so that the loops run forwards through the frames.
+    void slideCurves (int64_t m, int pc, bool check)
+    {
+        const int64_t target = check ? m : m + 2;                   // at a check the sums have to be those for this frame; otherwise for the next one
+        if (sumsFor[pc] >= target) return;
+        const int back = 2 * Wn - 2; int spare = 16;
+        if (fresh[pc] >= kB) fresh[pc] = 1;
+        for (int k = 1; k < kB; ++k)
+        {
+            const size_t kc = (size_t) pc * (size_t) kS + (size_t) k; double* sr = &Lr[kc * (size_t) nl]; double* si = &Li[kc * (size_t) nl];
+            const double wNow = Ew[(size_t) k * 2 + (size_t) (m & 1)];                              // the band's level: its energy over the window that ends here
+            bool afresh = k == fresh[pc];
+            if (! afresh && wNow < 1e-4 * Lpk[kc] && spare > 0) { afresh = true; --spare; }
+            if (afresh)
+            {
+                std::fill (sr, sr + nl, 0.0); std::fill (si, si + nl, 0.0);
+                for (int j = 1; j < Wn; ++j)
+                {
+                    const float* pr = zrp (k, target - 2 * j); const float* pi = zip (k, target - 2 * j); const float* xr = pr - lmax; const float* xi = pi - lmax;
+                    const double nr = pr[0], ni = pi[0];
+                    for (int u = 0; u < nl; ++u) { const double a = xr[u], b = xi[u]; sr[u] += nr * a + ni * b; si[u] += ni * a - nr * b; }
+                }
+                const float* pr = zrp (k, m); const float* pi = zip (k, m);
+                for (int q = 0; q < 2; ++q)                                                        // and its window energy, at this frame and the one before
+                {
+                    double w = 0.0;
+                    for (int j = 0; j < Wn; ++j) { const double a = pr[-q - 2 * j], b = pi[-q - 2 * j]; w += a * a + b * b; }
+                    const size_t wb = (size_t) k * 2 * NW, wc = (size_t) ((m - q) & (NW - 1)); const double r = 1.0 / (w + 1e-30);
+                    Ew[(size_t) k * 2 + (size_t) ((m - q) & 1)] = w; Ei[wb + wc] = r; Ei[wb + wc + NW] = r;
+                    if (q == 0) Lpk[kc] = w;
+                }
+                continue;
+            }
+            if (wNow > Lpk[kc]) Lpk[kc] = wNow;
+            for (int64_t f = sumsFor[pc]; f < target; f += 2)                                          // frame f comes in, frame f - back goes out
+            {
+                const float* pr = zrp (k, f); const float* pi = zip (k, f);                           // p[-j] = frame f - j
+                const double nr = pr[0], ni = pi[0], qr = pr[-back], qi = pi[-back];
+                if (nr == 0.0 && ni == 0.0 && qr == 0.0 && qi == 0.0) continue;                       // (silence coming in and going out: nothing changes)
+                const float* xr = pr - lmax; const float* xi = pi - lmax; const float* yr = xr - back; const float* yi = xi - back;
+                for (int u = 0; u < nl; ++u)
+                {
+                    const double a = xr[u], b = xi[u], c = yr[u], d = yi[u]; double vr = sr[u], vi = si[u];
+                    vr += nr * a; vr += ni * b; vr -= qr * c; vr -= qi * d; sr[u] = vr;
+                    vi += ni * a; vi -= nr * b; vi -= qi * c; vi += qr * d; si[u] = vi;
+                }
+            }
+        }
+        ++fresh[pc]; sumsFor[pc] = target;
     }
 
     inline bool frameOk (int64_t i) const { return i >= 0 && i <= mNow && i > mNow - NF; }
@@ -673,28 +754,22 @@ private:
         }
         on[0] = 0;
         for (int k = 1; k < kmax; ++k) on[(size_t) k] = (E0[(size_t) k] > efloor * emax && E0[(size_t) k] > 1e-13) ? 1 : 0;
-        // how alike each band's newest stretch and the one `lag` frames earlier are (a common turn and gain allowed).
-        // The window takes every second frame, so the band's recent frames are laid out as two straight runs (even and
-        // odd steps back from now) and every lag is a plain dot product of two of them.
-        const int nq = Wn + lmax / 2 + 2;
+        // how alike each band's newest stretch and the one `lag` frames earlier are (a common turn and gain allowed): the running
+        // sums (slideCurves) with the newest frame's term added, scaled by the energies of the two stretches
+        const size_t pc = (size_t) (m0 & 1) < (size_t) nPar ? (size_t) (m0 & 1) : 0;
         for (int k = 1; k < kmax; ++k)
         {
             if (! on[(size_t) k]) continue;
-            const float* zr = zrp (k, m0); const float* zi = zip (k, m0); double* c = &CO[(size_t) k * (size_t) nl];
-            float* er = runR.data(); float* ei = runI.data(); float* orr = runR.data() + nq; float* oi = runI.data() + nq;
-            for (int j = 0; j < nq; ++j) { er[j] = zr[-2 * j]; ei[j] = zi[-2 * j]; orr[j] = zr[-2 * j - 1]; oi[j] = zi[-2 * j - 1]; }
-            float e0f = 0.0f;
-            for (int j = 0; j < Wn; ++j) e0f += er[j] * er[j] + ei[j] * ei[j];
-            const double e0 = (double) e0f + 1e-30;
-            for (int i = 0; i < nl; ++i)
+            const double* sr = &Lr[(pc * (size_t) kS + (size_t) k) * (size_t) nl]; const double* si = &Li[(pc * (size_t) kS + (size_t) k) * (size_t) nl];
+            const float* pr = zrp (k, m0); const float* pi = zip (k, m0); const float* xr = pr - lmax; const float* xi = pi - lmax; const double nr = pr[0], ni = pi[0];
+            const double* ri = &Ei[(size_t) k * 2 * NW + (size_t) (m0 & (NW - 1)) + NW] - lmax;     // ri[u] = 1 / the window energy lmax - u frames ago
+            double* c = &CO[(size_t) k * (size_t) nl] + (nl - 1); const double r0 = 1.0 / (E0[(size_t) k] + 1e-30), rHi = 10.0 * r0, rLo = 0.1 * r0;
+            for (int u = 0; u < nl; ++u)
             {
-                const int l = lmin + i, q = l >> 1; const float* br = (l & 1) ? orr + q : er + q; const float* bi = (l & 1) ? oi + q : ei + q;
-                float cr = 0.0f, ci = 0.0f, e1f = 0.0f;
-                for (int j = 0; j < Wn; ++j) { cr += er[j] * br[j] + ei[j] * bi[j]; ci += ei[j] * br[j] - er[j] * bi[j]; e1f += br[j] * br[j] + bi[j] * bi[j]; }
-                const double e1 = (double) e1f + 1e-30;
-                double v = std::sqrt (((double) cr * cr + (double) ci * ci) / (e0 * e1));
-                if (e1 < 0.1 * e0 || e1 > 10.0 * e0) v = 0.0;
-                c[i] = v;
+                const double a = xr[u], b = xi[u], r1 = ri[u]; double cr = sr[u], ci = si[u];
+                cr += nr * a; cr += ni * b; ci += ni * a; ci -= nr * b;
+                const double v = std::sqrt ((cr * cr + ci * ci) * (r0 * r1));
+                c[-u] = (r1 > rHi || r1 < rLo) ? 0.0 : v;                                            // (0: the two stretches more than 10 dB apart in level)
             }
         }
         POLYPITCH_STAGE_NEXT (sDecisions);

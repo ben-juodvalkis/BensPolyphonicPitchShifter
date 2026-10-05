@@ -36,35 +36,41 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Today: 8 to 10 % of one core shifting down and 17 to 21 % shifting up (48 kHz, Apple M1 Max). A 64-sample block
-takes 15 % of its time slot at the median and 51 % at the 99.9th percentile at octave up (6 % and 24 % at octave
-down). `build/tools/polypitch_profile` says where it goes, and `docs/benchmarks.md` ("Cost") has the table: at
-octave up the band loop is 7.5 points of the 18.6, the likeness curves 4.7, the decisions 3.4 (1.5 of them fitting
-readers to their neighbors), the per-band work at each frame 1.3, the transform 1.2.
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 5.0 % of a core shifting down and
+10 to 11 % shifting up, and the 99.9th-percentile 64-sample block takes 11 % of its time slot at octave down and
+23 % at octave up. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
+targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and has not
+been measured since; on the M4 they come to about 3.3 %, 6.6 % and 15 %.
+
+Done:
+
+- **The likeness curves are built as the frames arrive** (the first of the two ways to spread the work that was
+  done every 128 samples). Their sums are kept running, on a frame that has no check, so the curves never fall in
+  the same 64 samples as the decisions, and they cost the same whatever is played. The heavy blocks at octave up
+  went from 31 to 23 % of their slot. The sums had to go from single to double precision for it, which is what the
+  reference always had; that changed the output wherever a band sits on the fence between one partial and two,
+  and no score moved by more than its last digit (`docs/design-notes.md`, "Speed").
 
 In this order:
 
-- **Spread the work that is done every 128 samples.** The likeness curves and the decisions for every band happen
-  on one sample: 31 of the 47 % of a time slot in the heavy blocks. Two ways. Keep the decisions where they are and
-  build the curves as the frames arrive (the same numbers, so the same sound up to rounding). Or look at a quarter
-  of the bands at each frame, which moves each band's decision by up to 2 ms and is therefore a small sound change
-  (reference first). By arithmetic, either takes the heavy blocks from about 50 % to about 30 %. Done, together
-  with the next item, when the 99.9th-percentile 64-sample block is under 25 % of its slot at octave up.
-- **Fitting a reader to its neighbors** is 10 of the 17 % that decisions take in the heavy blocks: each fit tries
-  up to 21 positions, and there are 11 fits per check on average at octave up. Spread the fits over the following
-  frames, or make one fit cheaper.
-- **Do less of the curves.** At octave up 125 of 213 bands are awake and about 30 are on readers; the rest hold one
-  steady partial and are compared with their past at every lag from 2 to 100 ms, every 128 samples, all the same. A coarse check for
-  those, and the full one for bands in doubt and bands on readers. This changes which bands are looked at when: a
-  sound change, to be scored as one.
+- **Fitting a reader to its neighbors** is now the largest lump: 6 to 7 of the 23 to 26 % of a slot that the
+  heaviest blocks take at octave up. Each fit tries up to 21 positions, and there are 11 fits per check on average.
+  Make one fit cheaper (the same sums, so the same sound); spreading the fits over the following frames would move
+  when a reader starts, which is a sound change.
 - **Vectorize the band loop.** The largest part of the average: the same few multiplications for every band at
-  every sample, with branches in the way (plain or reader, fading or not). The same sums done faster; the output
-  must not move.
-- **The transform and the per-band work at each frame**: 2.5 points together at octave up. A real, single-precision
-  FFT (vDSP on Apple, pffft elsewhere, behind the same call so the engine keeps its no-dependency fallback) and a
-  cheaper phase and loudness per band. Last, because it is the least.
+  every sample, with branches in the way (plain or reader, fading or not), and a reader's sample costs many times
+  a plain band's. The same sums done faster; the output must not move.
+- **The transform and the per-band work at each frame**: 1.7 points together at octave up. A cheaper phase and
+  loudness per band, and a transform that does not do work whose result nobody reads. A platform's own transform
+  (vDSP on Apple, pffft elsewhere, behind the same call so the engine keeps its no-dependency fallback) only if
+  that is not enough.
+- **Do less of the curves, or look at a quarter of the bands at each frame**, only if the three above do not reach
+  the target: both change which bands are looked at when, so both are sound changes (reference first). The first
+  also needs a better idea than the one this file used to hold, that most awake bands "hold one steady partial"
+  and could be checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at
+  octave up; 83 fall and stay down, 41 fall and come back).
 - Target: under 5 % shifting down and under 10 % shifting up, and the 99.9th-percentile 64-sample block under 25 %
-  of its slot, so that a 64-sample buffer is safe.
+  of its slot, so that a 64-sample buffer is safe (on an Apple M1 Max).
 
 ## 3. Sound
 
