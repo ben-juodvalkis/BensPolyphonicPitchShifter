@@ -3,6 +3,7 @@
     python tests/moving_pitch.py                     the C++ engine at -12 and +12
     python tests/moving_pitch.py reference -12       another target (engine | reference | plugin), other intervals
     python tests/moving_pitch.py engine clean 12     with the response set to balanced or clean (it only matters shifting up)
+    python tests/moving_pitch.py engine lite         with the quality set to lite
 
 Each is a steady harmonic tone (40 partials) whose pitch follows a known track, so the right shifted pitch is known
 at every moment:
@@ -39,12 +40,12 @@ def run(target="engine", sts=(-12, 12), response=0):
     for nm, tr in T:
         s = tone(tr); segs.append((nm, pos, tr)); parts += [s, z]; pos += len(s) + len(z)
     x = np.concatenate(parts)
-    print(f"{engines.RESPONSES[response] if response else target:>10} | " + " | ".join(f"{nm + ': trails, wobble':>24}" for nm, _ in T))
+    print(f"{(engines.RESPONSES[response] if response else target) + (' lite' if engines.LITE else ''):>10} | " + " | ".join(f"{nm + ': trails, wobble':>24}" for nm, _ in T))
     for st in sts:
         y = fn(x, st, response=response); r = 2 ** (st / 12); res = [pitch_track(y[a:a + len(tr)], tr, r) for _, a, tr in segs]
         print(f"{st:+10d} | " + " | ".join(f"{lag:13.1f} ms, {wob:4.1f} c" for lag, wob in res))
 
 
 if __name__ == "__main__":
-    a = sys.argv[1:]; target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
+    a = engines.words(sys.argv[1:]); target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
     run(target, tuple(int(v) for v in a if v not in engines.BY_NAME and v not in engines.RESPONSES) or ((12,) if resp else (-12, 12)), resp)

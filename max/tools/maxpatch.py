@@ -1,6 +1,6 @@
 """Generates the Max files that are not written by hand in Max:
 
-    max/device/Ben's Polyphonic Pitch Shifter.amxd   the Max for Live audio effect (plugin~ -> polypitch~ -> plugout~, three dials and the Response tabs)
+    max/device/Ben's Polyphonic Pitch Shifter.amxd   the Max for Live audio effect (plugin~ -> polypitch~ -> plugout~, three dials, the Response and Quality tabs)
     max/PolyPitch/help/polypitch~.maxhelp    the object's help patch
     build/maxcheck/check_<time>.maxpat       a self-running check patch (see check_in_max.py)
 
@@ -66,10 +66,12 @@ def device_patcher():
          obj("p_semi", "prepend semitones", [300, 150, 105, 22], 1, 1, [""]), obj("p_mix", "prepend mix", [420, 150, 75, 22], 1, 1, [""]), obj("p_tone", "prepend tone", [510, 150, 80, 22], 1, 1, [""]),
          tab("t_resp", "Response", 3, [540, 60, 156, 18], [10, 106, 156, 18], ("Fast", "Balanced", "Clean")), obj("p_resp", "prepend response", [600, 150, 100, 22], 1, 1, [""]),
          comment("c_resp", "Response (shifting up)", [540, 40, 150, 18], presentation=1, presentation_rect=[8, 90, 160, 16], fontface=0, fontsize=9.0),
+         tab("t_qual", "Quality", 4, [540, 220, 104, 18], [10, 144, 104, 18], ("Full", "Lite")), obj("p_qual", "prepend quality", [600, 260, 100, 22], 1, 1, [""]),
+         comment("c_qual", "Quality (Lite: less CPU)", [540, 200, 150, 18], presentation=1, presentation_rect=[8, 128, 160, 16], fontface=0, fontsize=9.0),
          comment("c_title", NAME, [300, 20, 200, 20], presentation=1, presentation_rect=[10, 8, 160, 20], fontface=1, fontsize=10.0)]   # 145 px wide in Arial Bold 10
     L = [line("obj-1", 0, "pp", 0), line("obj-1", 1, "pp", 1), line("pp", 0, "obj-2", 0), line("pp", 1, "obj-2", 1),
          line("d_semi", 0, "p_semi", 0), line("p_semi", 0, "pp", 0), line("d_mix", 0, "p_mix", 0), line("p_mix", 0, "pp", 0), line("d_tone", 0, "p_tone", 0), line("p_tone", 0, "pp", 0),
-         line("t_resp", 0, "p_resp", 0), line("p_resp", 0, "pp", 0)]
+         line("t_resp", 0, "p_resp", 0), line("p_resp", 0, "pp", 0), line("t_qual", 0, "p_qual", 0), line("p_qual", 0, "pp", 0)]
     now = int(time.time()) + 2082844800           # Max counts seconds from 1904
     project = {"version": 1, "creationdate": now, "modificationdate": now, "viewrect": [0.0, 0.0, 300.0, 500.0], "autoorganize": 1, "hideprojectwindow": 1, "showdependencies": 1,
                "autolocalize": 0, "contents": {"patchers": {}}, "layout": {}, "searchpath": {}, "detailsvisible": 0, "amxdtype": 1633771873, "readonly": 0, "devpathtype": 0,
@@ -90,18 +92,19 @@ def help_patcher():
     B = [comment("t", "polypitch~", [20, 15, 300, 30], fontsize=20.0, fontface=1),
          comment("d", "Polyphonic pitch shifter for live playing: chords stay in tune and clean, attacks come out about 2 ms late shifting down and 7 ms shifting up. The shifted sound is mono (the inputs summed); the dry signal passes in stereo and is never delayed.", [20, 50, 520, 48]),
          obj("adc", "adc~ 1 2", [20, 130, 60, 22], 1, 2, ["signal", "signal"]), comment("c_in", "your instrument (or any signal)", [90, 130, 200, 20]),
-         obj("pp", "polypitch~ -12", [20, 320, 150, 22], 2, 2, ["signal", "signal"]),
+         obj("pp", "polypitch~ -12", [20, 350, 150, 22], 2, 2, ["signal", "signal"]),
          box("a_semi", "attrui", [200, 170, 200, 22], 1, 1, [""], attr="semitones"), box("a_mix", "attrui", [200, 196, 200, 22], 1, 1, [""], attr="mix"), box("a_tone", "attrui", [200, 222, 200, 22], 1, 1, [""], attr="tone"),
          comment("c_semi", "-12 .. 12 semitones (also the first argument)", [410, 170, 280, 20]), comment("c_mix", "0 = dry only, 50 = both at full level, 100 = shifted only", [410, 196, 330, 20]),
          comment("c_tone", "how much of the tone curve for this interval is applied", [410, 222, 330, 20]),
          box("a_resp", "attrui", [200, 248, 200, 22], 1, 1, [""], attr="response"), comment("c_resp", "shifting up: 0 = fast, 1 = balanced (attacks 4 ms later, cleaner), 2 = clean (8 ms later; a full chord's middle note comes out right)", [410, 244, 330, 34]),
-         msg("m_clear", "clear", [200, 282, 45, 22]), comment("c_clear", "forget everything heard so far", [250, 282, 200, 20]),
-         box("g", "gain~", [20, 360, 22, 100], 1, 2, ["signal", ""], multichannelvariant=0, parameter_enable=0), box("g2", "gain~", [150, 360, 22, 100], 1, 2, ["signal", ""], multichannelvariant=0, parameter_enable=0),
-         box("dac", "ezdac~", [20, 480, 45, 45], 2, 0), comment("c_dac", "start audio", [75, 492, 100, 20]),
-         comment("c_more", "Latency: none is reported and the dry signal is not delayed. Sample rates: 44.1 and 48 kHz use the designed band filters; other rates fall back to a simpler, leakier filter.", [20, 540, 620, 34])]
+         box("a_qual", "attrui", [200, 282, 200, 22], 1, 1, [""], attr="quality"), comment("c_qual", "0 = full, 1 = lite: about four fifths of the CPU shifting down and under three fifths shifting up; clean chords a little less clean", [410, 278, 330, 34]),
+         msg("m_clear", "clear", [200, 316, 45, 22]), comment("c_clear", "forget everything heard so far", [250, 316, 200, 20]),
+         box("g", "gain~", [20, 385, 22, 100], 1, 2, ["signal", ""], multichannelvariant=0, parameter_enable=0), box("g2", "gain~", [150, 385, 22, 100], 1, 2, ["signal", ""], multichannelvariant=0, parameter_enable=0),
+         box("dac", "ezdac~", [20, 500, 45, 45], 2, 0), comment("c_dac", "start audio", [75, 512, 100, 20]),
+         comment("c_more", "Latency: none is reported and the dry signal is not delayed. Sample rates: 44.1 and 48 kHz use the designed band filters; other rates fall back to a simpler, leakier filter.", [20, 560, 620, 34])]
     L = [line("adc", 0, "pp", 0), line("adc", 1, "pp", 1), line("pp", 0, "g", 0), line("pp", 1, "g2", 0), line("g", 0, "dac", 0), line("g2", 0, "dac", 1), line("g", 1, "g2", 0),
-         line("a_semi", 0, "pp", 0), line("a_mix", 0, "pp", 0), line("a_tone", 0, "pp", 0), line("a_resp", 0, "pp", 0), line("m_clear", 0, "pp", 0)]
-    return {"patcher": {"fileversion": 1, "appversion": APPV, "classnamespace": "box", "rect": [100, 100, 780, 620], "boxes": B, "lines": L}}
+         line("a_semi", 0, "pp", 0), line("a_mix", 0, "pp", 0), line("a_tone", 0, "pp", 0), line("a_resp", 0, "pp", 0), line("a_qual", 0, "pp", 0), line("m_clear", 0, "pp", 0)]
+    return {"patcher": {"fileversion": 1, "appversion": APPV, "classnamespace": "box", "rect": [100, 100, 780, 640], "boxes": B, "lines": L}}
 
 
 if __name__ == "__main__":

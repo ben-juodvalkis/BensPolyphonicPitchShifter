@@ -13,7 +13,7 @@
 			100,
 			100,
 			780,
-			620
+			640
 		],
 		"boxes": [
 			{
@@ -90,7 +90,7 @@
 					"numoutlets": 2,
 					"patching_rect": [
 						20,
-						320,
+						350,
 						150,
 						22
 					],
@@ -235,13 +235,46 @@
 			},
 			{
 				"box": {
+					"id": "a_qual",
+					"maxclass": "attrui",
+					"numinlets": 1,
+					"numoutlets": 1,
+					"patching_rect": [
+						200,
+						282,
+						200,
+						22
+					],
+					"outlettype": [
+						""
+					],
+					"attr": "quality"
+				}
+			},
+			{
+				"box": {
+					"id": "c_qual",
+					"maxclass": "comment",
+					"numinlets": 1,
+					"numoutlets": 0,
+					"patching_rect": [
+						410,
+						278,
+						330,
+						34
+					],
+					"text": "0 = full, 1 = lite: about four fifths of the CPU shifting down and under three fifths shifting up; clean chords a little less clean"
+				}
+			},
+			{
+				"box": {
 					"id": "m_clear",
 					"maxclass": "message",
 					"numinlets": 2,
 					"numoutlets": 1,
 					"patching_rect": [
 						200,
-						282,
+						316,
 						45,
 						22
 					],
@@ -259,7 +292,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						250,
-						282,
+						316,
 						200,
 						20
 					],
@@ -274,7 +307,7 @@
 					"numoutlets": 2,
 					"patching_rect": [
 						20,
-						360,
+						385,
 						22,
 						100
 					],
@@ -294,7 +327,7 @@
 					"numoutlets": 2,
 					"patching_rect": [
 						150,
-						360,
+						385,
 						22,
 						100
 					],
@@ -314,7 +347,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						20,
-						480,
+						500,
 						45,
 						45
 					]
@@ -328,7 +361,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						75,
-						492,
+						512,
 						100,
 						20
 					],
@@ -343,7 +376,7 @@
 					"numoutlets": 0,
 					"patching_rect": [
 						20,
-						540,
+						560,
 						620,
 						34
 					],
@@ -476,6 +509,18 @@
 				"patchline": {
 					"source": [
 						"a_resp",
+						0
+					],
+					"destination": [
+						"pp",
+						0
+					]
+				}
+			},
+			{
+				"patchline": {
+					"source": [
+						"a_qual",
 						0
 					],
 					"destination": [

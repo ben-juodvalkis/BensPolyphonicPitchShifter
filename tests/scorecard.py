@@ -4,6 +4,7 @@
     python tests/scorecard.py reference -12 7     another target (engine | reference | plugin), other intervals
     python tests/scorecard.py engine all          all six intervals (-12 -5 -2 +2 +7 +12)
     python tests/scorecard.py engine clean 12     with the response set to balanced or clean (it only matters shifting up)
+    python tests/scorecard.py engine lite         with the quality set to lite
 
 What is measured (per interval, one test signal of about two minutes):
   pairs    28 pairs of sines (4 registers x 7 intervals): power that is not the two shifted tones, dB re them.
@@ -15,6 +16,7 @@ What is measured (per interval, one test signal of about two minutes):
 
 Exit status 1 if a gated interval (-12, +2 and +12; +12 for the balanced and clean responses) falls outside the limits in
 GATE or GATE_RESPONSE: a regression guard, set a little looser than what the engine scores today (docs/benchmarks.md).
+Lite on the fast response is held to the same limits as full (it scores inside them); lite with another response has none.
 """
 import sys, time, json, os
 import numpy as np
@@ -98,7 +100,8 @@ COLS = (("pairs_db", "pairs dB", 1), ("pairs_clean", "clean/28", 0), ("dyads_db"
 
 def run(target="engine", sts=(-12, 12), save=None, response=0):
     fn = engines.BY_NAME[target]; ok = True; out = {}; gate = GATE_RESPONSE[response] if response else GATE
-    print(f"{engines.RESPONSES[response] if response else target:>10} | " + " ".join(f"{h:>9}" for _, h, _ in COLS))
+    if engines.LITE and response: gate = {}
+    print(f"{(engines.RESPONSES[response] if response else target) + (' lite' if engines.LITE else ''):>10} | " + " ".join(f"{h:>9}" for _, h, _ in COLS))
     for st in sts:
         t0 = time.time(); x, segs, ideal = build(st); y = fn(x, st, response=response); c = card(score(y, st, segs, ideal)); out[str(st)] = c
         fails = [f"{k} {c[k]:.1f} (limit {lim})" for k, lim, how in gate.get(st, ()) if (c[k] > lim if how == "max" else c[k] < lim)]
@@ -109,7 +112,7 @@ def run(target="engine", sts=(-12, 12), save=None, response=0):
 
 
 if __name__ == "__main__":
-    a = sys.argv[1:]; target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
+    a = engines.words(sys.argv[1:]); target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
     rest = [v for v in a if v not in engines.BY_NAME and v not in engines.RESPONSES]
     sts = ALL if rest == ["all"] else tuple(int(v) for v in rest) or ((12,) if resp else (-12, 2, 12))
     sys.exit(0 if run(target, sts, response=resp) else 1)

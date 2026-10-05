@@ -22,6 +22,10 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
   shifting up at 48 kHz on an Apple M4, with the heaviest 64-sample blocks at 6 and 11 % of their time
   (`docs/benchmarks.md`, "Cost"). Its likeness sums are in double precision, as the reference's are. Beating is
   looked for only in the bands below 5 kHz of the input, which changed no score.
+- A Quality setting (Full, Lite). Lite takes about four fifths of the CPU shifting down and under three fifths
+  shifting up (1.9 % and 2.6 % of a core at the octaves on an Apple M4): beating is looked for only below 2.5 kHz,
+  and shifting up the doubled bands are kept only below 1.25 kHz. Recordings of guitars came out within 0.7 dB of
+  Full; clean, steady chords are a few dB less clean in their upper harmonics (`docs/benchmarks.md`, "Lite").
 - An input sample that is not a number, or is infinite, counts as silence, in the shifted sound and in the dry
   one. Before, one such sample from the host left the output not a number until the next reset.
 

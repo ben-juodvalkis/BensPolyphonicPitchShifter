@@ -382,8 +382,10 @@ sixteen sines and cosines in a fit are worked out in one go. 0.1 to 0.3 % of a c
 
 After the speed work the engine took 2.7 % of a core shifting down and 5.5 % shifting up (48 kHz, Apple M4), and the
 reference device's shifter 1.9 % whatever the interval (`docs/benchmarks.md`, "Cost"). What was left of the speed
-work keeps the sound, and would not close that gap. So the question became what can be left out. Each idea below
-was a switch in a copy of the engine outside the repository, timed on the DI chord take (runs interleaved, the
+work keeps the sound, and would not close that gap. So the question became what can be left out. Two answers were
+built: the 5 kHz limit below, which costs nothing and is in the engine for good, and the Lite setting of the Quality
+control, which costs a little and is the player's choice. Each idea below was first a switch in a copy of the engine
+outside the repository, timed on the DI chord take (runs interleaved, the
 lowest of six) and scored on the scorecard, on `held_chords`, `strummed_chords` and `moving_pitch`, and on the real
 recordings (twelve pairs of DI takes, chords built from single notes, loop mixes, held chords).
 
@@ -411,10 +413,56 @@ upper harmonics are weak, short-lived clusters, and there a reader gains nothing
 cutoff at 2.5 kHz the DI pairs at octave down came out 1 dB cleaner between 1.25 and 2.5 kHz of the output, and
 with it at 1.25 kHz no dirtier anywhere.
 
+**Where twice the bands are worth having.** Shifting up runs 1024 bands instead of 512 (`docs/how-it-works.md`,
+step 5), which doubles every part of the work. With 512 everywhere, octave up cost 2.8 % instead of 5.6, and:
+
+| 512 bands shifting up, against 1024 | +2 | +12 |
+|---|---|---|
+| Pure pairs under -40 dB (of 28) | 22 against 28 | 23 against 26 |
+| Full chords, synthetic | 2.5 dB dirtier | 0.4 dB cleaner |
+| Twelve DI pairs | 2.6 dB dirtier | the same |
+| Chords built from single notes | 2.0 dB dirtier | 0.8 dB dirtier |
+| Loop mixes | 2.2 dB dirtier | 1.4 dB dirtier |
+| Held chords, real | | 1.6 dB dirtier |
+| A single low E (with the 2.5 kHz limit as well) | half a dB louder, some third-octave bands 5 dB off | third-octave bands 3.6 dB off |
+
+Split by where in the shifted sound the dirt is (the twelve DI pairs, new energy in each region, 1024 / 512 bands):
+
+| | 0 to 625 Hz | 625 to 1250 | 1250 to 2500 | 2500 to 5000 | 5 to 10 kHz |
+|---|---|---|---|---|---|
+| +2 | **-26.8** / -23.3 dB | -28.6 / -28.5 | **-27.8** / -27.0 | -27.3 / **-27.8** | -27.4 / **-27.9** |
+| +12 | -19.4 / -19.0 | **-22.0** / -21.0 | -22.8 / **-24.2** | -22.5 / **-26.1** | -22.0 / **-24.0** |
+
+The loss is all at the bottom, and it is what the doubling was made for: two neighboring harmonics of a low note
+are closer together than a band is wide. Above about 1 kHz of the output the 512 are as clean or cleaner. A finer
+or a coarser threshold for "beating" (half, twice, four times) did not move the bottom region by more than 0.3 dB:
+it is the bands, not what is decided in them.
+
+So Lite keeps all 1024 only at the bottom: every band below 1.25 kHz of the input, every second one above (the
+even ones are a whole bank by themselves). The bands are numbered without the gaps, so everything that looks at a
+band's neighbor goes on looking at the next number; what has to know about the gap is the phase two neighbors have
+between them, which turns twice as fast across two bands (`kGap`), and the sum of the bands, where an even band
+above the join stands for two (`w2`). Just below the join the odd bands' weight goes to nothing over four of them
+and the even ones' up to double, so that the two always add up to the same. Two checks before anything was scored:
+with the join above every band the output is bit for bit the 1024-band one, and with the join at the bottom it is
+the 512-band one to -188 dB.
+
+| The join at | Octave up, with beating looked for below 2.5 kHz | Real recordings against 1024 bands everywhere |
+|---|---|---|
+| 800 Hz | 2.4 % | chords from single notes 1.0 dB dirtier at +2 and 1.1 at +12, held chords 1.0 |
+| 1.25 kHz | 2.6 % | within 0.7 dB everywhere (chords from single notes at +12, held chords); the DI pairs 0.5 and 0.2 dB cleaner at +7 and +12 |
+| 2 kHz | 2.9 % | within 0.4 dB |
+
+**Lite is the join at 1.25 kHz and beating looked for below 2.5 kHz.** Its numbers are in `docs/benchmarks.md`
+("Lite"). On real recordings it is within 0.7 dB of Full. On the synthetic tests it loses where both of its
+savings touch the same thing, steady upper harmonics: two-note chords 6 dB at +7 and 3 dB at +12, held chords at
++12 3.8 dB. Strummed chords are within 0.6 dB and pitch that moves is the same.
+
 **What did not earn its keep.**
 
 | Tried | Result |
 |---|---|
+| 512 bands everywhere shifting up | 1.8 % at octave up with the 2.5 kHz limit, against Lite's 2.6. The table above: 2 to 3 dB on mixes and chords at +2, and low notes with the wrong tone. |
 | The likeness curve at every second lag only, or every fourth | 5.0 % and 4.4 % at octave up. Every second: loop mixes at +2 1.8 dB dirtier. Every fourth: chords built from single notes 2.2 dB dirtier at +2 and 1.2 at +12. More sound lost per point of CPU than the cutoff loses. |
 | A repeat looked for only 50 ms back instead of 100 | 4.6 % at octave up. Two-note chords 4.6 dB dirtier at octave down and 4.3 at octave up, full chords 3.4 and 1.2: the slow beats of low intervals are in the second 50 ms. |
 | Decisions every 5.8 ms instead of 2.9 | No faster. A hop of an odd number of frames needs the running sums for both kinds of frame. |

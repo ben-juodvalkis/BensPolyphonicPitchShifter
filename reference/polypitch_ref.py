@@ -22,6 +22,9 @@ How it works: docs/how-it-works.md. In short, a bank of narrow band-pass filters
         `reach_ms` back; one longer than `slow_ms` counts only once it has held for half as long as it lasts.
         Only the bands below `read_hz` of the input are looked at for this; the ones above are always plain.
 
+  lite: the same with less to do. Beating is looked for only below 2.5 kHz, and shifting up (fast and balanced) only
+        the bands below 1.25 kHz are doubled (_layout).
+
   attacks, shifting down: the attack is played straight from the input (the bridge); the bands take over as
         readers at the same position and each then settles into one of the two ways.
   attacks, shifting up:   every band's phase is set equal to the input's just before the attack reaches it, so the
@@ -192,26 +195,27 @@ def _cx(Z, A, U, US, CE, k, t, mode, t0, d0, psi, L, Jn, ratio, H, wk, wl, tau, 
     return g * (zr * c - zi * sn), g * (zr * sn + zi * c)
 
 @njit(cache=True)
-def _align(Z, A, U, US, CE, k, t, mo, to, do, po, lo, jo, mn, dn, ln, jn, ratio, H, wk, dw, tau, dpv, flr, M, step):
+def _align(Z, A, U, US, CE, k, t, mo, to, do, po, lo, jo, mn, dn, ln, jn, ratio, H, wka, tau, dpv, flr, M, step):
     """the turn that lines a new stretch of band k (mode mn, delay dn, leader ln, starting at t) up with the running
     one (mo, to, do, po, lo) over the last M*step samples of output - not just at the splice, where a beat's quiet
-    moment can mislead. dw = band spacing in radians per sample."""
+    moment can mislead. wka = every band's centre frequency in radians per sample."""
     cr = 0.0; ci = 0.0
     for j in range(M):
         tt = t - j * step
-        ar, ai = _cx(Z, A, U, US, CE, k, tt, mo, to, do, po, lo, jo, ratio, H, wk, lo * dw, tau, dpv, flr); br, bi = _cx(Z, A, U, US, CE, k, tt, mn, float(t), dn, 0.0, ln, jn, ratio, H, wk, ln * dw, tau, dpv, flr)
+        ar, ai = _cx(Z, A, U, US, CE, k, tt, mo, to, do, po, lo, jo, ratio, H, wka[k], wka[lo], tau, dpv, flr); br, bi = _cx(Z, A, U, US, CE, k, tt, mn, float(t), dn, 0.0, ln, jn, ratio, H, wka[k], wka[ln], tau, dpv, flr)
         cr += ar * br + ai * bi; ci += ai * br - ar * bi
     return np.arctan2(ci, cr)
 
 @njit(cache=True)
-def _place(Z, A, U, US, CE, k, t, mode, st0, sd0, psi, lead, sjn, mn, dn0, jn, lo, hi, nc, ratio, H, dw, tau, dpv, flr, M, step, m0, Wl, nb_on):
+def _place(Z, A, U, US, CE, k, t, mode, st0, sd0, psi, lead, sjn, mn, dn0, jn, lo, hi, nc, ratio, H, dw, wka, kof, tau, dpv, flr, M, step, m0, Wl, nb_on):
     """Where to put band k's reader, and with what turn. A reader's position matters by one beat of the band's
     envelope: the band's two partials come out right anywhere on that grid, but a partial whose other share sits in
     the neighbouring band only adds up with that share at one place per beat. So: try nc delays from dn0 + lo to
     dn0 + hi and keep the one where the new stretch lines up best with (a) the band's own running stretch and (b) the
-    neighbours' running output, the latter at the phase the two bands have between them in the input.
+    neighbours' running output, the latter at the phase the two bands have between them in the input (which turns with
+    how far apart the two are: kof = which of the bank's bands each one is, dw = the spacing of those).
     -> (delay, turn)"""
-    kmax = Z.shape[0]; wk = k * dw; ir = np.zeros(2); ii = np.zeros(2); nbs = np.array([k - 1, k + 1])
+    kmax = Z.shape[0]; wk = wka[k]; ir = np.zeros(2); ii = np.zeros(2); nbs = np.array([k - 1, k + 1])
     if nb_on == 1:
         for q in range(2):
             a = nbs[q]
@@ -219,7 +223,7 @@ def _place(Z, A, U, US, CE, k, t, mode, st0, sd0, psi, lead, sjn, mn, dn0, jn, l
             sr_ = 0.0; si_ = 0.0
             for j in range(Wl):
                 m = m0 - j; za = Z[a, m]; zb = Z[k, m]; pr = za.real * zb.real + za.imag * zb.imag; pi_ = za.imag * zb.real - za.real * zb.imag
-                ang = (a - k) * dw * (m * H - tau); c = np.cos(ang); sn = np.sin(ang); sr_ += pr * c - pi_ * sn; si_ += pr * sn + pi_ * c
+                ang = (kof[a] - kof[k]) * dw * (m * H - tau); c = np.cos(ang); sn = np.sin(ang); sr_ += pr * c - pi_ * sn; si_ += pr * sn + pi_ * c
             nrm = np.sqrt(sr_ * sr_ + si_ * si_); ea = 1e-30; eb = 1e-30
             for j in range(Wl):
                 m = m0 - j; za = Z[a, m]; zb = Z[k, m]; ea += za.real * za.real + za.imag * za.imag; eb += zb.real * zb.real + zb.imag * zb.imag
@@ -237,11 +241,11 @@ def _place(Z, A, U, US, CE, k, t, mode, st0, sd0, psi, lead, sjn, mn, dn0, jn, l
         for j in range(M):
             tt = t - j * step
             br, bi = _cx(Z, A, U, US, CE, k, tt, mn, float(t), dn, 0.0, k, jn, ratio, H, wk, wk, tau, dpv, flr)
-            ar, ai = _cx(Z, A, U, US, CE, k, tt, mode[k], st0[k], sd0[k], psi[k], lead[k], sjn[k], ratio, H, wk, lead[k] * dw, tau, dpv, flr)
+            ar, ai = _cx(Z, A, U, US, CE, k, tt, mode[k], st0[k], sd0[k], psi[k], lead[k], sjn[k], ratio, H, wk, wka[lead[k]], tau, dpv, flr)
             xr += ar * br + ai * bi; xi += ai * br - ar * bi
             for q in range(2):
                 if ir[q] == 0.0 and ii[q] == 0.0: continue
-                a = nbs[q]; nr, ni = _cx(Z, A, U, US, CE, a, tt, mode[a], st0[a], sd0[a], psi[a], lead[a], sjn[a], ratio, H, a * dw, lead[a] * dw, tau, dpv, flr)
+                a = nbs[q]; nr, ni = _cx(Z, A, U, US, CE, a, tt, mode[a], st0[a], sd0[a], psi[a], lead[a], sjn[a], ratio, H, wka[a], wka[lead[a]], tau, dpv, flr)
                 o_r = nr * br + ni * bi; o_i = ni * br - nr * bi; xr += o_r * ir[q] + o_i * ii[q]; xi += o_i * ir[q] - o_r * ii[q]
         mag = xr * xr + xi * xi; mags[c_i] = mag
         if c_i < nc:
@@ -250,22 +254,23 @@ def _place(Z, A, U, US, CE, k, t, mode, st0, sd0, psi, lead, sjn, mn, dn0, jn, l
     return bd, bp
 
 @njit(cache=True)
-def _render_band(Z, A, U, US, CE, k, n, ratio, H, dw, tau, dpv, flr, et, em, ed, ep, el, ej, ef, en):
-    y = np.zeros(n); k = np.int64(k); wk = k * dw; mode = 1; t0 = 0.0; d0 = 0.0; psi = 0.0; L = k; Jn = 0; omode = 1; ot0 = 0.0; od0 = 0.0; opsi = 0.0; oL = k; oJn = 0; fade = 0; flen = 1; j = 0
+def _render_band(Z, A, U, US, CE, k, n, ratio, H, wka, tau, dpv, flr, et, em, ed, ep, el, ej, ef, en):
+    y = np.zeros(n); k = np.int64(k); wk = wka[k]; mode = 1; t0 = 0.0; d0 = 0.0; psi = 0.0; L = k; Jn = 0; omode = 1; ot0 = 0.0; od0 = 0.0; opsi = 0.0; oL = k; oJn = 0; fade = 0; flen = 1; j = 0
     for t in range(n):
         while j < en and et[j] <= t:
             omode = mode; ot0 = t0; od0 = d0; opsi = psi; oL = L; oJn = Jn; mode = em[j]; t0 = float(et[j]); d0 = ed[j]; psi = ep[j]; L = np.int64(el[j]); Jn = np.int64(ej[j]); flen = ef[j]; fade = flen; j += 1
-        vr, vi = _cx(Z, A, U, US, CE, k, float(t), mode, t0, d0, psi, L, Jn, ratio, H, wk, L * dw, tau, dpv, flr); v = 2.0 * vr
+        vr, vi = _cx(Z, A, U, US, CE, k, float(t), mode, t0, d0, psi, L, Jn, ratio, H, wk, wka[L], tau, dpv, flr); v = 2.0 * vr
         if fade > 0:
-            g = fade / float(flen); g = 0.5 - 0.5 * np.cos(np.pi * g); orr, oi = _cx(Z, A, U, US, CE, k, float(t), omode, ot0, od0, opsi, oL, oJn, ratio, H, wk, oL * dw, tau, dpv, flr); v = (1.0 - g) * v + g * 2.0 * orr; fade -= 1
+            g = fade / float(flen); g = 0.5 - 0.5 * np.cos(np.pi * g); orr, oi = _cx(Z, A, U, US, CE, k, float(t), omode, ot0, od0, opsi, oL, oJn, ratio, H, wk, wka[oL], tau, dpv, flr); v = (1.0 - g) * v + g * 2.0 * orr; fade -= 1
         y[t] = v
     return y
 
 @njit(parallel=True, cache=True)
-def _render(Z, A, U, US, CE, n, ratio, H, K, tau, dpv, flr, et, em, ed, ep, el, ej, ef, en):
-    y = np.zeros(n); dw = 2.0 * np.pi / K
+def _render(Z, A, U, US, CE, n, ratio, H, wka, wg, tau, dpv, flr, et, em, ed, ep, el, ej, ef, en):
+    """every band's output, each with its weight wg, added up"""
+    y = np.zeros(n)
     for k in prange(Z.shape[0]):
-        y += _render_band(Z, A, U, US, CE, np.int64(k), n, ratio, H, dw, tau, dpv, flr, et[k], em[k], ed[k], ep[k], el[k], ej[k], ef[k], en[k])
+        y += wg[np.int64(k)] * _render_band(Z, A, U, US, CE, np.int64(k), n, ratio, H, wka, tau, dpv, flr, et[k], em[k], ed[k], ep[k], el[k], ej[k], ef[k], en[k])
     return y
 
 @njit(parallel=True, cache=True)
@@ -334,7 +339,7 @@ def _emit(et, em, ed, ep, el, ej, ef, en, k, t, mode, d, psi, L, Jn, flen):
     et[k, j] = t; em[k, j] = mode; ed[k, j] = d; ep[k, j] = psi; el[k, j] = L; ej[k, j] = Jn; ef[k, j] = flen; en[k] = j + 1
 
 @njit(cache=True)
-def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, bridge, dA0, tau, drop, rho, cabs, tol2, n_in, n_out, twait, M, sel, rd_on, pre, clock, Wl, lock_on, nb_on, pgain, wmin, gain_on, drop_out, slj, slq, kr):
+def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, bridge, dA0, tau, drop, rho, cabs, tol2, n_in, n_out, twait, M, sel, rd_on, pre, clock, Wl, lock_on, nb_on, pgain, wmin, gain_on, drop_out, slj, slq, kr, kof):
     kmax = Z.shape[0]; hop = hopf * H; up = ratio > 1.0001; xfu = max(xf // 2, 2) if up else xf; xa = 48
     dpv = float(H + 1); flr = float(2 * H + 2 + (int((ratio - 1.0) * xfu) + 2 if up else 0)); drift = 1.0 - ratio; dw = 2.0 * np.pi / K
     nh = n // hop + 1; nl = lmax - lmin + 1; cap = nh + nh // 2 + 64
@@ -343,7 +348,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
     cin = np.zeros(kmax, np.int64); cout = np.zeros(kmax, np.int64); busy = np.zeros(kmax, np.int64); plain = np.zeros(kmax, np.uint8)
     E0 = np.zeros(kmax); on = np.zeros(kmax, np.uint8); CO = np.zeros((kmax, nl)); wk = np.zeros(kmax); cpair = np.zeros(kmax)
     scnt = np.zeros(kmax, np.int64); Js = np.zeros(kmax); nls = min(max(int(slj / H) - lmin + 2, 3), nl)        # (slow beats: how long one has held, its length, and the lags that are not slow)
-    for k in range(kmax): wk[k] = k * dw
+    for k in range(kmax): wk[k] = kof[k] * dw                   # (kof: which of the bank's bands band k is; k itself unless some are left out)
     br0 = np.zeros(nh + 8, np.int64); br1 = np.zeros(nh + 8, np.int64); nbr = 0; drt = np.zeros(nh + 8, np.int64); ndr = 0; tsw = -1; pend = -1
     wait = 0; quiet_until = 0; oi = 0; diag = np.zeros((nh, 3)); usebr = bridge == 1 and not up
 
@@ -410,10 +415,10 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                     if cin[k] >= n_in and t >= quiet_until and t >= busy[k] and pend < 0:
                         Jk = Jc[k] * H; dn = flr + Jk if up else flr; stp = max(Jk, wmin) / ratio / M; jnk = max(int(np.round(Jk / H)), 1) if gain_on == 1 else 0
                         if nb_on == 1 or nb_on == 2:              # anywhere within one beat: where the neighbours' shares fit
-                            dn, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, 0.0, Jk * 15.0 / 16.0, 16, ratio, H, dw, tau, dpv, flr, M, stp, m0, max(int(np.round(Jk / H)), 8), 1)
-                            dn, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, -Jk / 24.0, Jk / 24.0, 5, ratio, H, dw, tau, dpv, flr, M, stp, m0, max(int(np.round(Jk / H)), 8), 1)
+                            dn, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, 0.0, Jk * 15.0 / 16.0, 16, ratio, H, dw, wk, kof, tau, dpv, flr, M, stp, m0, max(int(np.round(Jk / H)), 8), 1)
+                            dn, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, -Jk / 24.0, Jk / 24.0, 5, ratio, H, dw, wk, kof, tau, dpv, flr, M, stp, m0, max(int(np.round(Jk / H)), 8), 1)
                             if dn < flr: dn = flr
-                        else: ps = _align(Z, A, U, US, CE, k, float(t), 1, st0[k], 0.0, psi[k], lead[k], 0, 0, dn, k, jnk, ratio, H, wk[k], dw, tau, dpv, flr, M, stp)
+                        else: ps = _align(Z, A, U, US, CE, k, float(t), 1, st0[k], 0.0, psi[k], lead[k], 0, 0, dn, k, jnk, ratio, H, wk, tau, dpv, flr, M, stp)
                         _emit(et, em, ed, ep, el, ej, ef, en, k, t, 0, dn, ps, k, jnk, xf); sjn[k] = jnk; mode[k] = 0; st0[k] = t; sd0[k] = dn; psi[k] = ps; J[k] = Jk; busy[k] = t + xf; cout[k] = 0; lead[k] = k; lcnt[k] = 0
                     continue
                 dk = sd0[k] + drift * (t - st0[k])              # a reader: how far behind it is now
@@ -435,7 +440,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                     elif t - st0[k] > twait or on[k] == 0: cout[k] = n_out
                 must = up and dk - (ratio - 1.0) * hop <= flr         # shifting up: the reader is about to reach "now"
                 if (cout[k] >= n_out and t >= busy[k]) or (must and (J[k] <= 0.0 or cout[k] > 0)):
-                    ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 1, 0.0, k, 0, ratio, H, wk[k], dw, tau, dpv, flr, M, max(J[k], wmin) / ratio / M)
+                    ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 1, 0.0, k, 0, ratio, H, wk, tau, dpv, flr, M, max(J[k], wmin) / ratio / M)
                     _emit(et, em, ed, ep, el, ej, ef, en, k, t, 1, 0.0, ps, k, 0, xfu); sjn[k] = 0; mode[k] = 1; st0[k] = t; sd0[k] = 0.0; psi[k] = ps; J[k] = 0.0; busy[k] = t + xfu; cout[k] = 0; cin[k] = 0; lead[k] = k; lcnt[k] = 0
                     continue
                 nrd += 1
@@ -450,11 +455,11 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                         if nb_on >= 2:                           # the jump, give or take an eighth of a beat: pulls the shares into step and keeps them there as things drift
                             lo_ = -J[k] / 8.0
                             if dn + lo_ < flr: lo_ = flr - dn
-                            dq, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, lo_, J[k] / 8.0, 9, ratio, H, dw, tau, dpv, flr, M, stp, m0, max(int(np.round(J[k] / H)), 8), 1)
+                            dq, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, lo_, J[k] / 8.0, 9, ratio, H, dw, wk, kof, tau, dpv, flr, M, stp, m0, max(int(np.round(J[k] / H)), 8), 1)
                             if pgain < 1.0:                      # go only part of the way each time: the search is a little noisy, the drift it corrects is slow
-                                dn = dn + pgain * (dq - dn); ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 0, dn, k, jnk, ratio, H, wk[k], dw, tau, dpv, flr, M, stp)
+                                dn = dn + pgain * (dq - dn); ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 0, dn, k, jnk, ratio, H, wk, tau, dpv, flr, M, stp)
                             else: dn = dq
-                        else: ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 0, dn, k, jnk, ratio, H, wk[k], dw, tau, dpv, flr, M, stp)
+                        else: ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 0, dn, k, jnk, ratio, H, wk, tau, dpv, flr, M, stp)
                         _emit(et, em, ed, ep, el, ej, ef, en, k, t, 0, dn, ps, k, jnk, xfu); sjn[k] = jnk; st0[k] = t; sd0[k] = dn; psi[k] = ps; busy[k] = t + xfu
             diag[hix, 0] = nrd
             # ---- shares of one partial in neighbouring bands: the weaker band follows the stronger one's phase
@@ -462,7 +467,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                 for k in range(1, kmax - 1):                    # how steady the phase between band k and k+1 has been
                     sr_ = 0.0; si_ = 0.0; nn = 1e-30; Za = Z[k]; Zb = Z[k + 1]
                     for j in range(Wl):
-                        m = m0 - j; a = Za[m]; b = Zb[m]; pr = a.real * b.real + a.imag * b.imag; pi_ = a.imag * b.real - a.real * b.imag; ang = -dw * (m * H - tau); c = np.cos(ang); s_ = np.sin(ang)
+                        m = m0 - j; a = Za[m]; b = Zb[m]; pr = a.real * b.real + a.imag * b.imag; pi_ = a.imag * b.real - a.real * b.imag; ang = -(kof[k + 1] - kof[k]) * dw * (m * H - tau); c = np.cos(ang); s_ = np.sin(ang)
                         sr_ += pr * c - pi_ * s_; si_ += pr * s_ + pi_ * c; nn += np.sqrt((a.real * a.real + a.imag * a.imag) * (b.real * b.real + b.imag * b.imag))
                     cpair[k] = np.sqrt(sr_ * sr_ + si_ * si_) / nn
                 for k in range(1, kmax):
@@ -502,13 +507,32 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
             quiet_until = pend + settle; pend = -1
     return et, em, ed, ep, el, ej, ef, en, diag, br0[:nbr], br1[:nbr], drt[:ndr]
 
-def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
-          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=None, slow_hold=0.5, read_hz=5000.0, debug=False):
+def _layout(nbin, kx, taper=4):
+    """Which of the bank's bands are used, and each one's weight in the output. -> (kof, wg)
+    kx < 0: all of them, each with weight 1 (the caller divides by `over`).
+    Otherwise (the lite layout, for a bank with twice the bands): all of them up to kx, and only every second one (the
+    even ones, which are a whole bank by themselves) above. The odd ones' weight goes from 1 to 0 over the last `taper`
+    of them below kx and the even ones' from 1 to 2, so that the two always add up to the same: a partial near kx keeps
+    its loudness."""
+    if kx < 0: return np.arange(nbin, dtype=np.int64), np.ones(nbin)
+    kof = []; wg = []
+    for b in range(nbin):
+        if b > kx and (b & 1): continue
+        u = min(1.0, max(0.0, (kx - b) / (2.0 * taper)))
+        kof.append(b); wg.append(u if (b & 1) else 2.0 - u)
+    return np.array(kof, np.int64), np.array(wg)
+
+
+def shift(x, st, sr=SR, response=0, lite=False, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
+          n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=None, slow_hold=0.5, read_hz=None, dense_hz=None, debug=False):
     """Shift mono signal x by st semitones (-12 .. +12). -> the shifted signal, same length, no dry signal mixed in.
     response (shifting up only) trades how late an attack comes out for how clean the sound is: 0 = fast, the attack as
     early as it can be (an 8 ms band filter); 1 = balanced, the same bands behind a 12 ms filter, attacks 4 ms later;
     2 = clean, bands half as wide behind a 16 ms filter: attacks 8 ms later than fast, and the middle note of a full
     chord, crowded by other notes' partials in the wide bands, gets bands of its own.
+    lite=True does less, for under three fifths of the engine's CPU shifting up and four fifths shifting down: beating is
+    looked for only in the bands below 2.5 kHz instead of 5, and
+    shifting up on the fast and balanced responses only the bands below 1.25 kHz are doubled.
     Everything after that is a tuning constant of the engine; the defaults are what the C++ engine uses. The ones set
     to None differ between shifting up and shifting down (and with the response) and are filled in below.
     debug=True also returns per-hop diagnostics; debug="bands" returns every band's output and the event lists."""
@@ -547,10 +571,19 @@ def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fma
     tau = int(round(tau_ms * sr / 1000)); h = prototype(K, tau, int(round(tail_ms * sr / 1000)))
     # over = 2: twice as many bands, half a band apart, each as wide as before (the same filter, so no extra delay). Every
     # partial then has bands in which it is the main thing, also where three partials crowd into one band's width.
-    Kb = K * int(over); kmax = int(min(fmax, 0.45 * sr / max(r, 1.0)) * Kb / sr); Z = analyze(x, Kb, h, H, kmax); Z[0] = 0.0
+    Kb = K * int(over); nbin = int(min(fmax, 0.45 * sr / max(r, 1.0)) * Kb / sr)
+    # Lite, where the bands are doubled: only below dense_hz. What the doubling is for, partials crowding into one band's
+    # width, is a matter of low notes; above 1.25 kHz every second band was as clean on real recordings, or cleaner
+    # (docs/design-notes.md, "Doing less"). From here on the bands are numbered without the gaps: kof says which of the
+    # bank's bands each one is, wg what it weighs in the output.
+    if dense_hz is None: dense_hz = 1250.0 if (lite and int(over) == 2) else 0.0
+    kof, wg = _layout(nbin, (int(dense_hz * Kb / sr) & ~1) if dense_hz > 0.0 else -1)
+    Z = analyze(x, Kb, h, H, nbin)[kof]; Z[0] = 0.0; kmax = len(kof)
     # Beating is looked for only in the bands below read_hz of the input. Above 5 kHz it changed no measure, synthetic or real,
-    # to treat every band as plain (docs/design-notes.md, "Doing less"), and those are half the bands.
-    kr = int(read_hz * Kb / sr)
+    # to treat every band as plain, and those are half the bands. Lite: below 2.5 kHz, which costs clean steady chords 2 to
+    # 3 dB in their upper harmonics and real recordings nothing that was measured.
+    if read_hz is None: read_hz = 2500.0 if lite else 5000.0
+    kr = int(np.searchsorted(kof, int(read_hz * Kb / sr)))
     Zc = Z.astype(np.complex128); A = np.abs(Zc); U = np.unwrap(np.angle(Zc), axis=1); CE = np.cumsum(A * A, axis=1)
     ons = onsets(x, sr); hold = int(0.012 * sr); settle = int(settle_ms * sr / 1000); pre = int(pre_ms * sr / 1000)
     US = _smooth(Zc, U, smooth_ms * sr / 1000 / H, 15.0 * sr / 1000 / H, _holds(ons, Z.shape[1], H, hold, tau - pre + settle)) if smooth_ms > 0 else U; del Zc
@@ -558,11 +591,11 @@ def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fma
     lmin = max(int(round(lmin_ms * sr / 1000 / H)), 1); lmax = int(reach_ms * sr / 1000 / H); xf = int(2.6667 * sr / 1000)
     flr = float(2 * H + 2 + (int((r - 1.0) * (max(xf // 2, 2))) + 2 if up else 0))
     ev = _control(Z, A, U, US, CE, len(x), ons, r, H, Kb, hopf, Wn, ws, lmin, lmax, xf, hold, settle, efloor, 1 if bridge else 0, dA_ms * sr / 1000, float(tau),
-                    drop, rho, cabs, tol2, int(n_in), int(n_out), wait_ms * sr / 1000, int(M), float(sel), 1 if rd else 0, pre, float(clock), max(int(lock_ms * sr / 1000 / H), 4), 1 if lock else 0, int(place), float(pgain), 0.012 * sr, 1 if gain else 0, drop_out, slow_ms * sr / 1000, float(slow_hold), kr)
-    dpv = float(H + 1); dw = 2.0 * np.pi / Kb
+                    drop, rho, cabs, tol2, int(n_in), int(n_out), wait_ms * sr / 1000, int(M), float(sel), 1 if rd else 0, pre, float(clock), max(int(lock_ms * sr / 1000 / H), 4), 1 if lock else 0, int(place), float(pgain), 0.012 * sr, 1 if gain else 0, drop_out, slow_ms * sr / 1000, float(slow_hold), kr, kof)
+    dpv = float(H + 1); wka = kof * (2.0 * np.pi / Kb)
     if debug == "bands":
-        return [_render_band(Z, A, U, US, CE, k, len(x), r, H, dw, float(tau), dpv, flr, ev[0][k], ev[1][k], ev[2][k], ev[3][k], ev[4][k], ev[5][k], ev[6][k], ev[7][k]) for k in range(kmax)], ev
-    y = _render(Z, A, U, US, CE, len(x), r, H, Kb, float(tau), dpv, flr, ev[0], ev[1], ev[2], ev[3], ev[4], ev[5], ev[6], ev[7]) / float(over)
+        return [_render_band(Z, A, U, US, CE, k, len(x), r, H, wka, float(tau), dpv, flr, ev[0][k], ev[1][k], ev[2][k], ev[3][k], ev[4][k], ev[5][k], ev[6][k], ev[7][k]) for k in range(kmax)], ev
+    y = _render(Z, A, U, US, CE, len(x), r, H, wka, wg, float(tau), dpv, flr, ev[0], ev[1], ev[2], ev[3], ev[4], ev[5], ev[6], ev[7]) / float(over)
     if bridge and not up and len(ev[9]):
         yd, w = _direct(x, len(x), r, dA_ms * sr / 1000, ev[9], ev[10], ev[11], xf); y = y * (1.0 - w) + yd * w
     return (y, ev[8]) if debug else y

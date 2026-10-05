@@ -16,6 +16,8 @@
 // Shifting up runs twice as many bands (half a band apart, same filter) than shifting down, and the response picks the
 // filter: fast (8 ms), balanced (the same bands behind 12 ms) or clean (bands half as wide behind 16 ms). Each step is
 // cleaner and lets an attack out 4 ms later.
+// Beating is looked for only in the bands below 5 kHz of the input. Quality "lite" does less for less CPU: below 2.5 kHz,
+// and shifting up (fast and balanced) with the doubled bands only below 1.25 kHz.
 //
 // Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).
 #pragma once
@@ -90,6 +92,7 @@ public:
         Us.assign ((size_t) kS * NF, 0.0); fsm.assign ((size_t) kS, 0.0); ebm.assign ((size_t) kS, 0.0); epm.assign ((size_t) kS, 0.0);
         smA = 1.0 - std::exp (-1.0 / (5.0 * sr / 1000.0 / H)); smE = 1.0 - std::exp (-1.0 / (15.0 * sr / 1000.0 / H));
         const size_t n = (size_t) kS;
+        kOf.assign (n, 0); kGap.assign (n, 1); w2.assign (n, 2.0); lockC2.assign ((size_t) NF, 0.0); lockS2.assign ((size_t) NF, 0.0);
         mode.assign (n, 1); omode.assign (n, 1); lead.assign (n, 0); olead.assign (n, 0); fade.assign (n, 0); flen.assign (n, 1); sjn.assign (n, 0); ojn.assign (n, 0);
         st0.assign (n, 0.0); sd0.assign (n, 0.0); psi.assign (n, 0.0); ot0.assign (n, 0.0); od0.assign (n, 0.0); opsi.assign (n, 0.0);
         evT.assign (n, -1); busy.assign (n, 0); J.assign (n, 0.0); Jc.assign (n, 0.0); cin.assign (n, 0); cout.assign (n, 0); lcnt.assign (n, 0); want.assign (n, 0);
@@ -136,7 +139,7 @@ public:
         xfu = up ? std::max (xf / 2, 2) : xf;
         flr = (double) (2 * H + 2 + (up ? (int) ((ratio - 1.0) * xfu) + 2 : 0));
         drift = 1.0 - ratio;
-        kmax = std::min ((int) (std::min (fmax, 0.45 * sr / std::max (ratio, 1.0)) * Kb / sr), kS);
+        { const int ql = std::min ((int) (std::min (fmax, 0.45 * sr / std::max (ratio, 1.0)) * Kb / sr), kS); kmax = 0; while (kmax < kB && kOf[(size_t) kmax] < ql) ++kmax; }
         usebr = ! up && ! unity;
         placeMode = up ? 2 : 3; pgain = up ? 0.3 : 0.5;
         for (size_t k = 0; k < stC.size(); ++k) { stC[k] = std::cos (wk[k] * ratio); stS[k] = std::sin (wk[k] * ratio); }      // a reader's carrier turns this much per sample
@@ -156,6 +159,19 @@ public:
         if (sr > 0.0 && bankFor() != loaded) setSemitones (semis);
     }
     int getResponse() const { return response; }
+
+    // Quality: full (the default) or lite. Lite does less, for about four fifths of the CPU shifting down and under three fifths
+    // shifting up: beating is looked for only in the bands below 2.5 kHz of the input instead of 5, and shifting up on the fast
+    // and balanced responses only the bands below 1.25 kHz are doubled (loadFilter). On real recordings that came out within
+    // 0.7 dB of full; clean, steady chords are 2 to 6 dB less clean in their upper harmonics (docs/benchmarks.md). Changing it
+    // restarts the bands, as changing the interval does.
+    void setLite (bool on)
+    {
+        if (on == lite) return;
+        lite = on;
+        if (sr > 0.0) { loaded = -1; setSemitones (semis); }
+    }
+    bool getLite() const { return lite; }
 
     void reset()
     {
@@ -257,15 +273,15 @@ public:
                 ramp[i] = g * zr; rai[i] = g * zi;
             }
         }
-        // every band: one sample of its stretch (doubled: the band and its mirror image), then its vector turned on. The same few
+        // every band: one sample of its stretch (times its weight, doubled: the band and its mirror image), then its vector turned on. The same few
         // sums for each band, with nothing to decide: the compiler takes several bands at a time.
         double y = 0.0;
         {
             double* POLYPITCH_RESTRICT c = rc.data(); double* POLYPITCH_RESTRICT sn = rs.data(); double* POLYPITCH_RESTRICT ar = ramp.data(); double* POLYPITCH_RESTRICT vo = bandV.data();
-            const double* POLYPITCH_RESTRICT dc = rdc.data(); const double* POLYPITCH_RESTRICT ds = rds.data(); const double* POLYPITCH_RESTRICT ai = rai.data(); const double* POLYPITCH_RESTRICT da = rdamp.data();
+            const double* POLYPITCH_RESTRICT wq = w2.data(); const double* POLYPITCH_RESTRICT dc = rdc.data(); const double* POLYPITCH_RESTRICT ds = rds.data(); const double* POLYPITCH_RESTRICT ai = rai.data(); const double* POLYPITCH_RESTRICT da = rdamp.data();
             for (int k = 1; k < kmax; ++k)
             {
-                const double cc = c[k], ss = sn[k], vk = 2.0 * (ar[k] * cc - ai[k] * ss);
+                const double cc = c[k], ss = sn[k], vk = wq[k] * (ar[k] * cc - ai[k] * ss);
                 vo[k] = vk; y += vk; c[k] = cc * dc[k] - ss * ds[k]; sn[k] = cc * ds[k] + ss * dc[k]; ar[k] += da[k];
             }
         }
@@ -275,7 +291,7 @@ public:
             const int k = fdList[(size_t) n]; const size_t i = (size_t) k;
             if (ordirty[i]) { setVector (k, omode[i], ot0[i], od0[i], opsi[i], olead[i], orc[i], ors[i], ordc[i], ords[i], oramp[i], ordamp[i]); orai[i] = 0.0; ordirty[i] = 0; }
             if (omode[i] == 0) readerNow (k, ot0[i], od0[i], ojn[i], oramp[i], orai[i]);
-            const double cc = orc[i], ss = ors[i], ov = 2.0 * (oramp[i] * cc - orai[i] * ss);
+            const double cc = orc[i], ss = ors[i], ov = w2[i] * (oramp[i] * cc - orai[i] * ss);
             orc[i] = cc * ordc[i] - ss * ords[i]; ors[i] = cc * ords[i] + ss * ordc[i]; oramp[i] += ordamp[i];
             const double g = fti[i] >= 0 ? fadeG[(size_t) (fti[i] + fade[i])] : 0.5 - 0.5 * std::cos (kPi * (double) fade[i] / (double) flen[i]);
             y += g * (ov - bandV[i]);
@@ -314,8 +330,8 @@ public:
 
 private:
     static constexpr double kPi = 3.14159265358979323846;
-    static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48, NW = 256;
-    static constexpr double fmax = 10000.0, fread = 5000.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
+    static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48, NW = 256, nTaper = 4;
+    static constexpr double fmax = 10000.0, fread = 5000.0, freadLite = 2500.0, fdense = 1250.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
     double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, twait = 1764.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
     double smA = 0.0, smE = 0.0, slj = 0.0, slq = 0.5;
@@ -337,6 +353,10 @@ private:
     struct Bank { std::vector<double> h, twC, twS, swC, swS; std::vector<int> rev; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
     Bank banks[4];                                                    // [0] shifting down; shifting up: [1] fast, [2] balanced, [3] clean. Made in prepare()
     int response = 0, loaded = -1;
+    bool lite = false;
+    std::vector<int> kOf, kGap;                              // which of the bank's bands band k is, and how many of them the next band is away (loadFilter)
+    std::vector<double> w2, lockC2, lockS2;                  // twice each band's weight in the output; the turn between two bands that are two apart
+    int binTop = 0;                                          // one more than the highest of the bank's bands in use
     int bankFor() const { return up ? 1 + response : 0; }
     const double* h = nullptr; const double* twC = nullptr; const double* twS = nullptr; const double* swC = nullptr; const double* swS = nullptr; const int* rev = nullptr;      // the ones in use
     std::vector<double> xring, fftRe, fftIm, Am, Um, Us, fsm, ebm, epm, Cm, lastAng, st0, sd0, psi, ot0, od0, opsi, J, Jc, Js, E0, cpair, wk, CO, onsBuf, lockC, lockS, mags;
@@ -441,11 +461,29 @@ private:
         loaded = bankFor(); const Bank& b = banks[loaded];
         h = b.h.data(); twC = b.twC.data(); twS = b.twS.data(); swC = b.swC.data(); swS = b.swS.data(); rev = b.rev.data(); tau = b.tau; L = b.L; designed = b.designed;
         tauD = (double) tau;
-        over = b.over; Kb = b.K * over; dw = 2.0 * kPi / Kb; kB = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS);     // bands this bank has below 10 kHz
+        over = b.over; Kb = b.K * over; dw = 2.0 * kPi / Kb;
+        // Which of the bank's Kb bands are used (kOf), numbered without gaps from here on, and what each weighs in the output (w2,
+        // doubled as the band loop wants it). Normally all of them below 10 kHz, each with the same weight. Lite, where the bank has
+        // twice the bands (shifting up, fast and balanced): all of them only below 1.25 kHz, where low notes' partials crowd into
+        // one band's width, and every second one above (the even ones, which are a whole bank by themselves). Over the last few odd
+        // bands below that frequency the odd ones' weight goes from 1 to 0 and the even ones' from 1 to 2, so that the two add up
+        // to the same everywhere and a partial near the join keeps its loudness. kGap: how many of the bank's bands the next band
+        // is away (the phase between two neighbours turns that many times as fast: control, fitNeighbours).
+        {
+            const int nbin = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS), kx = (lite && over == 2) ? (((int) (fdense * Kb / sr)) & ~1) : -1; int nb = 0;
+            for (int q = 0; q < nbin; ++q)
+            {
+                if (kx >= 0 && q > kx && (q & 1)) continue;
+                const double u = kx < 0 ? 1.0 : std::min (1.0, std::max (0.0, (double) (kx - q) / (2.0 * nTaper)));
+                kOf[(size_t) nb] = q; w2[(size_t) nb] = 2.0 * ((q & 1) ? u : 2.0 - u); ++nb;
+            }
+            kB = nb; binTop = nb > 0 ? kOf[(size_t) (nb - 1)] + 1 : 0;       // kB: the bands in use below 10 kHz
+            for (int k = std::max (nb, 1); k < kS; ++k) { kOf[(size_t) k] = kOf[(size_t) (k - 1)] + 1; w2[(size_t) k] = 2.0; }
+            for (int k = 0; k < kS; ++k) { kGap[(size_t) k] = k + 1 < nb ? kOf[(size_t) k + 1] - kOf[(size_t) k] : 1; wk[(size_t) k] = kOf[(size_t) k] * dw; }
+        }
         // Beating is looked for only in the bands below 5 kHz of the input: above that it changed no measure, synthetic or real, to
-        // treat every band as plain, and those are half the bands (docs/design-notes.md, "Doing less").
-        kR = std::min ((int) (fread * Kb / sr), kB);
-        for (int k = 0; k < kS; ++k) wk[(size_t) k] = k * dw;
+        // treat every band as plain, and those are half the bands (docs/design-notes.md, "Doing less"). Lite: below 2.5 kHz.
+        { const int qr = (int) ((lite ? freadLite : fread) * Kb / sr); kR = 0; while (kR < kB && kOf[(size_t) kR] < qr) ++kR; }
         if (configured) clearFrames();          // frames made with the other filter are no use
         configured = true;
     }
@@ -475,7 +513,7 @@ private:
 
     // ---- analysis: one frame of every band's envelope
     // The transform: Kb real numbers (in fftRe, already in bit-reversed order: analyzeFrame puts them there) to Kb complex ones, of
-    // which only the first kB are finished, because only those are bands. A plain radix-2 transform, stage by stage, written so
+    // which only the first binTop are finished, because no band in use lies above that. A plain radix-2 transform, stage by stage, written so
     // that it gives the same numbers to the last bit as the textbook loop it replaces:
     //   - the first two stages are done together. The numbers are still real there, turning by 1 needs no multiplication and the
     //     quarter turn one (by the cosine of a quarter turn as the table has it, which is not quite nothing);
@@ -505,7 +543,7 @@ private:
         }
         for (int len = 8, off = 2; len <= n; off += len / 2, len <<= 1)
         {
-            const int half = len / 2, need = std::min (kB, len), na = std::min (need, half), nb = std::max (need - half, 0);       // of each block: outputs wanted in its first half, and in its second
+            const int half = len / 2, need = std::min (binTop, len), na = std::min (need, half), nb = std::max (need - half, 0);       // of each block: outputs wanted in its first half, and in its second
             const double* POLYPITCH_RESTRICT c = swC + off; const double* POLYPITCH_RESTRICT s = swS + off;
             for (int i = 0; i < n; i += len)
             {
@@ -549,8 +587,8 @@ private:
             float zr = 0.0f, zi = 0.0f;
             if (k > 0)
             {
-                const size_t ix = (size_t) ((k * tm) & (Kb - 1)); const double c = twC[ix], s = -twS[ix];
-                const double ar = fftRe[(size_t) k], ai = fftIm[(size_t) k];
+                const size_t q = (size_t) kOf[(size_t) k], ix = (size_t) (((int) q * tm) & (Kb - 1)); const double c = twC[ix], s = -twS[ix];
+                const double ar = fftRe[q], ai = fftIm[q];
                 zr = (float) (ar * c - ai * s); zi = (float) (ar * s + ai * c);
             }
             const size_t b = (size_t) k * 2 * NF;
@@ -847,7 +885,11 @@ private:
     {
         POLYPITCH_STAGE_START (sPlacement);
         const int64_t m0 = t / H; const int nbs[2] = { k - 1, k + 1 }; WlP = std::min (WlP, NF - 4);
-        for (; lockN < WlP; ++lockN) { lockC[(size_t) lockN] = lockC[(size_t) (lockN - Kb / H)]; lockS[(size_t) lockN] = lockS[(size_t) (lockN - Kb / H)]; }     // (the turn between two bands comes round every Kb / H frames)
+        for (; lockN < WlP; ++lockN)
+        {
+            const size_t a = (size_t) lockN, b = (size_t) (lockN - Kb / H);
+            lockC[a] = lockC[b]; lockS[a] = lockS[b]; lockC2[a] = lockC2[b]; lockS2[a] = lockS2[b];      // (the turn between two bands comes round every Kb / H frames)
+        }
         for (int j = 0; j < M; ++j) { pvR[(size_t) j] = fitOr[j]; pvI[(size_t) j] = fitOi[j]; }
         for (int q = 0; q < 2; ++q)
         {
@@ -855,9 +897,10 @@ private:
             if (a < 1 || a >= kmax || m0 - WlP < 0) continue;
             const float* ar_ = zrp (a, m0); const float* ai_ = zip (a, m0); const float* br_ = zrp (k, m0); const float* bi_ = zip (k, m0);
             const double sg = a < k ? 1.0 : -1.0; double sr_ = 0.0, si_ = 0.0, ea = 1e-30, eb = 1e-30;
+            const bool two = kGap[(size_t) std::min (a, k)] == 2; const double* lc = two ? lockC2.data() : lockC.data(); const double* ls = two ? lockS2.data() : lockS.data();
             for (int j = 0; j < WlP; ++j)
             {
-                const double zar = ar_[-j], zai = ai_[-j], zbr = br_[-j], zbi = bi_[-j], pr = zar * zbr + zai * zbi, pi_ = zai * zbr - zar * zbi, c = lockC[(size_t) j], sn = sg * lockS[(size_t) j];
+                const double zar = ar_[-j], zai = ai_[-j], zbr = br_[-j], zbi = bi_[-j], pr = zar * zbr + zai * zbi, pi_ = zai * zbr - zar * zbi, c = lc[j], sn = sg * ls[j];
                 sr_ += pr * c - pi_ * sn; si_ += pr * sn + pi_ * c; ea += zar * zar + zai * zai; eb += zbr * zbr + zbi * zbi;
             }
             const double nrm = std::sqrt (sr_ * sr_ + si_ * si_);
@@ -1075,7 +1118,11 @@ private:
         POLYPITCH_STAGE_NEXT (sDecisions);
         // the turn of phase between two neighbouring bands at each of the last frames (the followers below and fitNeighbours use it)
         lockN = std::max (Wl, Kb / H);
-        for (int j = 0; j < lockN; ++j) { const double ang = -dw * ((double) (m0 - j) * H - tauD); lockC[(size_t) j] = std::cos (ang); lockS[(size_t) j] = std::sin (ang); }
+        for (int j = 0; j < lockN; ++j)
+        {
+            const double ang = -dw * ((double) (m0 - j) * H - tauD), c = std::cos (ang), sn = std::sin (ang);
+            lockC[(size_t) j] = c; lockS[(size_t) j] = sn; lockC2[(size_t) j] = c * c - sn * sn; lockS2[(size_t) j] = 2.0 * c * sn;      // (and for two bands that are two apart: twice the angle)
+        }
         for (int k = 1; k < kmax; ++k)
         {
             const size_t i = (size_t) k; int st = 0; double Jf = -1.0, cf = 0.0;
@@ -1186,10 +1233,11 @@ private:
         {
             const float* ar_ = zrp (k, m0); const float* ai_ = zip (k, m0); const float* br_ = zrp (k + 1, m0); const float* bi_ = zip (k + 1, m0);
             double sr_ = 0.0, si_ = 0.0, nn = 1e-30;
+            const bool two = kGap[(size_t) k] == 2; const double* lc = two ? lockC2.data() : lockC.data(); const double* ls = two ? lockS2.data() : lockS.data();
             for (int j = 0; j < Wl; ++j)
             {
                 const double ar = ar_[-j], ai = ai_[-j], br = br_[-j], bi = bi_[-j], pr = ar * br + ai * bi, pi_ = ai * br - ar * bi;
-                sr_ += pr * lockC[(size_t) j] - pi_ * lockS[(size_t) j]; si_ += pr * lockS[(size_t) j] + pi_ * lockC[(size_t) j];
+                sr_ += pr * lc[j] - pi_ * ls[j]; si_ += pr * ls[j] + pi_ * lc[j];
                 nn += std::sqrt ((ar * ar + ai * ai) * (br * br + bi * bi));
             }
             cpair[(size_t) k] = std::sqrt (sr_ * sr_ + si_ * si_) / nn;

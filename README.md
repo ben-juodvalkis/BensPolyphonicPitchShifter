@@ -23,7 +23,7 @@ source (below).
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
 | Chord notes in tune to | 0.4 cents | 0.2 cents |
 | Dirt on full plucked chords (lower is cleaner) | -37.4 dB | -28.8 dB |
-| CPU, one core at 48 kHz (Apple M4) | 2 % | 5 % |
+| CPU, one core at 48 kHz (Apple M4) | 2.3 % (Lite: 1.9 %) | 4.6 % (Lite: 2.6 %) |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
@@ -59,6 +59,8 @@ and how to run each test, are in `docs/building.md`. The Max side is described i
 | **Tone** | How much of a tone curve fitted to the interval is applied to the shifted sound. An octave down is brightened above 1 kHz; an octave up is darkened a little. 0 = flat. |
 | **Response** | Shifting up only: how late an attack may come out for a cleaner sound. **Fast** (the default): about 8 ms. **Balanced**: about 12 ms; pure intervals and mixes come out cleaner. **Clean**: about 16 ms; the middle note of a full chord comes out at its right loudness and dense playing is cleanest, but a vibrato is followed less closely. Shifting down it changes nothing. |
 
+| **Quality** | **Full** (the default) or **Lite**. Lite takes about four fifths of the CPU shifting down and under three fifths shifting up. It looks for two notes beating in a band only below 2.5 kHz, and shifting up it runs the extra bands only below 1.25 kHz. Recordings of guitars came out within 0.7 dB of Full; clean, steady chords are a few dB less clean in their upper harmonics. |
+
 The shifted sound is mono (the inputs summed); the dry signal passes in stereo.
 
 ## How it works, briefly
@@ -73,10 +75,11 @@ played straight from the input when shifting down, which is why they are only 2 
 
 ## Limits
 
-- Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up.
+- Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up,
+  and changing Quality.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
-- The work is not quite even: at octave up one 64-sample block in a thousand takes 11 % of its time on an Apple M4,
-  against 5 % on average (`docs/benchmarks.md`, "Cost"). On a slower computer, measure before trusting a 64-sample
+- The work is not quite even: at octave up one 64-sample block in a thousand takes 10 % of its time on an Apple M4,
+  against 5 % on average (on Lite 5 % against 3 %) (`docs/benchmarks.md`, "Cost"). On a slower computer, measure before trusting a 64-sample
   buffer: `build/tools/polypitch_load`.
 - Held chords shifted up are a little rougher than the best commercial shifter. With Response on Fast the middle
   note of a full chord comes out too quiet at octave up; Clean puts it right, 8 ms later.

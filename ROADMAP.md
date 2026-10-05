@@ -38,9 +38,9 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): on a DI chord take 2.3 % of a
 core shifting down and 4 to 5 % shifting up, and the 99.9th-percentile 64-sample block takes 6 % of its time slot
-at octave down and 11 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
+at octave down and 10 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
 of the slot. Heavier material (chord stabs, or many bands on readers) takes 4.6 to 5.8 % at octave up and 9 to
-12 % of the slot.
+11 % of the slot. With Quality on Lite: 1.9 % shifting down and 2.4 to 2.6 % shifting up, 6 % and 5 % of the slot.
 
 The targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and
 has not been measured since. On the M4 they come to about 3.3 %, 6.6 % and 15 %: the chord take and the heavier
@@ -84,23 +84,35 @@ Done:
   less", which also has what was tried and dropped: fewer lags, a shorter reach, rarer decisions, fewer bands at
   the top).
 
-Left, in this order:
+- **A Quality control: Full or Lite.** Lite looks for beating only below 2.5 kHz and, shifting up on Fast and
+  Balanced, keeps the doubled bands only below 1.25 kHz of the input, where low notes need them: 1.9 % of a core
+  at octave down and 2.6 % at octave up, against 2.3 % and 4.6 %. Recordings of guitars came out within 0.7 dB of
+  Full; clean, steady chords lose 2 to 6 dB in their upper harmonics (`docs/benchmarks.md`, "Lite";
+  `docs/design-notes.md`, "Doing less"). The switch is in the plug-in, the Max object and the device; in Max and
+  in Live it has not been tried yet.
 
-- **Measure on the M1 Max** (`build/tools/polypitch_load` and `polypitch_profile`, a minute). Target: under 5 %
-  shifting down and under 10 % shifting up, and the 99.9th-percentile 64-sample block under 25 % of its slot, so
-  that a 64-sample buffer is safe. By the old engine's ratio between the two computers the chord take would be at
-  3.5 %, 7.0 % and 17 % there. A first sitting on that computer (2026-10-05, before the 5 kHz change) was
-  disturbed by other programs and is not recorded here; its gate and scorecard matched this computer's exactly.
-- **If more is needed, what is left that keeps the sound**: the readers (a reader's sample still costs about
-  fifteen times a plain band's; its envelope could be kept as a ready polynomial per frame, and old readers in a
-  fade go the slow way), and the plain stretches in a fit.
+Left:
+
+- **What is left that keeps the sound**: the readers (a reader's sample costs several times a plain band's; its
+  envelope could be kept as a ready polynomial per frame, and old readers in a fade go the slow way), the plain
+  stretches in a fit, the band loop in single precision (output within rounding, to be shown), and doing nothing
+  while the input is silent.
+- **Lite's transform.** Lite shifting up still runs the 1024-point transform for the few odd bands it keeps at
+  the bottom: 0.5 % of its 2.6 %. The even bands are a 512-point transform's worth, and the odd ones below
+  1.25 kHz are 13.
+- **The M1 Max has not been measured since any of this** (set aside on 2026-10-05). The targets were under 5 %
+  shifting down, under 10 % shifting up and the 99.9th-percentile 64-sample block under 25 % of its slot. By the
+  old engine's ratio between the two computers Full would be at about 3.5 %, 7.0 % and 16 % there and Lite at
+  2.9 %, 4.0 % and 9 %. A first sitting on that computer (2026-10-05, before the 5 kHz change) was disturbed by
+  other programs and is not recorded here; its gate and scorecard matched this computer's exactly.
 - **Do less of the curves, or look at a quarter of the bands at each frame**, only if that is not enough: both
   change which bands are looked at when, so both are sound changes (reference first). The first also needs a
   better idea than the one this file used to hold, that most awake bands "hold one steady partial" and could be
   checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at octave up; 83
   fall and stay down, 41 fall and come back).
 - For scale: the reference device's shifter, timed as a black box, takes 1.9 % of a core on the M4 whatever the
-  interval; this shifter's plug-in in the same host 2.4 % at octave down and 4.7 % at octave up.
+  interval; this shifter's plug-in in the same host 2.5 % at octave down and 4.7 % at octave up on Full, 2.1 % and
+  2.8 % on Lite.
 
 ## 3. Sound
 
@@ -159,7 +171,7 @@ Left, in this order:
 ## 4. Features
 
 - **Change the interval while playing without a click** (run the old and new settings side by side for a few
-  milliseconds).
+  milliseconds). The same for Response and Quality, which restart the bands as well.
 - **More sample rates.** Filter tables for 88.2 and 96 kHz, with twice the bands so the band width stays the same.
 - **Stereo.** Today the shifted sound is mono. Options: an engine per channel, or mid and side.
 - **Optional latency reporting**, delaying the dry signal to line up with the shifted one, for parallel use.

@@ -141,6 +141,23 @@ the player chooses:
 Nothing else differs between the three: the same decisions, the same thresholds. `docs/benchmarks.md` has each
 one's numbers. Changing the response while shifting up restarts the bands, as changing the interval does.
 
+## Step 7: the Quality control
+
+Full is everything above. **Lite** leaves out the two things that cost the most for what they give, and takes
+about four fifths of the CPU shifting down and under three fifths shifting up:
+
+- **Beating is looked for only below 2.5 kHz of the input**, not 5. Between the two, a band that holds two partials
+  is treated as plain: the stronger one comes out right, the weaker one a little off its pitch. On clean, steady
+  chords that is a few dB more dirt in the upper harmonics. On recordings of guitars it could not be measured.
+- **Shifting up, only the bands below 1.25 kHz are doubled** (on Fast and Balanced; Clean has bands of its own and
+  keeps them all). The doubling of step 5 is there for partials that crowd into one band's width, and that is a
+  matter of low notes: two neighboring harmonics of a low E are 82 Hz apart, closer than a band is wide. Above
+  1.25 kHz every second band does as well. Just below 1.25 kHz the extra bands fade out over a few bands, each
+  one's weight handed over to its neighbors, so that a partial there keeps its loudness.
+
+Attacks, tuning, single notes and pitch that moves are the same in both. `docs/benchmarks.md` has the numbers
+("Lite"). Changing Quality while playing restarts the bands, as changing the interval does.
+
 ## Around the engine
 
 `engine/PolyPitchProcessor.h` adds what makes it an effect:
@@ -178,6 +195,7 @@ one's numbers. Changing the response while shifting up restarts the bands, as ch
 | Window for the likeness check | 24 ms | 24 ms |
 | How far back a repeat is looked for | 2.2 to 100 ms | same |
 | Bands that are checked for beating | below 5 kHz of the input | same |
+| With Quality on Lite | checked below 2.5 kHz | checked below 2.5 kHz; 1024 bands only below 1.25 kHz, 512 above (Fast and Balanced) |
 | A band counts as beating when the likeness dips by | 0.004 | 0.001 |
 | Checks in a row to become a reader / to stop | 3 / 3 | 3 / 8 (3 / 3 below a fifth up) |
 | A plain band's phase advance is smoothed over | 5 ms, resting for 35 ms after an attack | 5 ms, resting for 30 ms after an attack |

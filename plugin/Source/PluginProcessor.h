@@ -1,5 +1,5 @@
 // PolyPitch plug-in: a thin JUCE wrapper around polypitch::Processor (engine/PolyPitchProcessor.h), which does all
-// the work. Parameters: Semitones, Mix, Tone, Response. Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).
+// the work. Parameters: Semitones, Mix, Tone, Response, Quality. Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).
 #pragma once
 #include <JuceHeader.h>
 #include "PolyPitchProcessor.h"
@@ -28,7 +28,7 @@ public:
 
 private:
     juce::AudioProcessorValueTreeState apvts;
-    std::atomic<float>* pSemi = nullptr; std::atomic<float>* pMix = nullptr; std::atomic<float>* pTone = nullptr; std::atomic<float>* pResp = nullptr;
+    std::atomic<float>* pSemi = nullptr; std::atomic<float>* pMix = nullptr; std::atomic<float>* pTone = nullptr; std::atomic<float>* pResp = nullptr; std::atomic<float>* pQual = nullptr;
     polypitch::Processor processor;
     static juce::AudioProcessorValueTreeState::ParameterLayout layout();
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PolyPitchAudioProcessor)

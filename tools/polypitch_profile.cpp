@@ -1,5 +1,5 @@
 // Where the engine's time goes: per stage, on average and in the heaviest 64-sample blocks.
-//   polypitch_profile in.f32 <sampleRate> <semitones> [response 0|1|2]
+//   polypitch_profile in.f32 <sampleRate> <semitones> [response 0|1|2] [lite 0|1]
 // Built with -DPOLYPITCH_PROFILE, which makes the engine keep the time of each stage (the timers themselves cost about
 // half a percent of a core). polypitch_load is the plain measurement; this one says where to look.
 #ifndef POLYPITCH_PROFILE
@@ -13,11 +13,11 @@
 #include <numeric>
 int main (int argc, char** argv)
 {
-    if (argc < 4) { std::fprintf (stderr, "usage: polypitch_profile in.f32 sampleRate semitones [response]\n"); return 1; }
+    if (argc < 4) { std::fprintf (stderr, "usage: polypitch_profile in.f32 sampleRate semitones [response] [lite]\n"); return 1; }
     FILE* f = std::fopen (argv[1], "rb"); if (! f) return 1;
     std::fseek (f, 0, SEEK_END); const long n = std::ftell (f) / 4; std::fseek (f, 0, SEEK_SET);
     std::vector<float> x ((size_t) n); if (std::fread (x.data(), 4, (size_t) n, f) != (size_t) n) return 1; std::fclose (f);
-    const double sr = std::atof (argv[2]); polypitch::Engine e; e.setSemitones (std::atof (argv[3])); e.setResponse (argc > 4 ? std::atoi (argv[4]) : 0); e.prepare (sr);
+    const double sr = std::atof (argv[2]); polypitch::Engine e; e.setSemitones (std::atof (argv[3])); e.setResponse (argc > 4 ? std::atoi (argv[4]) : 0); e.setLite (argc > 5 && std::atoi (argv[5]) != 0); e.prepare (sr);
     typedef polypitch::Engine E; const int NS = E::numStages;
     const char* names[E::numStages] = { "window", "transform", "per-band work at a frame", "likeness curves", "decisions", "  of which: fitting readers", "attacks", "band loop, frame start", "band loop, other samples" };
     std::vector<double> bt; std::vector<std::vector<double>> bs; double acc = 0.0, prev[E::numStages] = {}; long readers = 0;

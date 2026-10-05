@@ -41,7 +41,7 @@ Developer ID signature and notarization (see `ROADMAP.md`).
 ## Test
 
 ```
-scripts/gate.sh                                 # the gate: builds the tools, bad input samples, engine against reference, scorecard at -12, +2 and +12 (+12 in each response)
+scripts/gate.sh                                 # the gate: builds the tools, bad input samples, engine against reference, scorecard at -12, +2 and +12 (+12 in each response; all three in lite)
 .venv/bin/python tests/test_bad_samples.py      # input samples that are not numbers, or infinite: the output stays finite (part of the gate)
 .venv/bin/python tests/scorecard.py engine all  # all six intervals
 .venv/bin/python tests/held_chords.py           # sustained chords after the attack (octave up; another interval as an argument)
@@ -53,7 +53,8 @@ scripts/gate.sh                                 # the gate: builds the tools, ba
 
 Run the Python tests from the repository root as shown or from `tests/`. `scorecard.py` takes a target (`engine`,
 `reference` or `plugin`) and a list of intervals; it, `held_chords.py`, `moving_pitch.py` and `strummed_chords.py`
-also take `balanced` or `clean` to run that response (shifting up only; Fast is the default).
+also take `balanced` or `clean` to run that response (shifting up only; Fast is the default), and `lite` to run the
+lite quality.
 
 The Max object and the device are checked inside Max with `max/tools/check_in_max.py` (see `docs/max.md`).
 
@@ -63,7 +64,8 @@ The Max object and the device are checked inside Max with `max/tools/check_in_ma
 build/tools/polypitch_cli in.f32 out.f32 48000 -12            # raw 32-bit float mono in and out; the bare engine
 build/tools/polypitch_cli in.f32 out.f32 48000 -12 50 100     # with Mix 50 and Tone 100: the whole processor
 build/tools/polypitch_cli in.f32 out.f32 48000 12 response=2  # shifting up with another response: 0 fast, 1 balanced, 2 clean
-build/tools/polypitch_load in.f32 48000 12                    # CPU load and the worst 64-sample block (a fourth argument sets the response)
+build/tools/polypitch_cli in.f32 out.f32 48000 12 lite=1      # with the quality set to lite
+build/tools/polypitch_load in.f32 48000 12                    # CPU load and the worst 64-sample block (a fourth argument sets the response, a fifth of 1 the lite quality)
 build/tools/polypitch_profile in.f32 48000 12                 # where the time goes, stage by stage (built with timers in the engine)
 ```
 

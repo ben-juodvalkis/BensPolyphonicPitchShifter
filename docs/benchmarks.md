@@ -51,6 +51,10 @@ Balanced is the same bands behind a longer filter (12 ms instead of 8), which le
 bands around it. Clean has bands half as wide behind a 16 ms filter. Single notes are in tune to 0.1 to 0.3 cents
 and their timbre within 0.2 dB in all three. The gate also runs the +12 row of Balanced and of Clean.
 
+All four tests here also take the word `lite` (`python tests/scorecard.py engine lite all`), which runs them with
+the Quality control on Lite; its numbers are under "Lite" below, and the gate runs its -12, +2 and +12 rows against
+the same limits as Full's.
+
 `python tests/held_chords.py` measures what that table averages away: ten sustained chords in the high, sparse
 register, from 0.4 s into each chord, where every partial should come out as one clean line. In five of them each
 partial is a close pair, as a real string's is. It prints the dirt between the notes and the fast loudness flutter
@@ -224,6 +228,52 @@ followed less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 
 mixes but the roughest on the two-take mix of the first table (a bass line with a guitar line, and two guitar
 lines), which lost 3 dB on Clean when small shifts got their own settings while the other two responses gained.
 
+### Lite
+
+The Quality control's Lite setting (`docs/how-it-works.md`, step 7) takes about four fifths of Full's CPU shifting
+down and under three fifths shifting up ("Cost" below). It looks for beating only below 2.5 kHz of the input and,
+shifting up on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. Everything above this section is
+Full. The same tests, Full / Lite, on the Fast response:
+
+| Shift | Pairs under -40 dB (of 28) | Two-note chords | Full chords |
+|---|---|---|---|
+| -12 | 28 / 28 | -42.4 / -40.1 dB | -37.4 / -36.5 dB |
+| -5 | 28 / 28 | -44.1 / -43.9 | -37.4 / -36.6 |
+| -2 | 28 / 28 | -45.3 / -45.3 | -40.1 / -40.1 |
+| +2 | 28 / 27 | -43.1 / -42.9 | -38.9 / -38.2 |
+| +7 | 28 / 27 | -41.7 / -35.9 | -35.9 / -33.8 |
+| +12 | 26 / 25 | -35.1 / -31.8 | -28.8 / -27.9 |
+
+(`python tests/scorecard.py engine lite all`.) The scorecard's other columns do not move: attacks within 0.1 ms,
+tuning and single notes' timbre the same.
+
+| Real recordings, Full / Lite | -12 | -5 | -2 | +2 | +7 | +12 |
+|---|---|---|---|---|---|---|
+| Twelve pairs of DI takes mixed | -29.3 / -29.3 dB | -31.0 / -31.0 | -31.2 / -31.2 | -27.1 / -27.0 | -22.4 / -22.9 | -20.8 / -21.0 |
+| Chords built from single notes | -35.5 / -35.5 dB | -39.0 / -39.1 | -42.5 / -42.6 | -36.9 / -37.0 | -32.4 / -32.0 | -29.2 / -28.5 |
+| Loop mixes | -25.0 / -25.2 dB | -27.8 / -27.8 | -28.1 / -28.2 | -24.2 / -24.4 | -20.9 / -21.0 | -19.9 / -19.9 |
+
+| Full / Lite | |
+|---|---|
+| Eleven real held chords at +12: dirt, flutter | -27.7 / -27.0 dB, -21.0 / -20.8 dB |
+| Ten synthetic held chords at +12 (`held_chords.py`): dirt, flutter | -37.7 / -33.9 dB, -37.8 / -37.4 dB |
+| Strummed chords, strums 0.6 s apart, at -12, +2, +7, +12 | -32.9 / -32.4, -28.8 / -28.3, -21.5 / -20.9, -18.7 / -18.3 dB |
+| Pitch that moves (slide, bend, vibrato; both octaves) | the same numbers |
+| The middle note of a full chord at +2, +7, +12: loudness off by | 1.6 / 1.6, 2.2 / 2.2, 4.5 / 4.5 dB |
+| Partials that stand alone in a full chord at +2, +7, +12: loudness off by | 1.4 / 2.1, 1.6 / 1.7, 2.4 / 3.0 dB |
+
+In words: on recordings of guitars Lite is within 0.7 dB of Full everywhere, a little cleaner on mixes of DI takes
+at +7 and +12 and a little dirtier on chords built from single notes and on held chords at +12. What it gives up
+shows on clean, steady synthetic chords, in their upper harmonics: two-note chords are 2 dB dirtier at octave down,
+6 dB at +7 and 3 dB at +12, held chords at +12 4 dB, and a chord's lone partials are 0.6 to 0.7 dB further from
+their right loudness at +2 and +12. Attacks, tuning and pitch that moves are untouched.
+
+With the other responses (the scorecard at +2 / +7 / +12, Full then Lite): Balanced has two-note chords at
+-46.9 / -43.3 / -35.7 dB against -45.9 / -40.7 / -33.0 and full chords at -42.2 / -36.4 / -30.2 against
+-42.1 / -34.6 / -29.6; Clean, which keeps all its bands, has two-note chords within 0.6 dB and full chords at
+-40.4 / -37.3 / -33.4 against -40.3 / -36.6 / -31.7. On the real recordings both are within 0.7 dB of Full, as
+Fast is. Synthetic held chords at +12: Balanced -39.1 against -35.7 dB, Clean -37.1 against -35.8.
+
 ## Where Ben's Polyphonic Pitch Shifter is behind
 
 - **Mixes going up by a fifth or more, on the Fast response**: on twelve pairs of DI takes the reference device is
@@ -256,34 +306,45 @@ lines), which lost 3 dB on Clean when small shifts got their own settings while 
 
 ## Cost
 
-At 48 kHz on one core of an Apple M4, one DI chord take, measured with `build/tools/polypitch_load` (runs interleaved
-with the build before the last change, the lowest of eight):
+At 48 kHz on one core of an Apple M4, one DI chord take, measured with `build/tools/polypitch_load` (Full and Lite
+interleaved, the lowest of eight; the average load, and the 99.9th-percentile 64-sample block as a share of its
+1.33 ms):
 
-| | Average load | The 99.9th-percentile 64-sample block, share of its 1.33 ms |
+| | Full | Lite |
 |---|---|---|
-| Octave down | 2.3 % | 6.2 % |
-| +2 | 4.1 % | 8.4 % |
-| Octave up | 4.6 % | 10.6 % |
-| Octave up, Clean | 4.6 % | 9.7 % |
+| Octave down | 2.3 %, block 6.1 % | 1.9 %, block 5.6 % |
+| +2 | 4.1 %, 7.7 % | 2.4 %, 4.5 % |
+| +7 | 4.5 %, 8.7 % | 2.6 %, 4.8 % |
+| Octave up | 4.6 %, 9.5 % | 2.6 %, 5.2 % |
+| Octave up, Balanced | 4.6 %, 9.2 % | 2.6 %, 5.1 % |
+| Octave up, Clean | 4.6 %, 8.6 % | 3.6 %, 6.9 % |
 
 The heavy blocks matter more than the average: a buffer of 64 samples has to be finished inside its 1.33 ms every
-time. Heavier material costs a little more: a DI take of chord stabs 4.6 % at octave up with 9 % of the slot in the
-heavy block (4.9 % and 10 % on Clean), and a synthetic signal that keeps 84 bands on readers 5.8 % and 12 %.
+time. Heavier material costs a little more: at octave up a DI take of chord stabs 4.6 % with 9 % of the slot in the
+heavy block (Lite 2.6 % and 5 %), and a synthetic signal that keeps 84 bands on readers 5.8 % and 11 % (Lite 3.1 %
+and 6 %).
+
+Lite (the Quality control; `docs/how-it-works.md`, step 7) looks for beating only below 2.5 kHz and, shifting up
+on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. What that costs in sound is under "Lite" above.
+On Clean it only has the first of the two to save on. Where Lite's 2.6 % at octave up goes: the band loop 0.8, the
+transform 0.5 (it is still the 1024-point one), decisions 0.4, the curves 0.4, per-band work at a frame 0.3, the
+window 0.2.
 
 **Before the performance work** (the engine of commit `83187b0`) the same computer took 5.6, 11.2, 12.3 and 12.5 %
 on average and 14.0, 25.9, 31.5 and 33.9 % of the slot in the heavy block (the stab take 14.3 % and 36 % at octave
 up, the synthetic signal 15.5 % and 41 %). After that work, and before beating was looked for only below 5 kHz
-(below), it took 2.7, 4.9, 5.5 and 5.6 %, with 7.0, 10.0, 12.4 and 12.6 % of the slot. The engine of `83187b0` was
-also measured on an Apple M1 Max, which took 1.5 to 1.6 times as long (8.5 % at octave down and 18.6 % at octave
-up; 24 % and 51 % of the slot). **The engine as it is now has not been measured on an M1 Max.** If that computer is
-slower by the same factor it would take about 3.5 % and 7.0 % on the chord take, with 10 % and 17 % of the slot in
-the heavy block.
+(below), it took 2.7, 4.9, 5.5 and 5.6 %, with 7.0, 10.0, 12.4 and 12.6 % of the slot (a sitting in which the
+engine as it is now read 6.2, 8.4, 10.6 and 9.7 % of the slot: the heavy block varies by a tenth from one sitting
+to the next). The engine of `83187b0` was also measured on an Apple M1 Max, which took 1.5 to 1.6 times as long
+(8.5 % at octave down and 18.6 % at octave up; 24 % and 51 % of the slot). **The engine as it is now has not been
+measured on an M1 Max.** If that computer is slower by the same factor, Full would take about 3.5 % and 7.0 % on
+the chord take with 10 % and 16 % of the slot in the heavy block, and Lite 2.9 % and 4.0 % with 9 %.
 
 For scale, the reference device's shifter was timed as a black box: its plug-in with nothing in it but that
 shifter, hosted the same way as this project's own plug-in and timed in the same 64-sample blocks on the same take
 and computer. It takes 1.9 % of a core whatever the interval, and 4 to 5 % of the slot in its 99.9th-percentile
-block. This shifter's plug-in, timed in that host in the same sitting: 2.4 % at octave down and 4.7 % at octave up,
-6 % and 10 % of the slot.
+block. This shifter's plug-in, timed in that host in the same sitting: on Full 2.5 % at octave down and 4.7 % at
+octave up, 6 % and 10 % of the slot; on Lite 2.1 % and 2.8 %, 6 % and 6 % of the slot.
 
 What changed (`docs/design-notes.md`, "Speed", has the measurements):
 

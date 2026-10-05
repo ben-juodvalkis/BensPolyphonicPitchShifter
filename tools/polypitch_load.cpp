@@ -1,5 +1,5 @@
 // How heavy and how uneven is the engine's work? Times every 64-sample block (what a small audio buffer has to fit in).
-//   polypitch_load in.f32 <sampleRate> <semitones> [response 0|1|2]      (shifting up: 0 fast, 1 balanced, 2 clean)
+//   polypitch_load in.f32 <sampleRate> <semitones> [response 0|1|2] [lite 0|1]      (shifting up: 0 fast, 1 balanced, 2 clean)
 #include "../engine/PolyPitchEngine.h"
 #include <cstdio>
 #include <cstdlib>
@@ -8,11 +8,11 @@
 #include <algorithm>
 int main (int argc, char** argv)
 {
-    if (argc < 4) { std::fprintf (stderr, "usage: polypitch_load in.f32 sampleRate semitones [response]\n"); return 1; }
+    if (argc < 4) { std::fprintf (stderr, "usage: polypitch_load in.f32 sampleRate semitones [response] [lite]\n"); return 1; }
     FILE* f = std::fopen (argv[1], "rb"); if (! f) return 1;
     std::fseek (f, 0, SEEK_END); const long n = std::ftell (f) / 4; std::fseek (f, 0, SEEK_SET);
     std::vector<float> x ((size_t) n); if (std::fread (x.data(), 4, (size_t) n, f) != (size_t) n) return 1; std::fclose (f);
-    const double sr = std::atof (argv[2]); polypitch::Engine e; e.setSemitones (std::atof (argv[3])); e.setResponse (argc > 4 ? std::atoi (argv[4]) : 0); e.prepare (sr);
+    const double sr = std::atof (argv[2]); polypitch::Engine e; e.setSemitones (std::atof (argv[3])); e.setResponse (argc > 4 ? std::atoi (argv[4]) : 0); e.setLite (argc > 5 && std::atoi (argv[5]) != 0); e.prepare (sr);
     std::vector<double> bt; double acc = 0.0, sum = 0.0;
     for (long i = 0; i + 64 <= n; i += 64)
     {

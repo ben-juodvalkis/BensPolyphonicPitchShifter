@@ -3,6 +3,7 @@
     python tests/held_chords.py                    the C++ engine at +12
     python tests/held_chords.py reference 7 12     another target (engine | reference | plugin), other intervals
     python tests/held_chords.py engine clean       with the response set to balanced or clean
+    python tests/held_chords.py engine lite        with the quality set to lite
 
 Ten sustained chords in the high, sparse register, where every partial should come out as one clean line. Each note
 is a plucked-string model. In five of the chords every partial is a close pair (0.3 to 2.5 Hz apart), as a real
@@ -51,11 +52,11 @@ def run(target="engine", sts=(12,), response=0):
     fn = engines.BY_NAME[target]
     for st in sts:
         x, segs = build(st); y = fn(x, st, response=response); r = 2 ** (st / 12); rows = [(nm, line_dirt(x[a:a + n], y[a:a + n], r), flutter(y[a + int(0.4 * SR):a + n - int(0.15 * SR)])) for nm, a, n in segs]
-        print(f"{target} {st:+d}{', ' + engines.RESPONSES[response] + ' response' if response else ''}: held chords from 0.4 s on, dirt / flutter (dB)")
+        print(f"{target} {st:+d}{', ' + engines.RESPONSES[response] + ' response' if response else ''}{', lite' if engines.LITE else ''}: held chords from 0.4 s on, dirt / flutter (dB)")
         for nm, d, fl in rows: print(f"    {nm:24s} {d:6.1f} / {fl:6.1f}")
         print(f"    {'mean':24s} {np.mean([d for _, d, _ in rows]):6.1f} / {np.mean([fl for _, _, fl in rows]):6.1f}")
 
 
 if __name__ == "__main__":
-    a = sys.argv[1:]; target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
+    a = engines.words(sys.argv[1:]); target = a[0] if a and a[0] in engines.BY_NAME else "engine"; resp = max([engines.RESPONSES.index(v) for v in a if v in engines.RESPONSES] + [0])
     run(target, tuple(int(v) for v in a if v not in engines.BY_NAME and v not in engines.RESPONSES) or (12,), resp)
