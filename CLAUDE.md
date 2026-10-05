@@ -16,7 +16,8 @@ and judges by behavior and by ear, not by code.
   `max/tools/maxpatch.py`.
 - `tests/`: synthetic signals with exact answers, the scorecard, engine against reference.
 - `docs/how-it-works.md` first, then `docs/design-notes.md` (what was tried and why it failed) before changing the
-  engine. `docs/benchmarks.md` holds every number the README quotes.
+  engine. `docs/benchmarks.md` holds every number the README quotes. `docs/controls.md` says what each control does
+  to the sound; when a control changes, it changes in the same commit.
 
 ## From edit to main
 

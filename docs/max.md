@@ -39,8 +39,8 @@ Install it with `scripts/install-macos.sh max`, which copies the package into `~
 | `@quality` | 0 = full (default); 1 = lite: about four fifths of the CPU shifting down and under three fifths shifting up, and clean, steady chords come out a few dB less clean in their upper harmonics; 2 = eco: about a third of full's CPU, the bands looked at every 64 samples instead of every 32, and shifting up nothing above 10.5 kHz. |
 | `clear` | Forget everything heard so far. |
 
-The shifted sound is mono (the two inputs summed) and goes to both outlets. The dry signal passes in stereo and is
-never delayed.
+`docs/controls.md` says what each setting does to the sound. The shifted sound is mono (the two inputs summed) and
+goes to both outlets. The dry signal passes in stereo and is never delayed.
 
 Changing `semitones` while audio runs restarts the engine's bands, which can click; so does changing `response`
 while shifting up, and changing `quality`. That is on the roadmap.

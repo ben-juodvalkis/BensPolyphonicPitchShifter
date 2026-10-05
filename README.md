@@ -52,14 +52,15 @@ and how to run each test, are in `docs/building.md`. The Max side is described i
 
 ## Controls
 
-| | |
-|---|---|
-| **Semitones** | -12 to +12 |
-| **Mix** | 0 = dry only, 50 = both at full level, 100 = shifted only |
-| **Tone** | How much of a tone curve fitted to the interval is applied to the shifted sound. An octave down is brightened above 1 kHz; an octave up is darkened a little. 0 = flat. |
-| **Response** | Shifting up only: how late an attack may come out for a cleaner sound. **Fast** (the default): about 8 ms. **Balanced**: about 12 ms; pure intervals and mixes come out cleaner. **Clean**: about 16 ms; the middle note of a full chord comes out at its right loudness and dense playing is cleanest, but a vibrato is followed less closely. Shifting down it changes nothing. |
+| | Range | Default | |
+|---|---|---|---|
+| **Semitones** | -12 to +12 | -12 | The interval, in whole semitones. |
+| **Mix** | 0 to 100 | 100 | 0 = dry only, 50 = both at full level, 100 = shifted only. |
+| **Tone** | 0 to 100 | 100 | How much of a tone curve fitted to the interval is applied to the shifted sound: an octave down is brightened above 1 kHz, an octave up darkened a little. 0 = flat. |
+| **Response** | Fast, Balanced, Clean | Fast | Shifting up only: how late an attack may come out (about 8, 12 or 16 ms) for a cleaner sound. Clean brings out the middle note of a full chord, which Fast leaves too quiet. |
+| **Quality** | Full, Lite, Eco | Full | How much work the engine does. Lite takes under three fifths of the CPU shifting up, Eco about a third, each for a little less cleanliness. |
 
-| **Quality** | **Full** (the default), **Lite** or **Eco**. Lite takes about four fifths of the CPU shifting down and under three fifths shifting up: it looks for two notes beating in a band only below 2.5 kHz, and shifting up it runs the extra bands only below 1.25 kHz. Recordings of guitars came out within 0.7 dB of Full; clean, steady chords are a few dB less clean in their upper harmonics. Eco takes about a third of Full's CPU, less than the commercial shifter below at any interval: it is Lite with the bands looked at every 64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz. With Response on Balanced it is as late as that shifter and within about a decibel of it where that shifter is strongest. |
+`docs/controls.md` says what each setting does to the sound, with the numbers.
 
 The shifted sound is mono (the inputs summed); the dry signal passes in stereo.
 
@@ -96,7 +97,7 @@ played straight from the input when shifting down, which is why they are only 2 
 | `max/` | The Max package with `polypitch~`, the Max for Live device, and the scripts that generate and check them |
 | `reference/` | The same algorithm in Python, which the engine is tested against, and the band-filter design |
 | `tests/` | Synthetic test signals, the scorecard and its regression gate |
-| `docs/` | How it works, benchmarks, design notes, building, Max |
+| `docs/` | The controls, how it works, benchmarks, design notes, building, Max |
 
 ## Licence
 
