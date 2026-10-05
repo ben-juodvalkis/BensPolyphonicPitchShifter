@@ -43,7 +43,7 @@ public:
         if (first) { gWet = gwTarget; gDry = gdTarget; first = false; }
         for (int i = 0; i < n; ++i)
         {
-            const double l = (double) inL[i], r = inR != nullptr ? (double) inR[i] : l, x = inR != nullptr ? 0.5 * (l + r) : l;
+            const double l = finiteOrZero ((double) inL[i]), r = inR != nullptr ? finiteOrZero ((double) inR[i]) : l, x = inR != nullptr ? 0.5 * (l + r) : l;
             const double wet = engine.processSample (x);
             const double a = b0 * wet + s1; s1 = b1 * wet - a1 * a + s2; s2 = b2 * wet - a2 * a;           // first shelf
             const double w = c0 * a + u1;   u1 = c1 * a - e1 * w + u2;   u2 = c2 * a - e2 * w;             // second shelf
@@ -61,6 +61,9 @@ private:
     bool first = true;
 
     void clearState() { s1 = s2 = u1 = u2 = 0.0; first = true; gwTarget = mixGain (mix); gdTarget = mixGain (1.0 - mix); }
+
+    // an input sample that is not a number, or is infinite, counts as silence on the dry side too (the engine does the same for itself)
+    static double finiteOrZero (double v) { return std::isfinite (v) ? v : 0.0; }
 
     // both at full level at 50 %, and below that the quieter side falls on a dB curve
     static double mixGain (double u)

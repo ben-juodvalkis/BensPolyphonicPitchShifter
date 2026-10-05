@@ -511,6 +511,7 @@ def shift(x, st, sr=SR, response=0, K=None, tau_ms=None, tail_ms=None, H=32, fma
     to None differ between shifting up and shifting down (and with the response) and are filled in below.
     debug=True also returns per-hop diagnostics; debug="bands" returns every band's output and the event lists."""
     x = np.asarray(x, np.float64); r = 2 ** (st / 12); up = r > 1.0001; resp = min(max(int(response), 0), 2) if up else 0; clean = resp == 2
+    x = np.where(np.isfinite(x), x, 0.0)                # a sample that is not a number, or is infinite, counts as silence (as in the engine)
     # The band filter. Shifting down: 512 bands 86 Hz apart, 12 ms delay (the bridge hides it). Shifting up, fast: the same bands
     # behind an 8 ms filter, and twice as many of them (`over`, below). Balanced: as fast, behind the 12 ms filter, which lets
     # less of each partial into the bands around it. Clean: 1024 bands 43 Hz apart, each half as wide, 16 ms delay. Where three

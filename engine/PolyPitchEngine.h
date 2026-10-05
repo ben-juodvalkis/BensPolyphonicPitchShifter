@@ -171,6 +171,7 @@ public:
     // one sample in, one wet sample out
     double processSample (double x)
     {
+        if (! std::isfinite (x)) x = 0.0;      // a sample that is not a number, or is infinite, counts as silence: once in, it would stay in every running sum for good
         xring[(size_t) (t & (XN - 1))] = x;
         if ((t % H) == 0) analyzeFrame();
         // attack detector: the 1 ms level against the highest it has been lately (held, released over 80 ms, read 3 ms back)

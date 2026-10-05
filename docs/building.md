@@ -41,7 +41,8 @@ Developer ID signature and notarization (see `ROADMAP.md`).
 ## Test
 
 ```
-scripts/gate.sh                                 # the gate: builds the tools, engine against reference, scorecard at -12, +2 and +12 (+12 in each response)
+scripts/gate.sh                                 # the gate: builds the tools, bad input samples, engine against reference, scorecard at -12, +2 and +12 (+12 in each response)
+.venv/bin/python tests/test_bad_samples.py      # input samples that are not numbers, or infinite: the output stays finite (part of the gate)
 .venv/bin/python tests/scorecard.py engine all  # all six intervals
 .venv/bin/python tests/held_chords.py           # sustained chords after the attack (octave up; another interval as an argument)
 .venv/bin/python tests/moving_pitch.py          # a slide, a bend and a vibrato: how far the pitch trails and how much it wobbles

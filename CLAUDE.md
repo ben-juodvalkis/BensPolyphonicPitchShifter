@@ -20,8 +20,9 @@ and judges by behavior and by ear, not by code.
 
 ## From edit to main
 
-1. `scripts/gate.sh` (about four minutes): builds the tools, engine against reference at 44.1 and 48 kHz, scorecard
-   at -12, +2 and +12 (and at +12 in the balanced and clean responses) inside its limits. It must pass before a commit.
+1. `scripts/gate.sh` (about four minutes): builds the tools, input samples that are not numbers counted as silence,
+   engine against reference at 44.1 and 48 kHz, scorecard at -12, +2 and +12 (and at +12 in the balanced and clean
+   responses) inside its limits. It must pass before a commit.
 2. If the sound changed, run `python tests/scorecard.py engine all` and put the before and after lines in the
    commit message. If a number in `docs/benchmarks.md` or the README moved, update it in the same commit.
 3. Commit to `main`. Push only when Ben asks.
