@@ -58,3 +58,6 @@ and judges by behavior and by ear, not by code.
   `docs/benchmarks.md` because the average hid them.
 - numba: unifying a `prange` index with an int32 array element gives float64. Cast to `np.int64` before indexing.
 - `auval -a` scans every Audio Unit and takes many minutes. Validate one: `auval -v aufx PlyP Bjuo`.
+- CPU numbers move with whatever else the computer is doing. Compare before and after in the same sitting, runs
+  interleaved, and take the lowest of several; trust the 99.9th-percentile block of `polypitch_profile`, not the
+  single heaviest one.

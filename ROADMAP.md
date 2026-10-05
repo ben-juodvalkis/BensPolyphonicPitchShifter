@@ -3,21 +3,19 @@
 Ordered by what would help most. Numbers quoted here are from `docs/benchmarks.md`; each item says how to tell when
 it is done.
 
-## Order of work: sound before speed
+## Order of work: speed now
 
-Decided 2026-10-04. Work through section 3 (sound) before most of section 2 (performance). The one performance
-item that could not wait is done: nothing is allocated on the audio thread any more (crossing between shifting up
-and shifting down used to load a filter there, a dropout risk on stage).
+Decided 2026-10-05, after a day of "sound before speed". The sound work that was planned is in: held chords and
+slides, the Response control, small shifts up (section 3 has what is left, all of it small or research-sized). What
+stands between the engine and a stage now is section 2: the average load is fine, but the work arrives in lumps.
 
-1. **Now: sound** (section 3). These change what the engine computes, and each idea is tried in the Python
-   reference first. Some will cost CPU (a long-history mode for held chords), so the final load is not known until
-   they are in.
-2. **Any time: the faster transform and the vectorized band loop** (section 2). The same math done faster; the gate
-   proves the sound did not move. Worth doing early if the sound work needs the headroom.
-3. **Last: spreading the analysis and doing less of it** (section 2). Both change when and which bands are checked,
-   which is the logic the sound work rewrites. Optimizing it first would mean doing it twice.
-
-Revisit this if the CPU load or the 128-sample buffer gets in the way of live playing before the sound work is done.
+1. **Now: performance** (section 2), in the order given there, which comes from a measurement of where the time
+   goes and not from the guesses this file used to hold. The transform, for one, is a sixteenth of the load.
+2. **The sound is held in place while that happens.** Work that only does the same sums faster must leave the
+   output as it is: the gate proves it, and so does a bit-for-bit comparison with the build before. Work that
+   changes when or how often a band is looked at changes the sound a little; that is a sound change like any
+   other: reference first, both directions and all three responses scored, the docs' numbers updated.
+3. **Sound again afterwards**, steered by what playing it turns up.
 
 ## 1. Before a first public release
 
@@ -38,18 +36,35 @@ Revisit this if the CPU load or the 128-sample buffer gets in the way of live pl
 
 ## 2. Performance
 
-Today: 8 to 10 % of one core shifting down and 19 to 21 % shifting up (48 kHz, Apple M1 Max), with the worst
-64-sample block taking 33 % and 64 % of its time slot.
+Today: 8 to 10 % of one core shifting down and 17 to 21 % shifting up (48 kHz, Apple M1 Max). A 64-sample block
+takes 15 % of its time slot at the median and 51 % at the 99.9th percentile at octave up (6 % and 24 % at octave
+down). `build/tools/polypitch_profile` says where it goes, and `docs/benchmarks.md` ("Cost") has the table: at
+octave up the band loop is 7.5 points of the 18.6, the likeness curves 4.7, the decisions 3.4 (1.5 of them fitting
+readers to their neighbors), the per-band work at each frame 1.3, the transform 1.2.
 
-- **Spread the analysis.** The engine compares every band with its past in one lump every 128 samples. Keeping
-  those sums running frame by frame instead costs the same on average and removes the peak. Done when the worst
-  64-sample block stays under 25 % of its slot at octave up.
-- **Do less of it.** Most bands hold one partial most of the time and need only a coarse check; the full comparison
-  can be kept for bands in doubt and bands already on a reader.
-- **A faster transform.** The band values come from a plain double-precision FFT written for clarity. A real,
-  single-precision FFT (vDSP on Apple, pffft elsewhere) would cut that part several times over.
-- **Vectorize the band loop.** The per-sample work is the same few multiplications for every band.
-- Target: under 5 % shifting down and under 10 % shifting up.
+In this order:
+
+- **Spread the work that is done every 128 samples.** The likeness curves and the decisions for every band happen
+  on one sample: 31 of the 47 % of a time slot in the heavy blocks. Two ways. Keep the decisions where they are and
+  build the curves as the frames arrive (the same numbers, so the same sound up to rounding). Or look at a quarter
+  of the bands at each frame, which moves each band's decision by up to 2 ms and is therefore a small sound change
+  (reference first). By arithmetic, either takes the heavy blocks from about 50 % to about 30 %. Done, together
+  with the next item, when the 99.9th-percentile 64-sample block is under 25 % of its slot at octave up.
+- **Fitting a reader to its neighbors** is 10 of the 17 % that decisions take in the heavy blocks: each fit tries
+  up to 21 positions, and there are 11 fits per check on average at octave up. Spread the fits over the following
+  frames, or make one fit cheaper.
+- **Do less of the curves.** At octave up 125 of 213 bands are awake and about 30 are on readers; the rest hold one
+  steady partial and are compared with their past at every lag from 2 to 100 ms, every 128 samples, all the same. A coarse check for
+  those, and the full one for bands in doubt and bands on readers. This changes which bands are looked at when: a
+  sound change, to be scored as one.
+- **Vectorize the band loop.** The largest part of the average: the same few multiplications for every band at
+  every sample, with branches in the way (plain or reader, fading or not). The same sums done faster; the output
+  must not move.
+- **The transform and the per-band work at each frame**: 2.5 points together at octave up. A real, single-precision
+  FFT (vDSP on Apple, pffft elsewhere, behind the same call so the engine keeps its no-dependency fallback) and a
+  cheaper phase and loudness per band. Last, because it is the least.
+- Target: under 5 % shifting down and under 10 % shifting up, and the 99.9th-percentile 64-sample block under 25 %
+  of its slot, so that a 64-sample buffer is safe.
 
 ## 3. Sound
 

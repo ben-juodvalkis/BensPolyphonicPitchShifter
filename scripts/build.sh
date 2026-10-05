@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build PolyPitch. Usage: scripts/build.sh [tools] [plugin] [max]     (no arguments = all three)
-#   tools   build/tools/polypitch_cli and polypitch_load (what the tests run)
+#   tools   build/tools/polypitch_cli and polypitch_load (what the tests run), and polypitch_profile (where the time goes)
 #   plugin  build/plugin: the AU and VST3 (needs JUCE 8: -DJUCE_DIR, or ~/JUCE, or it is fetched)
 #   max     max/PolyPitch/externals/polypitch~.mxo (needs Cycling '74's max-sdk-base: set C74_SDK=/path/to/max-sdk-base)
 set -e
@@ -13,7 +13,8 @@ for w in $what; do
       for t in polypitch_cli polypitch_load; do
         c++ -std=c++17 -O3 -ffast-math -fno-finite-math-only -o build/tools/$t tools/$t.cpp
       done
-      echo "built build/tools/polypitch_cli and polypitch_load" ;;
+      c++ -std=c++17 -O3 -ffast-math -fno-finite-math-only -DPOLYPITCH_PROFILE -o build/tools/polypitch_profile tools/polypitch_profile.cpp
+      echo "built build/tools/polypitch_cli, polypitch_load and polypitch_profile" ;;
     plugin)
       cmake -S plugin -B build/plugin -DCMAKE_BUILD_TYPE=Release ${JUCE_DIR:+-DJUCE_DIR="$JUCE_DIR"} > build/plugin-configure.log 2>&1 || { tail -20 build/plugin-configure.log; exit 1; }
       cmake --build build/plugin -j 8 > build/plugin-build.log 2>&1 || { grep -E "error" build/plugin-build.log | head -20; exit 1; }

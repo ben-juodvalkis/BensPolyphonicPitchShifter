@@ -260,12 +260,35 @@ Measured with `build/tools/polypitch_load` on DI chord takes at 48 kHz, one core
 The worst block is high because the engine does its analysis in one lump every 128 samples. Until that is spread
 out (see `ROADMAP.md`), use a buffer of 128 samples or more.
 
+Where the time goes (`build/tools/polypitch_profile`, one DI chord take, Fast response; the least disturbed of four
+runs):
+
+| Stage | How often | Octave up | Octave down |
+|---|---|---|---|
+| The band loop: one output sample from every band | every sample | 7.5 % of a core | 3.8 % |
+| Likeness curves: every band against its own past | every 128 samples | 4.7 | 2.1 |
+| Decisions: plain or reader, jumps, who follows whom | every 128 samples | 3.4 | 1.1 |
+| (of the decisions: fitting a reader to its neighbors) | | (1.5) | (0.2) |
+| Per-band work at a frame: loudness, phase, smoothing | every 32 samples | 1.3 | 0.6 |
+| The transform | every 32 samples | 1.2 | 0.5 |
+| The window | every 32 samples | 0.3 | 0.3 |
+| All | | 18.6 | 8.5 |
+
+| 64-sample blocks, share of their time slot | Median | 99th percentile | 99.9th | Heaviest |
+|---|---|---|---|---|
+| Octave up | 15 % | 44 % | 51 % | 63 % |
+| Octave down | 6 % | 19 % | 24 % | 29 % |
+
+In the heaviest hundredth of the blocks at octave up, 31 of the 47 % of the slot are the work done every 128
+samples, and 10 of those are fitting readers. The single heaviest block is a noisy number (it depends on what else
+the computer is doing); the 99.9th percentile repeats.
+
 Shifting up by less than a fifth costs a point less (17 to 19 % at +2 and +5): fewer bands are on readers.
 
-Shifting up, the three responses cost the same on average: 19 to 21 % on Fast and on Balanced, 18 to 22 % on Clean
-(at +7 and +12, same takes). Clean's worst block measured higher, 80 to 90 % of its time slot against 60 to 70 %,
-with other programs running on the machine; its filter is twice as long, and so is what has to be redone at an
-attack.
+Shifting up, the three responses cost the same: 19 to 21 % on Fast and on Balanced, 18 to 22 % on Clean (at +7 and
++12, same takes), and their heavy blocks are alike (99.9th percentile 51 % of the slot on Fast, 53 % on Clean). An
+earlier reading of 80 to 90 % for Clean's single worst block was taken while the computer was busier and did not
+repeat.
 
 ## Sample rates
 

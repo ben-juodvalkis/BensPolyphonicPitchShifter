@@ -17,7 +17,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ## Build
 
 ```
-scripts/build.sh tools                                   # build/tools/polypitch_cli, polypitch_load
+scripts/build.sh tools                                   # build/tools/polypitch_cli, polypitch_load, polypitch_profile
 scripts/build.sh plugin                                  # build/plugin/.../PolyPitch.vst3 and PolyPitch.component
 C74_SDK=/path/to/max-sdk-base scripts/build.sh max       # max/PolyPitch/externals/polypitch~.mxo
 scripts/build.sh                                         # all three
@@ -63,6 +63,7 @@ build/tools/polypitch_cli in.f32 out.f32 48000 -12            # raw 32-bit float
 build/tools/polypitch_cli in.f32 out.f32 48000 -12 50 100     # with Mix 50 and Tone 100: the whole processor
 build/tools/polypitch_cli in.f32 out.f32 48000 12 response=2  # shifting up with another response: 0 fast, 1 balanced, 2 clean
 build/tools/polypitch_load in.f32 48000 12                    # CPU load and the worst 64-sample block (a fourth argument sets the response)
+build/tools/polypitch_profile in.f32 48000 12                 # where the time goes, stage by stage (built with timers in the engine)
 ```
 
 ## The band-filter tables
@@ -91,7 +92,7 @@ does not do yet.
 | `max/PolyPitch/` | The Max package: object source, help patch, package description. |
 | `max/device/Ben's Polyphonic Pitch Shifter.amxd` | The Max for Live device. |
 | `max/tools/` | Generators for the device and help patch, and the in-Max check. |
-| `tools/` | The command-line harness and the load meter. |
+| `tools/` | The command-line harness, the load meter and the profile. |
 | `tests/` | Signals, measures, the scorecard, the held-chord, moving-pitch and strummed-chord tests, the engine-against-reference test, the plug-in test. |
 | `scripts/` | Build, install, gate. |
 | `docs/` | How it works, benchmarks, design notes, Max notes. |

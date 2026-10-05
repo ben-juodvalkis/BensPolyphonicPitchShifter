@@ -25,12 +25,37 @@
 #include <algorithm>
 #include "PolyPitchFilters.h"
 
+// Built with -DPOLYPITCH_PROFILE (tools/polypitch_profile.cpp does) the engine keeps the time it spends in each stage of
+// its work. No other build has any of it: the two macros below then stand for nothing.
+#ifdef POLYPITCH_PROFILE
+ #include <chrono>
+ #define POLYPITCH_STAGE_START(s) StageTimer stageTimer (stageTime, s)
+ #define POLYPITCH_STAGE_NEXT(s) stageTimer.next (s)
+#else
+ #define POLYPITCH_STAGE_START(s)
+ #define POLYPITCH_STAGE_NEXT(s)
+#endif
+
 namespace polypitch
 {
 
 class Engine
 {
 public:
+#ifdef POLYPITCH_PROFILE
+    // seconds spent, by stage. sPlacement is part of sDecisions (fitting a reader to its neighbours); the rest do not overlap.
+    enum Stage { sWindow, sTransform, sFrameBands, sCurves, sDecisions, sPlacement, sAttacks, sLoopFrameStart, sLoop, numStages };
+    mutable double stageTime[numStages] = {};
+    static double stageNow() { return std::chrono::duration<double> (std::chrono::steady_clock::now().time_since_epoch()).count(); }
+    struct StageTimer
+    {
+        double* acc; int s; double t0;
+        StageTimer (double* a, int st) : acc (a), s (st), t0 (stageNow()) {}
+        void next (int st) { const double n = stageNow(); acc[s] += n - t0; s = st; t0 = n; }
+        ~StageTimer() { acc[s] += stageNow() - t0; }
+    };
+#endif
+
     void prepare (double sampleRate)
     {
         sr = sampleRate;
@@ -130,19 +155,21 @@ public:
         if (brActive) { dirP += ratio; if (dirFade > 0) dirPOld += ratio; }
         if (unity) { ++t; return x; }
 
-        if (flag && t >= wait) onAttack();
+        if (flag && t >= wait) { POLYPITCH_STAGE_START (sAttacks); onAttack(); }
         if (pendSwitch >= 0 && t >= pendSwitch)
         {
+            POLYPITCH_STAGE_START (sAttacks);
             // the bands take over from the direct reader: all at one position, where they are the same signal
             for (int k = 0; k < kS; ++k) emit (k, t, 0, pendDelay, 0.0, k, 0, 1);
             pendSwitch = -1;
         }
         if ((t % hop) == 0 && pendSwitch < 0) control();
-        if (pend >= 0 && t >= pend) phaseReset();
+        if (pend >= 0 && t >= pend) { POLYPITCH_STAGE_START (sAttacks); phaseReset(); }
 
         // the bands. Between frames a plain band's loudness and phase run in straight lines, and a reader's carrier turns
         // at a fixed rate, so each stretch is a spinning vector that is set exactly once per frame (and when it changes)
         double y = 0.0; const bool tick = ((t - 1) % H) == 0;
+        POLYPITCH_STAGE_START (tick ? sLoopFrameStart : sLoop);
         for (int k = 1; k < kmax; ++k)
         {
             const size_t i = (size_t) k;
@@ -304,6 +331,7 @@ private:
 
     void analyzeFrame()
     {
+        POLYPITCH_STAGE_START (sWindow);
         // band k centred at k sr / K:  Z_k = e^{-j w_k t} sum_n x[t - n] h[n] e^{+j w_k n}
         for (int q = 0; q < Kb; ++q)
         {
@@ -311,7 +339,9 @@ private:
             for (int n = q; n < L; n += Kb) acc += xring[(size_t) ((t - n) & (XN - 1))] * h[(size_t) n];
             fftRe[(size_t) q] = acc; fftIm[(size_t) q] = 0.0;
         }
+        POLYPITCH_STAGE_NEXT (sTransform);
         fft (true);
+        POLYPITCH_STAGE_NEXT (sFrameBands);
         const int64_t m = t / H; mNow = m; const size_t col = (size_t) (m & FM);
         const int tm = (int) (t % Kb);
         for (int k = 0; k < kB; ++k)
@@ -475,6 +505,7 @@ private:
     // the turn that lines a new stretch of band k up with the running one over the last M*step samples of output
     double align (int k, int mo, double to, double dOld, double po, int lo, int jo, int mn, double dn, int ln, int jn, double step) const
     {
+        POLYPITCH_STAGE_START (sPlacement);
         double cr = 0.0, ci = 0.0;
         for (int j = 0; j < M; ++j)
         {
@@ -490,6 +521,7 @@ private:
     // (at the phase the bands have between them in the input)
     void place (int k, int mn, double dn0, int jn, double lo, double hi, int nc, double step, int WlP, double& bd, double& bp)
     {
+        POLYPITCH_STAGE_START (sPlacement);
         const int64_t m0 = t / H; double ir[2] = { 0.0, 0.0 }, ii[2] = { 0.0, 0.0 }; const int nbs[2] = { k - 1, k + 1 };
         WlP = std::min (WlP, NF - 4);
         for (int q = 0; q < 2; ++q)
@@ -631,6 +663,7 @@ private:
     {
         const int64_t m0 = t / H;
         if (m0 - lmax - Wn * ws - 2 < 0) return;
+        POLYPITCH_STAGE_START (sCurves);
         double emax = 0.0;
         for (int k = 1; k < kmax; ++k)
         {
@@ -664,6 +697,7 @@ private:
                 c[i] = v;
             }
         }
+        POLYPITCH_STAGE_NEXT (sDecisions);
         for (int k = 1; k < kmax; ++k)
         {
             const size_t i = (size_t) k; int st = 0; double Jf = -1.0, cf = 0.0;
@@ -821,3 +855,6 @@ private:
 };
 
 } // namespace polypitch
+
+#undef POLYPITCH_STAGE_START
+#undef POLYPITCH_STAGE_NEXT
