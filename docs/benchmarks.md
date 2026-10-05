@@ -51,9 +51,9 @@ Balanced is the same bands behind a longer filter (12 ms instead of 8), which le
 bands around it. Clean has bands half as wide behind a 16 ms filter. Single notes are in tune to 0.1 to 0.3 cents
 and their timbre within 0.2 dB in all three. The gate also runs the +12 row of Balanced and of Clean.
 
-All four tests here also take the word `lite` (`python tests/scorecard.py engine lite all`), which runs them with
-the Quality control on Lite; its numbers are under "Lite" below, and the gate runs its -12, +2 and +12 rows against
-the same limits as Full's.
+All four tests here also take the words `lite` and `eco` (`python tests/scorecard.py engine lite all`), which run
+them with the Quality control on that setting; their numbers are under "Lite and Eco" below. The gate runs Lite's
+-12, +2 and +12 rows against the same limits as Full's, and Eco's against limits of its own (`GATE_ECO`).
 
 `python tests/held_chords.py` measures what that table averages away: ten sustained chords in the high, sparse
 register, from 0.4 s into each chord, where every partial should come out as one clean line. In five of them each
@@ -228,12 +228,14 @@ followed less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 
 mixes but the roughest on the two-take mix of the first table (a bass line with a guitar line, and two guitar
 lines), which lost 3 dB on Clean when small shifts got their own settings while the other two responses gained.
 
-### Lite
+### Lite and Eco
 
-The Quality control's Lite setting (`docs/how-it-works.md`, step 7) takes about four fifths of Full's CPU shifting
-down and under three fifths shifting up ("Cost" below). It looks for beating only below 2.5 kHz of the input and,
-shifting up on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. Everything above this section is
-Full. The same tests, Full / Lite, on the Fast response:
+The Quality control (`docs/how-it-works.md`, step 7) has two settings that do less. Lite takes about four fifths of
+Full's CPU shifting down and under three fifths shifting up ("Cost" below): it looks for beating only below 2.5 kHz
+of the input and, shifting up on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. Eco takes about a
+third of Full's CPU, less than the reference device's shifter at any interval: it is Lite with the bands looked at
+every 64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz. Everything above this
+section is Full. The same tests, Full / Lite, on the Fast response:
 
 | Shift | Pairs under -40 dB (of 28) | Two-note chords | Full chords |
 |---|---|---|---|
@@ -274,6 +276,49 @@ With the other responses (the scorecard at +2 / +7 / +12, Full then Lite): Balan
 -40.4 / -37.3 / -33.4 against -40.3 / -36.6 / -31.7. On the real recordings both are within 0.7 dB of Full, as
 Fast is. Synthetic held chords at +12: Balanced -39.1 against -35.7 dB, Clean -37.1 against -35.8.
 
+**Eco**, the same tests, Lite / Eco, on the Fast response (`python tests/scorecard.py engine eco all`):
+
+| Shift | Pairs under -40 dB (of 28) | Two-note chords | Full chords | Attack late by |
+|---|---|---|---|---|
+| -12 | 28 / 27 | -40.1 / -40.4 dB | -36.5 / -36.5 dB | 2.1 / 2.1 ms |
+| -5 | 28 / 28 | -43.9 / -42.8 | -36.6 / -36.9 | 1.4 / 1.4 |
+| -2 | 28 / 28 | -45.3 / -44.8 | -40.1 / -38.8 | 1.2 / 1.2 |
+| +2 | 27 / 26 | -42.9 / -42.1 | -38.2 / -38.3 | 8.5 / 9.1 |
+| +7 | 27 / 28 | -35.9 / -38.7 | -33.8 / -34.3 | 7.8 / 8.5 |
+| +12 | 25 / 26 | -31.8 / -32.1 | -27.9 / -28.6 | 7.4 / 8.9 |
+
+| Real recordings, Lite / Eco | -12 | -5 | -2 | +2 | +7 | +12 |
+|---|---|---|---|---|---|---|
+| Twelve pairs of DI takes mixed | -29.3 / -28.5 dB | -31.0 / -29.7 | -31.2 / -31.4 | -27.0 / -26.2 | -22.9 / -21.7 | -21.0 / -19.8 |
+| Chords built from single notes | -35.5 / -35.1 dB | -39.1 / -38.7 | -42.6 / -42.0 | -37.0 / -33.4 | -32.0 / -31.1 | -28.5 / -28.3 |
+| Loop mixes | -25.2 / -25.1 dB | -27.8 / -27.9 | -28.2 / -26.8 | -24.4 / -22.9 | -21.0 / -21.0 | -19.9 / -19.3 |
+
+| Lite / Eco | |
+|---|---|
+| Eleven real held chords at +12: dirt, flutter | -27.0 / -26.6 dB, -20.8 / -20.5 dB |
+| Ten synthetic held chords at +12: dirt, flutter | -33.9 / -32.0 dB, -37.4 / -36.9 dB |
+| Strummed chords, strums 0.6 s apart, at -12, +2, +7, +12 | -32.4 / -29.5, -28.3 / -28.2, -20.9 / -20.0, -18.3 / -17.5 dB |
+| Pitch that moves at octave down: a slide trails by, wobbles | 8.1 / 9.0 ms, 3.3 / 3.8 cents |
+| Pitch that moves at octave up: a bend trails by, a vibrato wobbles | 12.0 / 12.3 ms, 3.9 / 4.1 cents |
+
+Eco is meant to be played with Response on Balanced shifting up, where it is as late as the reference device (12 to
+13 ms) and comes closest to it. Real recordings, reference device / Eco on Balanced, at +2 / +7 / +12: twelve DI
+pairs -27.5 / **-28.5**, **-24.5** / -23.7, -22.1 / -22.2 dB; chords built from single notes -32.1 / **-35.4**,
+-29.0 / **-32.4**, -26.2 / **-28.7**; loop mixes -23.9 / -24.1, -21.6 / **-22.6**, -19.6 / **-20.5**; held chords
+at octave up **-28.4** / -27.2 (flutter -20.8 / -20.9). Shifting down Eco keeps most of this shifter's lead (the tables above against
+"Real recordings"). What the reference device keeps: the ten clean synthetic held chords at octave up, -40.0 dB
+against Eco's -33.9 on Balanced, and about 1 dB on the DI pairs at +7. Eco on Balanced scores, at +2 / +5 / +7 /
++12: pairs under -40 dB 27 / 27 / 28 / 27, two-note chords -46.1 / -42.3 / -40.4 / -32.8 dB, full chords
+-39.1 / -36.3 / -33.6 / -28.9, attacks 13.2 / 12.8 / 12.4 / 11.8 ms; on Clean 25 / 28 / 28 / 28, -43.3 / -41.3 /
+-39.0 / -35.0, -39.3 / -37.9 / -35.8 / -32.0, 17.2 / 16.8 / 16.4 / 15.8 ms.
+
+The middle note of a full chord ("The three responses" below): on Eco it is 3.1 / 0.8 / 2.5 dB off on Fast at
++2 / +7 / +12 (Full 1.6 / 2.2 / 4.5) and 1.6 / 1.3 / 2.2 on Balanced (Full 1.2 / 0.4 / 2.5), but on Clean 5.8 dB
+off at octave up against Full's 0.7: Eco on Clean loses what Clean is for.
+
+The top octave of the shifted sound is where the two settings differ most to the ear: at octave up Full and Lite put
+out the input's 5 to 10 kHz at 10 to 20 kHz, Eco and the reference device do not.
+
 ## Where Ben's Polyphonic Pitch Shifter is behind
 
 - **Mixes going up by a fifth or more, on the Fast response**: on twelve pairs of DI takes the reference device is
@@ -306,29 +351,33 @@ Fast is. Synthetic held chords at +12: Balanced -39.1 against -35.7 dB, Clean -3
 
 ## Cost
 
-At 48 kHz on one core of an Apple M4, one DI chord take, measured with `build/tools/polypitch_load` (Full and Lite
-interleaved, the lowest of eight; the average load, and the 99.9th-percentile 64-sample block as a share of its
-1.33 ms):
+At 48 kHz on one core of an Apple M4, one DI chord take, measured with `build/tools/polypitch_load` (the three
+qualities interleaved, the lowest of eight; the average load, and the 99.9th-percentile 64-sample block as a share
+of its 1.33 ms):
 
-| | Full | Lite |
-|---|---|---|
-| Octave down | 2.3 %, block 6.1 % | 1.9 %, block 5.6 % |
-| +2 | 4.1 %, 7.7 % | 2.4 %, 4.5 % |
-| +7 | 4.5 %, 8.7 % | 2.6 %, 4.8 % |
-| Octave up | 4.6 %, 9.5 % | 2.6 %, 5.2 % |
-| Octave up, Balanced | 4.6 %, 9.2 % | 2.6 %, 5.1 % |
-| Octave up, Clean | 4.6 %, 8.6 % | 3.6 %, 6.9 % |
+| | Full | Lite | Eco |
+|---|---|---|---|
+| Octave down | 2.2 %, block 5.8 % | 1.8 %, block 5.4 % | 1.2 %, block 4.7 % |
+| -2 | 2.0 %, 5.9 % | 1.6 %, 5.7 % | 1.1 %, 5.1 % |
+| +2 | 4.0 %, 7.3 % | 2.3 %, 4.2 % | 1.4 %, 3.2 % |
+| +7 | 4.4 %, 8.2 % | 2.5 %, 4.4 % | 1.5 %, 3.2 % |
+| Octave up | 4.5 %, 8.9 % | 2.6 %, 4.7 % | 1.5 %, 3.5 % |
+| Octave up, Balanced | 4.5 %, 8.7 % | 2.6 %, 4.6 % | 1.5 %, 3.3 % |
+| Octave up, Clean | 4.5 %, 7.9 % | 3.5 %, 6.4 % | 1.9 %, 3.8 % |
 
 The heavy blocks matter more than the average: a buffer of 64 samples has to be finished inside its 1.33 ms every
-time. Heavier material costs a little more: at octave up a DI take of chord stabs 4.6 % with 9 % of the slot in the
-heavy block (Lite 2.6 % and 5 %), and a synthetic signal that keeps 84 bands on readers 5.8 % and 11 % (Lite 3.1 %
-and 6 %).
+time. Both figures vary by about a tenth from one sitting to the next. Heavier material costs a little more: at
+octave up a DI take of chord stabs 4.5 % with 9 % of the slot in the heavy block (Lite 2.6 % and 5 %, Eco 1.5 %
+and 3 %), and a synthetic signal that keeps 84 bands on readers 5.6 % and 10 % (Lite 3.1 % and 5 %, Eco 2.0 %
+and 4 %).
 
 Lite (the Quality control; `docs/how-it-works.md`, step 7) looks for beating only below 2.5 kHz and, shifting up
-on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. What that costs in sound is under "Lite" above.
-On Clean it only has the first of the two to save on. Where Lite's 2.6 % at octave up goes: the band loop 0.8, the
-transform 0.5 (it is still the 1024-point one), decisions 0.4, the curves 0.4, per-band work at a frame 0.3, the
-window 0.2.
+on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. Eco is Lite with the bands looked at every 64
+samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz. What they cost in sound is under
+"Lite and Eco" above. On Clean, Lite only has the first of its two things to save on. Where Lite's 2.6 % at octave
+up goes: the band loop 0.8, the transform 0.5 (it is still the 1024-point one), decisions 0.4, the curves 0.4,
+per-band work at a frame 0.3, the window 0.2. Eco halves all of it but the band loop, and the band loop is two
+fifths shorter for the bands that would land above 10.5 kHz.
 
 **Before the performance work** (the engine of commit `83187b0`) the same computer took 5.6, 11.2, 12.3 and 12.5 %
 on average and 14.0, 25.9, 31.5 and 33.9 % of the slot in the heavy block (the stab take 14.3 % and 36 % at octave
@@ -343,8 +392,9 @@ the chord take with 10 % and 16 % of the slot in the heavy block, and Lite 2.9 %
 For scale, the reference device's shifter was timed as a black box: its plug-in with nothing in it but that
 shifter, hosted the same way as this project's own plug-in and timed in the same 64-sample blocks on the same take
 and computer. It takes 1.9 % of a core whatever the interval, and 4 to 5 % of the slot in its 99.9th-percentile
-block. This shifter's plug-in, timed in that host in the same sitting: on Full 2.5 % at octave down and 4.7 % at
-octave up, 6 % and 10 % of the slot; on Lite 2.1 % and 2.8 %, 6 % and 6 % of the slot.
+block. This shifter's plug-in, timed in that host in the same sitting: on Full 2.4 % at octave down and 4.6 % at
+octave up, 6 % and 9 % of the slot; on Lite 2.0 % and 2.7 %, 6 % and 5 %; on Eco 1.4 % and 1.6 %, 5 % and 4 %
+(1.2 % at two semitones down, where the device read 1.8 % and 4 % in that sitting).
 
 What changed (`docs/design-notes.md`, "Speed", has the measurements):
 

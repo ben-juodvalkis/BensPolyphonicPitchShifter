@@ -17,7 +17,8 @@
 // filter: fast (8 ms), balanced (the same bands behind 12 ms) or clean (bands half as wide behind 16 ms). Each step is
 // cleaner and lets an attack out 4 ms later.
 // Beating is looked for only in the bands below 5 kHz of the input. Quality "lite" does less for less CPU: below 2.5 kHz,
-// and shifting up (fast and balanced) with the doubled bands only below 1.25 kHz.
+// and shifting up (fast and balanced) with the doubled bands only below 1.25 kHz. "Eco" is lite with frames of 64 samples
+// instead of 32 and, shifting up, nothing above 10.5 kHz.
 //
 // Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).
 #pragma once
@@ -73,24 +74,18 @@ public:
     void prepare (double sampleRate)
     {
         sr = sampleRate;
-        hopf = std::max ((int) std::lround (2.9 * sr / 1000.0 / H), 1); hop = hopf * H;
-        Wn = std::max ((int) std::lround (24.0 * sr / 1000.0 / H / ws), 2);
-        lmin = std::max ((int) std::lround (2.2 * sr / 1000.0 / H), 1);
-        lmax = std::min ((int) (100.0 * sr / 1000.0 / H), NF / 3); nl = lmax - lmin + 1;
-        nPar = (hopf & 1) ? 2 : 1;                                                    // (checks fall on even frames only, unless a hop is an odd number of frames)
+        frameSettings();
         xf = (int) (2.6667 * sr / 1000.0);
         hold = (int) (0.012 * sr); settle = (int) (25.0 * sr / 1000.0);
         dA0 = 1.0 * sr / 1000.0; twait = 40.0 * sr / 1000.0; pre = (int) (2.0 * sr / 1000.0);
-        Wl = std::max ((int) (12.0 * sr / 1000.0 / H), 4); wmin = 0.012 * sr;
+        wmin = 0.012 * sr;
         afc = 1.0 - std::exp (-1.0 / (0.001 * sr)); rel = std::exp (-1.0 / (0.080 * sr));
         onsD = std::max ((int) (0.003 * sr), 1); onsBuf.assign ((size_t) onsD, 0.0);
         kS = std::min ((int) (std::min (fmax, 0.45 * sr) * KMAX / sr), KMAX / 2);      // room for the larger bank
-        dpv = (double) (H + 1);
         xring.assign (XN, 0.0);
         Zr.assign ((size_t) kS * 2 * NF, 0.0f); Zi.assign ((size_t) kS * 2 * NF, 0.0f);
         Am.assign ((size_t) kS * NF, 0.0); Um.assign ((size_t) kS * NF, 0.0); Cm.assign ((size_t) kS * NF, 0.0); lastAng.assign ((size_t) kS, 0.0);
         Us.assign ((size_t) kS * NF, 0.0); fsm.assign ((size_t) kS, 0.0); ebm.assign ((size_t) kS, 0.0); epm.assign ((size_t) kS, 0.0);
-        smA = 1.0 - std::exp (-1.0 / (5.0 * sr / 1000.0 / H)); smE = 1.0 - std::exp (-1.0 / (15.0 * sr / 1000.0 / H));
         const size_t n = (size_t) kS;
         kOf.assign (n, 0); kGap.assign (n, 1); w2.assign (n, 2.0); lockC2.assign ((size_t) NF, 0.0); lockS2.assign ((size_t) NF, 0.0);
         mode.assign (n, 1); omode.assign (n, 1); lead.assign (n, 0); olead.assign (n, 0); fade.assign (n, 0); flen.assign (n, 1); sjn.assign (n, 0); ojn.assign (n, 0);
@@ -109,8 +104,9 @@ public:
             fadeG.assign ((size_t) off, 0.0);
             for (int q = 0; q < 4; ++q) for (int j = 0; j <= fl[q]; ++j) { const double g = (double) j / (double) fl[q]; fadeG[(size_t) (fadeOff[q] + j)] = 0.5 - 0.5 * std::cos (kPi * g); }
         }
-        E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) nl, 0.0); scnt.assign (n, 0); Js.assign (n, 0.0);
-        Lr.assign ((size_t) nPar * n * (size_t) nl, 0.0); Li.assign ((size_t) nPar * n * (size_t) nl, 0.0); Ei.assign (n * NW, 0.0); eN = 4; while (eN < 2 * Wn + 2) eN *= 2;
+        E0.assign (n, 0.0); on.assign (n, 0); cpair.assign (n, 0.0); wk.assign (n, 0.0); CO.assign (n * (size_t) (NF / 3), 0.0); scnt.assign (n, 0); Js.assign (n, 0.0);
+        Lr.assign (2 * n * (size_t) (NF / 3), 0.0); Li.assign (2 * n * (size_t) (NF / 3), 0.0); Ei.assign (n * NW, 0.0);     // (room for either frame length: NF / 3 lags, two kinds of frame)
+        { const int wn32 = std::max ((int) std::lround (24.0 * sr / 1000.0 / 32 / ws), 2); eN = 4; while (eN < 2 * wn32 + 2) eN *= 2; }
         Eh.assign ((size_t) eN * n, 0.0); Ew.assign (n * 2, 0.0); Lpk.assign ((size_t) nPar * n, 0.0);
         fftRe.assign ((size_t) KMAX, 0.0); fftIm.assign ((size_t) KMAX, 0.0);
         lockC.assign ((size_t) NF, 0.0); lockS.assign ((size_t) NF, 0.0); mags.assign (32, 0.0);
@@ -139,7 +135,8 @@ public:
         xfu = up ? std::max (xf / 2, 2) : xf;
         flr = (double) (2 * H + 2 + (up ? (int) ((ratio - 1.0) * xfu) + 2 : 0));
         drift = 1.0 - ratio;
-        { const int ql = std::min ((int) (std::min (fmax, 0.45 * sr / std::max (ratio, 1.0)) * Kb / sr), kS); kmax = 0; while (kmax < kB && kOf[(size_t) kmax] < ql) ++kmax; }
+        // the bands in use: up to 10 kHz of the input, or what lands below the Nyquist frequency (eco: below 10.5 kHz, where the reference device's sound ends too)
+        { const int ql = std::min ((int) (std::min (fmax, std::min (0.45 * sr, quality >= 2 ? fecoTop : 1e9) / std::max (ratio, 1.0)) * Kb / sr), kS); kmax = 0; while (kmax < kB && kOf[(size_t) kmax] < ql) ++kmax; }
         usebr = ! up && ! unity;
         placeMode = up ? 2 : 3; pgain = up ? 0.3 : 0.5;
         for (size_t k = 0; k < stC.size(); ++k) { stC[k] = std::cos (wk[k] * ratio); stS[k] = std::sin (wk[k] * ratio); }      // a reader's carrier turns this much per sample
@@ -160,18 +157,34 @@ public:
     }
     int getResponse() const { return response; }
 
-    // Quality: full (the default) or lite. Lite does less, for about four fifths of the CPU shifting down and under three fifths
-    // shifting up: beating is looked for only in the bands below 2.5 kHz of the input instead of 5, and shifting up on the fast
-    // and balanced responses only the bands below 1.25 kHz are doubled (loadFilter). On real recordings that came out within
-    // 0.7 dB of full; clean, steady chords are 2 to 6 dB less clean in their upper harmonics (docs/benchmarks.md). Changing it
-    // restarts the bands, as changing the interval does.
-    void setLite (bool on)
+    // what follows from the frame length (32 samples; 64 on eco)
+    void frameSettings()
     {
-        if (on == lite) return;
-        lite = on;
-        if (sr > 0.0) { loaded = -1; setSemitones (semis); }
+        H = quality >= 2 ? 64 : 32; hMask = H - 1; rH = 1.0 / H;
+        hopf = std::max ((int) std::lround (2.9 * sr / 1000.0 / H), 1); hop = hopf * H;
+        Wn = std::max ((int) std::lround (24.0 * sr / 1000.0 / H / ws), 2);
+        lmin = std::max ((int) std::lround (2.2 * sr / 1000.0 / H), 1);
+        lmax = std::min ((int) (100.0 * sr / 1000.0 / H), NF / 3); nl = lmax - lmin + 1;
+        nPar = (hopf & 1) ? 2 : 1;                                                    // (checks fall on even frames only, unless a hop is an odd number of frames)
+        Wl = std::max ((int) (12.0 * sr / 1000.0 / H), 4); dpv = (double) (H + 1);
+        smA = 1.0 - std::exp (-1.0 / (5.0 * sr / 1000.0 / H)); smE = 1.0 - std::exp (-1.0 / (15.0 * sr / 1000.0 / H));
     }
-    bool getLite() const { return lite; }
+
+    // Quality: 0 = full (the default), 1 = lite, 2 = eco. Lite does less, for about four fifths of the CPU shifting down and
+    // under three fifths shifting up: beating is looked for only in the bands below 2.5 kHz of the input instead of 5, and
+    // shifting up on the fast and balanced responses only the bands below 1.25 kHz are doubled (loadFilter). On real recordings
+    // that came out within 0.7 dB of full; clean, steady chords are 2 to 6 dB less clean in their upper harmonics. Eco is lite
+    // with the bands looked at every 64 samples instead of every 32 (frameSettings) and, shifting up, nothing put out above
+    // 10.5 kHz (setSemitones): about a third of full's CPU, within about a decibel of lite on real recordings
+    // (docs/benchmarks.md). Changing it restarts the bands, as changing the interval does.
+    void setQuality (int q)
+    {
+        q = std::max (0, std::min (2, q));
+        if (q == quality) return;
+        quality = q;
+        if (sr > 0.0) { frameSettings(); loaded = -1; setSemitones (semis); }
+    }
+    int getQuality() const { return quality; }
 
     void reset()
     {
@@ -189,7 +202,7 @@ public:
     {
         if (! std::isfinite (x)) x = 0.0;      // a sample that is not a number, or is infinite, counts as silence: once in, it would stay in every running sum for good
         xring[(size_t) (t & (XN - 1))] = x;
-        if ((t % H) == 0) analyzeFrame();
+        if ((t & hMask) == 0) analyzeFrame();
         // attack detector: the 1 ms level against the highest it has been lately (held, released over 80 ms, read 3 ms back)
         const double v = std::abs (x);
         ef += afc * (v - ef);
@@ -212,7 +225,7 @@ public:
 
         // the bands. Between frames a plain band's loudness and phase run in straight lines, and a reader's carrier turns
         // at a fixed rate, so each stretch is a spinning vector that is set exactly once per frame (and when it changes)
-        const bool tick = ((t - 1) % H) == 0;
+        const bool tick = ((t - 1) & hMask) == 0;
         POLYPITCH_STAGE_START (tick ? sLoopFrameStart : sLoop);
         if (tick)                                                 // a new frame is in: every vector is set afresh, all the sines and cosines in one go
         {
@@ -252,12 +265,12 @@ public:
         // the readers: what each one reads at this sample
         if (nRd > 0)
         {
-            const double qn = ((double) t - flr) / H, fln = std::floor (qn), fn = qn - fln; const int64_t im = (int64_t) fln;      // (the band's level now is taken here: readerGain)
+            const double qn = ((double) t - flr) * rH, fln = std::floor (qn), fn = qn - fln; const int64_t im = (int64_t) fln;      // (the band's level now is taken here: readerGain)
             if (im != imSeen) { imSeen = im; ++rdGen; }
             for (int n = 0; n < nRd; ++n)
             {
                 const int k = rdList[(size_t) n]; const size_t i = (size_t) k; ReaderFrames& c = rframes[i];
-                const double p = st0[i] - sd0[i] + ratio * ((double) t - st0[i]), q = p / H, fl = std::floor (q), f = q - fl; const int64_t ip = (int64_t) fl;
+                const double p = st0[i] - sd0[i] + ratio * ((double) t - st0[i]), q = p * rH, fl = std::floor (q), f = q - fl; const int64_t ip = (int64_t) fl;
                 if (ip != c.i || c.gen != rdGen) fetchReader (k, ip, im, sjn[i], c);
                 double zr = 0.0, zi = 0.0, g = 1.0;
                 if (c.okZ)
@@ -330,12 +343,13 @@ public:
 
 private:
     static constexpr double kPi = 3.14159265358979323846;
-    static constexpr int KMAX = 1024, H = 32, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48, NW = 256, nTaper = 4;
-    static constexpr double fmax = 10000.0, fread = 5000.0, freadLite = 2500.0, fdense = 1250.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
+    static constexpr int KMAX = 1024, NF = 512, FM = NF - 1, XN = 8192, ws = 2, M = 16, nIn = 3, xa = 48, NW = 256, nTaper = 4;
+    static constexpr double fmax = 10000.0, fread = 5000.0, freadLite = 2500.0, fdense = 1250.0, fecoTop = 10500.0, efloor = 1e-5, rho = 0.7, cabs = 0.9, tol2 = 0.01, clock = 0.95;
 
     double sr = 0.0, semis = -12.0, ratio = 0.5, drift = 0.5, flr = 66.0, dpv = 33.0, dA0 = 44.1, twait = 1764.0, wmin = 529.2, dw = 0.0, pgain = 0.5, tauD = 529.0, dropIn = 0.004, dropOut = 0.004;
     double smA = 0.0, smE = 0.0, slj = 0.0, slq = 0.5;
     bool up = false, unity = false, usebr = true, prepared = false, configured = false, designed = false;
+    int H = 32, hMask = 31; double rH = 1.0 / 32.0;         // the frame length (frameSettings), its mask and reciprocal (exact: a power of two)
     int tau = 529, L = 3176, hopf = 4, hop = 128, Wn = 17, lmin = 3, lmax = 137, nl = 135, xf = 117, xfu = 117, hold = 529, settle = 1102, pre = 88, Wl = 16, kmax = 116, kS = 116, placeMode = 3, Kb = 512, over = 1, nOut = 3, kB = 116, kR = 58, nls = 135, nPar = 1;
     int fresh[2] = { 1, 1 };
     int64_t sumsFor[2] = { 0, 1 };
@@ -353,7 +367,7 @@ private:
     struct Bank { std::vector<double> h, twC, twS, swC, swS; std::vector<int> rev; int K = 512, over = 1, tau = 0, L = 0; bool designed = false; };      // one band filter and its FFT twiddles
     Bank banks[4];                                                    // [0] shifting down; shifting up: [1] fast, [2] balanced, [3] clean. Made in prepare()
     int response = 0, loaded = -1;
-    bool lite = false;
+    int quality = 0;
     std::vector<int> kOf, kGap;                              // which of the bank's bands band k is, and how many of them the next band is away (loadFilter)
     std::vector<double> w2, lockC2, lockS2;                  // twice each band's weight in the output; the turn between two bands that are two apart
     int binTop = 0;                                          // one more than the highest of the bank's bands in use
@@ -470,7 +484,7 @@ private:
         // to the same everywhere and a partial near the join keeps its loudness. kGap: how many of the bank's bands the next band
         // is away (the phase between two neighbours turns that many times as fast: control, fitNeighbours).
         {
-            const int nbin = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS), kx = (lite && over == 2) ? (((int) (fdense * Kb / sr)) & ~1) : -1; int nb = 0;
+            const int nbin = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS), kx = (quality >= 1 && over == 2) ? (((int) (fdense * Kb / sr)) & ~1) : -1; int nb = 0;
             for (int q = 0; q < nbin; ++q)
             {
                 if (kx >= 0 && q > kx && (q & 1)) continue;
@@ -483,7 +497,7 @@ private:
         }
         // Beating is looked for only in the bands below 5 kHz of the input: above that it changed no measure, synthetic or real, to
         // treat every band as plain, and those are half the bands (docs/design-notes.md, "Doing less"). Lite: below 2.5 kHz.
-        { const int qr = (int) ((lite ? freadLite : fread) * Kb / sr); kR = 0; while (kR < kB && kOf[(size_t) kR] < qr) ++kR; }
+        { const int qr = (int) ((quality >= 1 ? freadLite : fread) * Kb / sr); kR = 0; while (kR < kB && kOf[(size_t) kR] < qr) ++kR; }
         if (configured) clearFrames();          // frames made with the other filter are no use
         configured = true;
     }
@@ -597,7 +611,7 @@ private:
         atan2Many (fIm.data(), fRe.data(), fAng.data(), kB);
         for (int k = 0; k < kB; ++k)
         {
-            const double re = fRe[(size_t) k], im = fIm[(size_t) k], ang = fAng[(size_t) k];
+            const double re = fRe[(size_t) k], im = fIm[(size_t) k], ang = (re == 0.0 && im == 0.0) ? 0.0 : fAng[(size_t) k];      // (digital silence has no phase: 0, not the pi a negative zero would give)
             const size_t c1 = (size_t) k * NF + col, c0 = (size_t) k * NF + (size_t) ((m - 1) & FM), f1 = col * (size_t) kS + (size_t) k, f0 = (size_t) ((m - 1) & FM) * (size_t) kS + (size_t) k;
             Am[f1] = std::sqrt (re * re + im * im);
             Cm[c1] = (m == 0 ? 0.0 : Cm[c0]) + re * re + im * im;                           // energy so far (for the readers' loudness correction)
@@ -652,7 +666,8 @@ private:
     // without its newest term (j = 1 .. Wn - 1), which needs nothing of that frame. At a check control() adds the newest term
     // for the bands that are awake and scales. All the rest is done here, on a frame that has no check, so that it never falls
     // into the same 64 samples as the decisions; it is the same work whatever the bands hold. (Only for the bands below kR: the ones
-    // above are never looked at for a beat.)
+    // above are never looked at for a beat. With 64-sample frames, eco, every second frame is a check and the sums are advanced
+    // there; a quarter of the work of 32-sample frames.)
     // A running sum keeps the rounding of everything that has passed through it, which is nothing beside a loud band and would be
     // something beside the same band 100 dB quieter. So a band is summed afresh, from the frames themselves, when its level has
     // fallen 40 dB below the highest it has been since the last time (at most 16 bands in one call, so that a sudden silence is
@@ -714,7 +729,7 @@ private:
 
     inline void zat (int k, double p, double& re, double& im) const
     {
-        const double q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
+        const double q = p * rH, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
         if (i < 1 || i + 2 > mNow || i - 1 <= mNow - NF) { re = 0.0; im = 0.0; return; }
         const float* zr = &Zr[(size_t) k * 2 * NF]; const float* zi = &Zi[(size_t) k * 2 * NF];
         const size_t ia = (size_t) ((i - 1) & FM), ib = (size_t) (i & FM), ic = (size_t) ((i + 1) & FM), id = (size_t) ((i + 2) & FM);
@@ -727,7 +742,7 @@ private:
 
     inline double ulin (int k, double p) const
     {
-        const double q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
+        const double q = p * rH, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
         if (! frameOk (i) || ! frameOk (i + 1)) return 0.0;
         const double* u = leadPhase(); const double a = u[(size_t) (i & FM) * (size_t) kS + (size_t) k], b = u[(size_t) ((i + 1) & FM) * (size_t) kS + (size_t) k];
         return a + f * (b - a);
@@ -738,7 +753,7 @@ private:
     inline double readerGain (int k, double p, double tt, int Jn) const
     {
         if (Jn <= 0) return 1.0;
-        const double qp = p / H, flp = std::floor (qp), fp = qp - flp, qn = (tt - flr) / H, fln = std::floor (qn), fn = qn - fln;
+        const double qp = p * rH, flp = std::floor (qp), fp = qp - flp, qn = (tt - flr) * rH, fln = std::floor (qn), fn = qn - fln;
         const int64_t ip = (int64_t) flp, im = (int64_t) fln;
         if (! (frameOk (ip - Jn) && frameOk (ip + 1) && frameOk (im - Jn) && frameOk (im + 1))) return 1.0;
         const double* c = &Cm[(size_t) k * NF];
@@ -754,7 +769,7 @@ private:
     // A plain stretch of band k (leader Ld, turn ps) at time tt: its loudness and its phase. False where there are no frames.
     inline bool plainAt (int k, double tt, double ps, int Ld, double& a, double& ph) const
     {
-        const double p = tt - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
+        const double p = tt - dpv, q = p * rH, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
         if (! frameOk (i) || ! frameOk (i + 1)) return false;
         const size_t r0 = (size_t) (i & FM) * (size_t) kS, r1 = (size_t) ((i + 1) & FM) * (size_t) kS, kk = (size_t) k, ll = (size_t) Ld;
         a = Am[r0 + kk] + f * (Am[r1 + kk] - Am[r0 + kk]); const double* ul = leadPhase();
@@ -769,14 +784,14 @@ private:
     {
         if (md == 1)
         {
-            const double p = (double) t - dpv, q = p / H, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
+            const double p = (double) t - dpv, q = p * rH, fl = std::floor (q); const int64_t i = (int64_t) fl; const double f = q - fl;
             if (! frameOk (i) || ! frameOk (i + 1)) { ph = 0.0; sl = 0.0; amp = 0.0; damp = 0.0; return; }
             const size_t r0 = (size_t) (i & FM) * (size_t) kS, r1 = (size_t) ((i + 1) & FM) * (size_t) kS, kk = (size_t) k, ll = (size_t) Ld;
             const double* lp = leadPhase();
             const double a0 = Am[r0 + kk], a1 = Am[r1 + kk], uk = Um[r1 + kk] - Um[r0 + kk], ul = lp[r1 + ll] - lp[r0 + ll];
-            amp = a0 + f * (a1 - a0); damp = (a1 - a0) / H;
+            amp = a0 + f * (a1 - a0); damp = (a1 - a0) * rH;
             ph = Um[r0 + kk] + f * uk + wk[kk] * (p - tauD) + (ratio - 1.0) * (lp[r0 + ll] + f * ul + wk[ll] * (p - tauD)) + ps;
-            sl = uk / H + wk[(size_t) k] + (ratio - 1.0) * (ul / H + wk[(size_t) Ld]); return;
+            sl = uk * rH + wk[(size_t) k] + (ratio - 1.0) * (ul * rH + wk[(size_t) Ld]); return;
         }
         const double p = t0 - d0 + ratio * ((double) t - t0);
         ph = wk[(size_t) k] * (p - tauD) + ps; sl = 0.0; amp = 0.0; damp = 0.0;
@@ -871,7 +886,7 @@ private:
         const double* cm = &Cm[kk * NF]; auto at = [cm] (int64_t i) { return cm[(size_t) (i & FM)]; };
         for (int j = 0; j < M; ++j)
         {
-            const double tt = (double) t - j * step, qn = (tt - flr) / H, fln = std::floor (qn), fn = qn - fln; const int64_t im = (int64_t) fln;
+            const double tt = (double) t - j * step, qn = (tt - flr) * rH, fln = std::floor (qn), fn = qn - fln; const int64_t im = (int64_t) fln;
             fitT[j] = tt; fitC[j] = c; fitS[j] = s; fitOk[j] = frameOk (im - jn) && frameOk (im + 1);
             fitEn[j] = fitOk[j] ? at (im) + fn * (at (im + 1) - at (im)) - at (im - jn) - fn * (at (im - jn + 1) - at (im - jn)) : 0.0;
             const double c2 = c * dc - s * ds; s = c * ds + s * dc; c = c2;
@@ -923,7 +938,7 @@ private:
             const double p = (double) t - d + ratio * (fitT[j] - (double) t); double zr, zi, g = 1.0; zat (k, p, zr, zi);
             if (fitOk[j])
             {
-                const double qp = p / H, flp = std::floor (qp), fp = qp - flp; const int64_t ip = (int64_t) flp;
+                const double qp = p * rH, flp = std::floor (qp), fp = qp - flp; const int64_t ip = (int64_t) flp;
                 if (frameOk (ip - jn) && frameOk (ip + 1))
                 {
                     const double ep = at (ip) + fp * (at (ip + 1) - at (ip)) - at (ip - jn) - fp * (at (ip - jn + 1) - at (ip - jn)), en = fitEn[j];
@@ -1164,10 +1179,10 @@ private:
             {
                 if (cin[i] >= nIn && t >= quietUntil && t >= busy[i] && pend < 0)
                 {
-                    const double Jk = Jc[i] * H, stp = std::max (Jk, wmin) / ratio / M; double dn = up ? flr + Jk : flr, ps; const int jnk = std::max ((int) std::nearbyint (Jk / H), 1);
+                    const double Jk = Jc[i] * H, stp = std::max (Jk, wmin) / ratio / M; double dn = up ? flr + Jk : flr, ps; const int jnk = std::max ((int) std::nearbyint (Jk * rH), 1);
                     if (placeMode == 1 || placeMode == 2)       // anywhere within one beat: where the neighbours' shares fit
                     {
-                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (Jk / H), 8));
+                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (Jk * rH), 8));
                         fitSearch (k, jnk, dn, 0.0, Jk * 15.0 / 16.0, 16, dn, ps);
                         fitSearch (k, jnk, dn, -Jk / 24.0, Jk / 24.0, 5, dn, ps);
                         if (dn < flr) dn = flr;
@@ -1186,7 +1201,7 @@ private:
                     if (std::abs (Jf * H - J[i]) <= 0.08 * J[i]) { J[i] = Jf * H; keep = true; }
                     else
                     {
-                        double Jn, cn; nearPeak (k, J[i] / H, Jn, cn);
+                        double Jn, cn; nearPeak (k, J[i] * rH, Jn, cn);
                         if (Jn > 0.0 && cn >= cf - tol2) { J[i] = Jn * H; keep = true; }
                         else if (cin[i] >= nIn) { J[i] = Jf * H; keep = true; }
                     }
@@ -1212,12 +1227,12 @@ private:
                 else if (t >= busy[i]) { while (dn - J[i] >= flr) dn -= J[i]; }
                 if (dn != dk)
                 {
-                    const double stp = std::max (J[i], wmin) / ratio / M; double ps; const int jnk = std::max ((int) std::nearbyint (J[i] / H), 1);
+                    const double stp = std::max (J[i], wmin) / ratio / M; double ps; const int jnk = std::max ((int) std::nearbyint (J[i] * rH), 1);
                     if (placeMode >= 2)                          // the jump, give or take an eighth of a beat, part of the way: keeps the shares in step
                     {
                         double lo = -J[i] / 8.0, dq;
                         if (dn + lo < flr) lo = flr - dn;
-                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (J[i] / H), 8));
+                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (J[i] * rH), 8));
                         fitSearch (k, jnk, dn, lo, J[i] / 8.0, 9, dq, ps);
                         if (pgain < 1.0) { dn = dn + pgain * (dq - dn); ps = fitAlign (k, jnk, dn); }
                         else dn = dq;

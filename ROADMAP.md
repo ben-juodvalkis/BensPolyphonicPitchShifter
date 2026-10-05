@@ -40,7 +40,8 @@ Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"):
 core shifting down and 4 to 5 % shifting up, and the 99.9th-percentile 64-sample block takes 6 % of its time slot
 at octave down and 10 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
 of the slot. Heavier material (chord stabs, or many bands on readers) takes 4.6 to 5.8 % at octave up and 9 to
-11 % of the slot. With Quality on Lite: 1.9 % shifting down and 2.4 to 2.6 % shifting up, 6 % and 5 % of the slot.
+11 % of the slot. With Quality on Lite: 1.9 % shifting down and 2.4 to 2.6 % shifting up, 6 % and 5 % of the slot;
+on Eco 1.2 % and 1.4 to 1.5 %, 5 % and 3 to 4 %.
 
 The targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and
 has not been measured since. On the M4 they come to about 3.3 %, 6.6 % and 15 %: the chord take and the heavier
@@ -90,6 +91,12 @@ Done:
   Full; clean, steady chords lose 2 to 6 dB in their upper harmonics (`docs/benchmarks.md`, "Lite";
   `docs/design-notes.md`, "Doing less"). The switch is in the plug-in, the Max object and the device; in Max and
   in Live it has not been tried yet.
+- **Eco, a third Quality setting that costs less than the reference device's shifter at any interval** (1.2 % at
+  octave down, 1.5 % at octave up): Lite with the bands looked at every 64 samples instead of every 32, and
+  shifting up nothing put out above 10.5 kHz, which is where the reference device's own sound ends. On real
+  recordings it is within 1.4 dB of Lite shifting down and about a decibel shifting up; with Response on Balanced
+  it is as late as the reference device and within about a decibel of it where that device leads. The one clear
+  loss: clean synthetic held chords at octave up, 6 dB behind the reference device.
 
 Left:
 
@@ -97,13 +104,13 @@ Left:
   envelope could be kept as a ready polynomial per frame, and old readers in a fade go the slow way), the plain
   stretches in a fit, the band loop in single precision (output within rounding, to be shown), and doing nothing
   while the input is silent.
-- **Lite's transform.** Lite shifting up still runs the 1024-point transform for the few odd bands it keeps at
-  the bottom: 0.5 % of its 2.6 %. The even bands are a 512-point transform's worth, and the odd ones below
-  1.25 kHz are 13.
+- **Lite's and Eco's transform.** Shifting up they still run the 1024-point transform for the few odd bands they
+  keep at the bottom: 0.5 % of Lite's 2.6 %. The even bands are a 512-point transform's worth, and the odd ones
+  below 1.25 kHz are 13.
 - **The M1 Max has not been measured since any of this** (set aside on 2026-10-05). The targets were under 5 %
   shifting down, under 10 % shifting up and the 99.9th-percentile 64-sample block under 25 % of its slot. By the
-  old engine's ratio between the two computers Full would be at about 3.5 %, 7.0 % and 16 % there and Lite at
-  2.9 %, 4.0 % and 9 %. A first sitting on that computer (2026-10-05, before the 5 kHz change) was disturbed by
+  old engine's ratio between the two computers Full would be at about 3.5 %, 7.0 % and 16 % there, Lite at
+  2.9 %, 4.0 % and 9 % and Eco at 1.8 %, 2.3 % and 6 %. A first sitting on that computer (2026-10-05, before the 5 kHz change) was disturbed by
   other programs and is not recorded here; its gate and scorecard matched this computer's exactly.
 - **Do less of the curves, or look at a quarter of the bands at each frame**, only if that is not enough: both
   change which bands are looked at when, so both are sound changes (reference first). The first also needs a
@@ -111,8 +118,8 @@ Left:
   checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at octave up; 83
   fall and stay down, 41 fall and come back).
 - For scale: the reference device's shifter, timed as a black box, takes 1.9 % of a core on the M4 whatever the
-  interval; this shifter's plug-in in the same host 2.5 % at octave down and 4.7 % at octave up on Full, 2.1 % and
-  2.8 % on Lite.
+  interval; this shifter's plug-in in the same host 2.4 % at octave down and 4.6 % at octave up on Full, 2.0 % and
+  2.7 % on Lite, 1.4 % and 1.6 % on Eco.
 
 ## 3. Sound
 

@@ -23,7 +23,7 @@ source (below).
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
 | Chord notes in tune to | 0.4 cents | 0.2 cents |
 | Dirt on full plucked chords (lower is cleaner) | -37.4 dB | -28.8 dB |
-| CPU, one core at 48 kHz (Apple M4) | 2.3 % (Lite: 1.9 %) | 4.6 % (Lite: 2.6 %) |
+| CPU, one core at 48 kHz (Apple M4) | 2.3 % (Lite 1.9 %, Eco 1.2 %) | 4.6 % (Lite 2.6 %, Eco 1.5 %) |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
@@ -59,7 +59,7 @@ and how to run each test, are in `docs/building.md`. The Max side is described i
 | **Tone** | How much of a tone curve fitted to the interval is applied to the shifted sound. An octave down is brightened above 1 kHz; an octave up is darkened a little. 0 = flat. |
 | **Response** | Shifting up only: how late an attack may come out for a cleaner sound. **Fast** (the default): about 8 ms. **Balanced**: about 12 ms; pure intervals and mixes come out cleaner. **Clean**: about 16 ms; the middle note of a full chord comes out at its right loudness and dense playing is cleanest, but a vibrato is followed less closely. Shifting down it changes nothing. |
 
-| **Quality** | **Full** (the default) or **Lite**. Lite takes about four fifths of the CPU shifting down and under three fifths shifting up. It looks for two notes beating in a band only below 2.5 kHz, and shifting up it runs the extra bands only below 1.25 kHz. Recordings of guitars came out within 0.7 dB of Full; clean, steady chords are a few dB less clean in their upper harmonics. |
+| **Quality** | **Full** (the default), **Lite** or **Eco**. Lite takes about four fifths of the CPU shifting down and under three fifths shifting up: it looks for two notes beating in a band only below 2.5 kHz, and shifting up it runs the extra bands only below 1.25 kHz. Recordings of guitars came out within 0.7 dB of Full; clean, steady chords are a few dB less clean in their upper harmonics. Eco takes about a third of Full's CPU, less than the commercial shifter below at any interval: it is Lite with the bands looked at every 64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz. With Response on Balanced it is as late as that shifter and within about a decibel of it where that shifter is strongest. |
 
 The shifted sound is mono (the inputs summed); the dry signal passes in stereo.
 

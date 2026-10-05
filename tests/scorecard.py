@@ -4,7 +4,7 @@
     python tests/scorecard.py reference -12 7     another target (engine | reference | plugin), other intervals
     python tests/scorecard.py engine all          all six intervals (-12 -5 -2 +2 +7 +12)
     python tests/scorecard.py engine clean 12     with the response set to balanced or clean (it only matters shifting up)
-    python tests/scorecard.py engine lite         with the quality set to lite
+    python tests/scorecard.py engine lite         with the quality set to lite (or eco)
 
 What is measured (per interval, one test signal of about two minutes):
   pairs    28 pairs of sines (4 registers x 7 intervals): power that is not the two shifted tones, dB re them.
@@ -16,7 +16,8 @@ What is measured (per interval, one test signal of about two minutes):
 
 Exit status 1 if a gated interval (-12, +2 and +12; +12 for the balanced and clean responses) falls outside the limits in
 GATE or GATE_RESPONSE: a regression guard, set a little looser than what the engine scores today (docs/benchmarks.md).
-Lite on the fast response is held to the same limits as full (it scores inside them); lite with another response has none.
+Lite on the fast response is held to the same limits as full (it scores inside them); eco to GATE_ECO; either with another
+response has none.
 """
 import sys, time, json, os
 import numpy as np
@@ -36,6 +37,10 @@ PL = ("E2", "A2", "G3", "E4", "A4", "E5")
 GATE = {-12: (("pairs_clean", 26, "min"), ("dyads_db", -37.0, "max"), ("chords_db", -34.0, "max"), ("chord_cents", 1.5, "max"), ("attack_ms", 3.0, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),
         2: (("pairs_clean", 25, "min"), ("dyads_db", -39.0, "max"), ("chords_db", -37.0, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 9.5, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),      # a shift up by less than a fifth has settings of its own
         12: (("pairs_clean", 23, "min"), ("dyads_db", -31.0, "max"), ("chords_db", -27.0, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 8.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))}
+# eco (the quality that does the least): a little looser than what it scores today
+GATE_ECO = {-12: (("pairs_clean", 26, "min"), ("dyads_db", -37.0, "max"), ("chords_db", -34.0, "max"), ("chord_cents", 1.5, "max"), ("attack_ms", 3.0, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),
+            2: (("pairs_clean", 25, "min"), ("dyads_db", -39.0, "max"), ("chords_db", -36.0, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 10.0, "max"), ("note_cents", 0.5, "max"), ("timbre_db", 1.5, "max")),
+            12: (("pairs_clean", 23, "min"), ("dyads_db", -30.0, "max"), ("chords_db", -26.5, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 9.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))}
 # the same for the balanced (1) and clean (2) responses, which only matter shifting up
 GATE_RESPONSE = {1: {12: (("pairs_clean", 24, "min"), ("dyads_db", -31.5, "max"), ("chords_db", -28.5, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 12.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))},
                  2: {12: (("pairs_clean", 25, "min"), ("dyads_db", -31.0, "max"), ("chords_db", -31.5, "max"), ("chord_cents", 1.0, "max"), ("attack_ms", 16.5, "max"), ("note_cents", 0.6, "max"), ("timbre_db", 1.5, "max"))}}
@@ -100,8 +105,9 @@ COLS = (("pairs_db", "pairs dB", 1), ("pairs_clean", "clean/28", 0), ("dyads_db"
 
 def run(target="engine", sts=(-12, 12), save=None, response=0):
     fn = engines.BY_NAME[target]; ok = True; out = {}; gate = GATE_RESPONSE[response] if response else GATE
-    if engines.LITE and response: gate = {}
-    print(f"{(engines.RESPONSES[response] if response else target) + (' lite' if engines.LITE else ''):>10} | " + " ".join(f"{h:>9}" for _, h, _ in COLS))
+    if engines.QUALITY and response: gate = {}
+    elif engines.QUALITY == 2: gate = GATE_ECO
+    print(f"{engines.label(response, target):>10} | " + " ".join(f"{h:>9}" for _, h, _ in COLS))
     for st in sts:
         t0 = time.time(); x, segs, ideal = build(st); y = fn(x, st, response=response); c = card(score(y, st, segs, ideal)); out[str(st)] = c
         fails = [f"{k} {c[k]:.1f} (limit {lim})" for k, lim, how in gate.get(st, ()) if (c[k] > lim if how == "max" else c[k] < lim)]

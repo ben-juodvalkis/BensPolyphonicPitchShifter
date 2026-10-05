@@ -7,7 +7,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout PolyPitchAudioProcessor::lay
     l.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "mix", 1 }, "Mix", juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 100.0f));
     l.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "tone", 1 }, "Tone", juce::NormalisableRange<float> (0.0f, 100.0f, 0.1f), 100.0f));
     l.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "response", 1 }, "Response", juce::StringArray { "Fast", "Balanced", "Clean" }, 0));
-    l.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "quality", 2 }, "Quality", juce::StringArray { "Full", "Lite" }, 0));     // (version hint 2: added after the first four)
+    l.add (std::make_unique<juce::AudioParameterChoice> (juce::ParameterID { "quality", 2 }, "Quality", juce::StringArray { "Full", "Lite", "Eco" }, 0));     // (version hint 2: added after the first four)
     return l;
 }
 
@@ -27,7 +27,7 @@ bool PolyPitchAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts
 void PolyPitchAudioProcessor::prepareToPlay (double sampleRate, int)
 {
     processor.setSemitones ((int) std::lround (pSemi->load())); processor.setMix (pMix->load() / 100.0); processor.setTone (pTone->load() / 100.0);
-    processor.setResponse ((int) std::lround (pResp->load())); processor.setLite (pQual->load() > 0.5f);
+    processor.setResponse ((int) std::lround (pResp->load())); processor.setQuality ((int) std::lround (pQual->load()));
     processor.prepare (sampleRate);
     setLatencySamples (0);                        // the dry path is not delayed; the shifted sound's own delay is part of the effect
 }
@@ -36,7 +36,7 @@ void PolyPitchAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, ju
 {
     juce::ScopedNoDenormals noDenormals;
     processor.setSemitones ((int) std::lround (pSemi->load())); processor.setMix (pMix->load() / 100.0); processor.setTone (pTone->load() / 100.0);
-    processor.setResponse ((int) std::lround (pResp->load())); processor.setLite (pQual->load() > 0.5f);
+    processor.setResponse ((int) std::lround (pResp->load())); processor.setQuality ((int) std::lround (pQual->load()));
     float* L = buffer.getWritePointer (0); float* R = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
     processor.process (L, R, L, R, buffer.getNumSamples());
 }

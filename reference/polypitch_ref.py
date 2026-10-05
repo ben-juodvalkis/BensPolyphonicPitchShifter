@@ -22,8 +22,10 @@ How it works: docs/how-it-works.md. In short, a bank of narrow band-pass filters
         `reach_ms` back; one longer than `slow_ms` counts only once it has held for half as long as it lasts.
         Only the bands below `read_hz` of the input are looked at for this; the ones above are always plain.
 
-  lite: the same with less to do. Beating is looked for only below 2.5 kHz, and shifting up (fast and balanced) only
-        the bands below 1.25 kHz are doubled (_layout).
+  quality 1 (lite): the same with less to do. Beating is looked for only below 2.5 kHz, and shifting up (fast and
+        balanced) only the bands below 1.25 kHz are doubled (_layout).
+  quality 2 (eco): lite, and the bands are looked at every 64 samples instead of every 32 (H), and shifting up nothing
+        above 10.5 kHz is put out.
 
   attacks, shifting down: the attack is played straight from the input (the bridge); the bands take over as
         readers at the same position and each then settles into one of the two ways.
@@ -523,20 +525,23 @@ def _layout(nbin, kx, taper=4):
     return np.array(kof, np.int64), np.array(wg)
 
 
-def shift(x, st, sr=SR, response=0, lite=False, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
+def shift(x, st, sr=SR, response=0, quality=0, K=None, tau_ms=None, tail_ms=None, H=32, fmax=10000.0, reach_ms=100.0, cmp_ms=24.0, lmin_ms=2.2, hop_ms=2.9, drop=None, rho=0.7, cabs=0.9, tol2=0.01,
           n_in=3, n_out=None, settle_ms=25.0, efloor=1e-5, bridge=True, dA_ms=1.0, wait_ms=40.0, M=16, sel=0.0, pre_ms=2.0, rd=True, lock=True, clock=0.95, lock_ms=12.0, place=None, pgain=None, gain=True, drop_out=None, over=None, smooth_ms=5.0, slow_ms=None, slow_hold=0.5, read_hz=None, dense_hz=None, debug=False):
     """Shift mono signal x by st semitones (-12 .. +12). -> the shifted signal, same length, no dry signal mixed in.
     response (shifting up only) trades how late an attack comes out for how clean the sound is: 0 = fast, the attack as
     early as it can be (an 8 ms band filter); 1 = balanced, the same bands behind a 12 ms filter, attacks 4 ms later;
     2 = clean, bands half as wide behind a 16 ms filter: attacks 8 ms later than fast, and the middle note of a full
     chord, crowded by other notes' partials in the wide bands, gets bands of its own.
-    lite=True does less, for under three fifths of the engine's CPU shifting up and four fifths shifting down: beating is
-    looked for only in the bands below 2.5 kHz instead of 5, and
-    shifting up on the fast and balanced responses only the bands below 1.25 kHz are doubled.
+    quality: 0 = full; 1 = lite, which does less, for under three fifths of the engine's CPU shifting up and four fifths
+    shifting down: beating is looked for only in the bands below 2.5 kHz instead of 5, and shifting up on the fast and
+    balanced responses only the bands below 1.25 kHz are doubled; 2 = eco, which is lite with the bands looked at every
+    64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz: about a third of full's CPU.
     Everything after that is a tuning constant of the engine; the defaults are what the C++ engine uses. The ones set
     to None differ between shifting up and shifting down (and with the response) and are filled in below.
     debug=True also returns per-hop diagnostics; debug="bands" returns every band's output and the event lists."""
     x = np.asarray(x, np.float64); r = 2 ** (st / 12); up = r > 1.0001; resp = min(max(int(response), 0), 2) if up else 0; clean = resp == 2
+    lite = int(quality) >= 1; eco = int(quality) >= 2
+    if eco: H = 2 * H; fmax = min(fmax, min(0.45 * sr, 10500.0) / max(r, 1.0))     # (eco: frames twice as long, and shifting up the shifted sound ends at 10.5 kHz, as the reference device's does)
     x = np.where(np.isfinite(x), x, 0.0)                # a sample that is not a number, or is infinite, counts as silence (as in the engine)
     # The band filter. Shifting down: 512 bands 86 Hz apart, 12 ms delay (the bridge hides it). Shifting up, fast: the same bands
     # behind an 8 ms filter, and twice as many of them (`over`, below). Balanced: as fast, behind the 12 ms filter, which lets
@@ -584,7 +589,7 @@ def shift(x, st, sr=SR, response=0, lite=False, K=None, tau_ms=None, tail_ms=Non
     # 3 dB in their upper harmonics and real recordings nothing that was measured.
     if read_hz is None: read_hz = 2500.0 if lite else 5000.0
     kr = int(np.searchsorted(kof, int(read_hz * Kb / sr)))
-    Zc = Z.astype(np.complex128); A = np.abs(Zc); U = np.unwrap(np.angle(Zc), axis=1); CE = np.cumsum(A * A, axis=1)
+    Zc = Z.astype(np.complex128); A = np.abs(Zc); ang = np.angle(Zc); ang[A == 0.0] = 0.0; U = np.unwrap(ang, axis=1); CE = np.cumsum(A * A, axis=1)     # (digital silence has no phase: 0, not the pi a negative zero would give)
     ons = onsets(x, sr); hold = int(0.012 * sr); settle = int(settle_ms * sr / 1000); pre = int(pre_ms * sr / 1000)
     US = _smooth(Zc, U, smooth_ms * sr / 1000 / H, 15.0 * sr / 1000 / H, _holds(ons, Z.shape[1], H, hold, tau - pre + settle)) if smooth_ms > 0 else U; del Zc
     hopf = max(int(round(hop_ms * sr / 1000 / H)), 1); ws = 2; Wn = max(int(round(cmp_ms * sr / 1000 / H / ws)), 2)

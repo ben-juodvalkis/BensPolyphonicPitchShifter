@@ -458,6 +458,62 @@ the 512-band one to -188 dB.
 savings touch the same thing, steady upper harmonics: two-note chords 6 dB at +7 and 3 dB at +12, held chords at
 +12 3.8 dB. Strummed chords are within 0.6 dB and pitch that moves is the same.
 
+**Eco: the frame, and the top.** Lite still cost 2.6 % shifting up against the reference device's 1.9, and Ben
+wanted a setting that matched that device in cost and, where it leads, in sound. Two more things to leave out,
+both tried in the reference first (`H=64`, `fmax=10500/r`), then in a copy of the engine whose frame length was a
+compile-time constant; the engine as it is now has the frame length as a setting and gives the same output bit for
+bit.
+
+*The frame.* Every band's value is taken every 32 samples, and everything that follows a band in time runs at that
+rate: the likeness sums, the smoothing of the phase advance, the lags a repeat is looked for at, the moment a reader
+jumps. Taken every 64 samples instead, all of that is half the work, and the curves a quarter (half the lags, half
+as often). The scorecard barely notices, the real recordings notice a little:
+
+| Frames of 64 samples instead of 32, with Lite (and, shifting up, nothing above 10.5 kHz) | The scorecard | Real recordings |
+|---|---|---|
+| Octave down | the same | 0.8 dB dirtier on the DI pairs, 0.4 on chords from single notes, loop mixes the same |
+| -5, -2 | two-note chords 0.5 to 1.1 dB dirtier, full chords up to 1.3 | the DI pairs 1.3 dB dirtier at -5, loop mixes 1.4 at -2 |
+| +2, Balanced | full chords 3.0 dB dirtier | the DI pairs 1.1 dB cleaner, chords from single notes 2.4 dirtier, loop mixes 1.6 dirtier |
+| +7, Balanced | full chords 1.0 dB dirtier | within 0.5 dB |
+| +12, Balanced | within 0.7 dB; held chords 1.8 dB dirtier | the DI pairs 0.6 dB cleaner, chords from single notes 1.3 dirtier, held chords the same |
+| +12, Clean | the same; held chords 0.3 dB dirtier | the DI pairs and chords from single notes 1.2 dB dirtier, loop mixes and held chords the same |
+| Pitch that moves | a bend trails by 9 ms instead of 8 at octave down, 12.5 instead of 12 at octave up (Balanced 15.5 instead of 14.9); vibrato wobble 4.1 cents instead of 3.9 | |
+
+Attacks come out 0.4 to 0.7 ms later. Lite's CPU went from 1.8 % to 1.2 % at octave down and from 2.6 % to 1.7 %
+at octave up. With 64-sample frames every second frame is a check, so the running sums are advanced in the check
+frames after all; there is a frame in every 64-sample block, and the load is even.
+
+*The top.* Where the shifted sound's energy sits, on the twelve-pair signal at octave up (dB re the whole):
+
+| | 5 to 8 kHz | 8 to 10 | 10 to 12 | 12 to 16 | 16 to 22 |
+|---|---|---|---|---|---|
+| The input | -22 | -35 | -42 | -46 | -53 |
+| The reference device | -19 | -30 | -44 | **-72** | **-84** |
+| This shifter, Full | -15 | -19 | -23 | -29 | -35 |
+
+The reference device's shifted sound ends at about 11 kHz at every interval (at +2 its 8 to 10 kHz region is
+9 dB below this shifter's). Bands whose shifted sound lands above 10.5 kHz are two fifths of Lite's bands at octave up,
+and every one of them costs a band's share of the band loop and of the per-band work. Leaving them out took Eco
+from 1.7 % to 1.5 % at octave up (2.2 to 1.9 on Clean) and moved no score; the scorecard's attack measure reads
+1 ms later at octave up, because a plucked note's loudness rises more slowly without its top octave. Shifting
+down nothing lands above 10.5 kHz, so nothing changes there.
+
+*Eco against the reference device*, real recordings, Response on Balanced shifting up (dB; lower is cleaner;
+reference device / Eco): twelve DI pairs -24.1 / -28.5 at octave down, -27.5 / -28.5 at +2, -24.5 / -23.7 at +7,
+-22.1 / -22.2 at octave up; chords from single notes -27.4 / -35.1, -32.1 / -35.4, -29.0 / -32.4, -26.2 / -28.7;
+loop mixes -19.1 / -25.1, -23.9 / -24.1, -21.6 / -22.6, -19.6 / -20.5; held chords at octave up -28.4 / -27.2.
+Attacks 12 to 13 ms late shifting up against the device's 12, and about 2 ms shifting down against 10. On clean
+synthetic held chords at octave up the device stays 6 dB ahead (-40.0 against -33.9). CPU: 1.2 % at octave down
+and 1.5 % at octave up, against the device's 1.9 % at any interval.
+
+*One thing it turned up.* With 64-sample frames the engine and the reference agreed on a pair of sines only to
+-90 dB, where they agree to -140 with 32. All of the difference was in the first frame of a note that starts from
+digital silence. A frame of exact zeros has no phase, and the two had been giving it different ones: whichever of
+them ended up with a negative zero in the transform's output read the angle as pi, the other as 0, and the first
+frame of the note then started its phase interpolation from a different place. Both now give exact zeros the phase
+0. The scorecard did not move in any quality; engine and reference now agree to -130 dB or better on the
+test's sines in every quality, where some pairs had been at -92 to -122.
+
 **What did not earn its keep.**
 
 | Tried | Result |

@@ -3,7 +3,7 @@
     python tests/strummed_chords.py                     the C++ engine at -12, +2, +7 and +12
     python tests/strummed_chords.py reference 2 5       another target (engine | reference | plugin), other intervals
     python tests/strummed_chords.py engine clean 12     with the response set to balanced or clean
-    python tests/strummed_chords.py engine lite         with the quality set to lite
+    python tests/strummed_chords.py engine lite         with the quality set to lite (or eco)
 
 A perfect shifter is linear: shifting a chord must give what shifting its strings one at a time and adding them up
 gives. Twelve full chords (open E, A barre, B minor barre) are strummed 0.6 s apart, and again 0.3 s apart, every
@@ -54,7 +54,7 @@ def early_late(ym, parts, t0, within=0.120, n_fft=2048, hop=256, k=2.5):
 
 def run(target="engine", sts=(-12, 2, 7, 12), response=0):
     fn = engines.BY_NAME[target]; gap = np.zeros(SR // 2)
-    print(f"{(engines.RESPONSES[response] if response else target) + (' lite' if engines.LITE else ''):>10} | strums 0.6 s apart: all, early, late | strums 0.3 s apart: all, early, late      (new energy, dB)")
+    print(f"{engines.label(response, target):>10} | strums 0.6 s apart: all, early, late | strums 0.3 s apart: all, early, late      (new energy, dB)")
     for st in sts:
         r = 2 ** (st / 12); row = []
         for period in (0.6, 0.3):

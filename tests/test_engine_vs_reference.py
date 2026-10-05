@@ -6,7 +6,8 @@ after which the two outputs are both valid but no longer the same; then only the
 
     python tests/test_engine_vs_reference.py            44.1 and 48 kHz: -12, +2 (a small shift up has settings of its own), and
                                                         +12 with each response (fast, balanced, clean); then -12, +2 and
-                                                        +12 with the quality set to lite (another layout of the bands)
+                                                        +12 with the quality set to lite (another layout of the bands) and
+                                                        to eco (64-sample frames)
 Exit status 1 on a mismatch.
 """
 import sys
@@ -24,12 +25,12 @@ def main():
     items = [("sine 440", sine(440.0, 1.2, -12)[0], -90.0), ("two sines 440 + 622", sine(440.0, 1.2, -18)[0] + sine(622.25, 1.2, -18)[0], -90.0),
              ("plucked A2", pluck(NOTE["A2"], 1.4)[0], -40.0), ("plucked E open chord", strum(N("E2", "B2", "E3", "G#3", "B3", "E4"), 2.2, 0.5)[0], None)]
     for sr in (44100, 48000):
-        for st, resp, lite in ((-12, 0, False), (2, 0, False), (12, 0, False), (12, 1, False), (12, 2, False), (-12, 0, True), (2, 0, True), (12, 0, True)):
+        for st, resp, q in ((-12, 0, 0), (2, 0, 0), (12, 0, 0), (12, 1, 0), (12, 2, 0), (-12, 0, 1), (2, 0, 1), (12, 0, 1), (-12, 0, 2), (2, 0, 2), (12, 0, 2)):
             for name, s, limit in items:
                 x = np.concatenate([z, s, z]); x = resample_poly(x, 160, 147) if sr == 48000 else x
-                x = x.astype(np.float32).astype(np.float64); yc = engines.engine(x, st, sr=sr, response=resp, lite=lite); yp = engines.reference(x, st, sr=sr, response=resp, lite=lite)
+                x = x.astype(np.float32).astype(np.float64); yc = engines.engine(x, st, sr=sr, response=resp, quality=q); yp = engines.reference(x, st, sr=sr, response=resp, quality=q)
                 diff = db(yc - yp) - db(yp); lev = db(yc) - db(yp); good = abs(lev) < 0.2 and (limit is None or diff < limit) and np.isfinite(yc).all()
-                print(f"{sr} Hz {st:+3d} {'lite' if lite else engines.RESPONSES[resp] if st > 0 else '':8s} {name:22s}: difference {diff:7.1f} dB, level {lev:+.2f} dB   {'ok' if good else 'MISMATCH'}", flush=True)
+                print(f"{sr} Hz {st:+3d} {engines.QUALITIES[q] if q else engines.RESPONSES[resp] if st > 0 else '':8s} {name:22s}: difference {diff:7.1f} dB, level {lev:+.2f} dB   {'ok' if good else 'MISMATCH'}", flush=True)
                 ok = ok and good
     return ok
 

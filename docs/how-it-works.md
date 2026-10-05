@@ -155,8 +155,21 @@ about four fifths of the CPU shifting down and under three fifths shifting up:
   1.25 kHz every second band does as well. Just below 1.25 kHz the extra bands fade out over a few bands, each
   one's weight handed over to its neighbors, so that a partial there keeps its loudness.
 
-Attacks, tuning, single notes and pitch that moves are the same in both. `docs/benchmarks.md` has the numbers
-("Lite"). Changing Quality while playing restarts the bands, as changing the interval does.
+Attacks, tuning, single notes and pitch that moves are the same in both.
+
+**Eco** is Lite with two more things left out, for about a third of Full's CPU, which is less than the reference
+device's shifter takes at any interval:
+
+- **The bands are looked at every 64 samples instead of every 32.** Everything that follows a band in time is then
+  half as fine: the likeness check, the smoothing of the phase advance, the moment a reader jumps. On recordings of
+  guitars that cost up to 1.4 dB against Lite shifting down and about a decibel shifting up; a bend is followed
+  about a millisecond later.
+- **Shifting up, nothing above 10.5 kHz is put out.** The reference device's shifted sound ends there too (at
+  octave up its level above 12 kHz is 72 dB below the whole). At octave up that is the top octave of the sound.
+
+Shifting up, Eco with Response on Balanced is as late as the reference device and within about a decibel of it on
+its strongest tests. `docs/benchmarks.md` has the numbers ("Lite and Eco"). Changing Quality while playing restarts
+the bands, as changing the interval does.
 
 ## Around the engine
 
@@ -196,6 +209,7 @@ Attacks, tuning, single notes and pitch that moves are the same in both. `docs/b
 | How far back a repeat is looked for | 2.2 to 100 ms | same |
 | Bands that are checked for beating | below 5 kHz of the input | same |
 | With Quality on Lite | checked below 2.5 kHz | checked below 2.5 kHz; 1024 bands only below 1.25 kHz, 512 above (Fast and Balanced) |
+| With Quality on Eco | as Lite, and a frame of 64 samples | as Lite, a frame of 64 samples, and no bands that land above 10.5 kHz |
 | A band counts as beating when the likeness dips by | 0.004 | 0.001 |
 | Checks in a row to become a reader / to stop | 3 / 3 | 3 / 8 (3 / 3 below a fifth up) |
 | A plain band's phase advance is smoothed over | 5 ms, resting for 35 ms after an attack | 5 ms, resting for 30 ms after an attack |

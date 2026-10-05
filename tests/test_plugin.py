@@ -28,8 +28,9 @@ def main():
         yp = engines.plugin(x, 12, response=resp); ye = engines.engine(x, 12, response=resp); d = db(yp - ye) - db(ye); good = d < -100.0; ok = ok and good
         print(f"+12 Response {engines.RESPONSES[resp].capitalize()}, E open chord: plug-in minus engine {d:7.1f} dB   {'ok' if good else 'MISMATCH'}")
     for st in (-12, 12):
-        yp = engines.plugin(x, st, lite=True); ye = engines.engine(x, st, lite=True); yf = engines.engine(x, st); d = db(yp - ye) - db(ye); good = d < -100.0 and db(ye - yf) - db(yf) > -80.0; ok = ok and good
-        print(f"{st:+3d} Quality Lite, E open chord: plug-in minus engine {d:7.1f} dB (lite minus full {db(ye - yf) - db(yf):.1f} dB)   {'ok' if good else 'MISMATCH'}")
+        for q in (1, 2):
+            yp = engines.plugin(x, st, quality=q); ye = engines.engine(x, st, quality=q); yf = engines.engine(x, st); d = db(yp - ye) - db(ye); good = d < -100.0 and db(ye - yf) - db(yf) > -80.0; ok = ok and good
+            print(f"{st:+3d} Quality {engines.QUALITIES[q].capitalize()}, E open chord: plug-in minus engine {d:7.1f} dB ({engines.QUALITIES[q]} minus full {db(ye - yf) - db(yf):.1f} dB)   {'ok' if good else 'MISMATCH'}")
     x = np.random.default_rng(1).standard_normal(SR) * 0.05; y = engines.plugin(x, -12, mix=0.0); d = float(np.abs(y - x.astype(np.float32)).max()); good = d < 1e-6; ok = ok and good
     print(f"Mix 0: largest difference from the input {d:.2e}   {'ok' if good else 'MISMATCH'}")
     return ok

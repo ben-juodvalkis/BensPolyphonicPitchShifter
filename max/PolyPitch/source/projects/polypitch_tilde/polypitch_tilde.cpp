@@ -7,7 +7,8 @@
 //   @mix        0 .. 100: 0 = dry only, 50 = both at full level, 100 = shifted only (default)
 //   @tone       0 .. 100: how much of the interval-dependent tone curve is applied to the shifted sound (default 100)
 //   @response   shifting up only: 0 = fast (default), 1 = balanced (attacks 4 ms later, cleaner), 2 = clean (8 ms later; a full chord's middle note comes out right)
-//   @quality    0 = full (default), 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up; clean chords a little less clean)
+//   @quality    0 = full (default), 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up; clean chords a little less clean),
+//               2 = eco (about a third of full's CPU; shifting up nothing above 10.5 kHz)
 //   clear       forget everything heard so far
 //
 // The shifted sound is mono (the two inputs summed), sent to both outlets; the dry signal passes in stereo and is
@@ -36,14 +37,14 @@ static void polypitch_perform64 (t_polypitch* x, t_object*, double** ins, long, 
 {
     polypitch::Processor& p = *x->proc;
     if (x->clearNext) { p.reset(); x->clearNext = 0; }
-    p.setSemitones ((int) x->semitones); p.setMix (x->mix / 100.0); p.setTone (x->tone / 100.0); p.setResponse ((int) x->response); p.setLite (x->quality != 0);
+    p.setSemitones ((int) x->semitones); p.setMix (x->mix / 100.0); p.setTone (x->tone / 100.0); p.setResponse ((int) x->response); p.setQuality ((int) x->quality);
     p.process (ins[0], x->stereo ? ins[1] : (const double*) nullptr, outs[0], outs[1], (int) sampleframes);
 }
 
 static void polypitch_dsp64 (t_polypitch* x, t_object* dsp64, short* count, double samplerate, long, long)
 {
     x->stereo = count[1];
-    x->proc->setSemitones ((int) x->semitones); x->proc->setMix (x->mix / 100.0); x->proc->setTone (x->tone / 100.0); x->proc->setResponse ((int) x->response); x->proc->setLite (x->quality != 0);
+    x->proc->setSemitones ((int) x->semitones); x->proc->setMix (x->mix / 100.0); x->proc->setTone (x->tone / 100.0); x->proc->setResponse ((int) x->response); x->proc->setQuality ((int) x->quality);
     x->proc->prepare (samplerate);
     object_method (dsp64, gensym ("dsp_add64"), x, polypitch_perform64, 0, NULL);
 }
@@ -97,8 +98,8 @@ void ext_main (void*)
     CLASS_ATTR_FILTER_CLIP (c, "response", 0, 2);
     CLASS_ATTR_LABEL (c, "response", 0, "Response shifting up (0 = fast, 1 = balanced, 2 = clean)");
     CLASS_ATTR_LONG (c, "quality", 0, t_polypitch, quality);
-    CLASS_ATTR_FILTER_CLIP (c, "quality", 0, 1);
-    CLASS_ATTR_LABEL (c, "quality", 0, "Quality (0 = full, 1 = lite)");
+    CLASS_ATTR_FILTER_CLIP (c, "quality", 0, 2);
+    CLASS_ATTR_LABEL (c, "quality", 0, "Quality (0 = full, 1 = lite, 2 = eco)");
 
     class_dspinit (c);
     class_register (CLASS_BOX, c);

@@ -263,7 +263,7 @@
 						330,
 						34
 					],
-					"text": "0 = full, 1 = lite: about four fifths of the CPU shifting down and under three fifths shifting up; clean chords a little less clean"
+					"text": "0 = full, 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up), 2 = eco (about a third of full; shifting up nothing above 10.5 kHz)"
 				}
 			},
 			{
