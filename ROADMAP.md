@@ -36,12 +36,15 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): 2.8 % of a core shifting down and
-5 to 6 % shifting up on a DI chord take, and the 99.9th-percentile 64-sample block takes 7 % of its time slot at
-octave down and 12 % at octave up. That is inside the targets below as they scale to the M4. On heavier material
-(chord stabs, or many bands on readers: 6.5 to 7.7 % at octave up, 14 to 17 % of the slot) it is at their edge. Before this work the same computer took 5.6 % and 12.2 %, and 14 % and 31 % of the slot. The
-targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and has not
-been measured since; on the M4 they come to about 3.3 %, 6.6 % and 15 %.
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): on a DI chord take 2.8 % of a
+core shifting down and 5 to 6 % shifting up, and the 99.9th-percentile 64-sample block takes 7 % of its time slot
+at octave down and 12 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
+of the slot. Heavier material (chord stabs, or many bands on readers) takes 6.5 to 7.7 % at octave up and 14 to
+17 % of the slot.
+
+The targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and
+has not been measured since. On the M4 they come to about 3.3 %, 6.6 % and 15 %: the chord take is inside them,
+the heavier material at their edge.
 
 Done:
 
@@ -76,20 +79,20 @@ Done:
 
 Left, in this order:
 
-- **Do less of the curves, or look at a quarter of the bands at each frame**, only if a measurement on the slower
-  computer says the target is not reached: both change which bands are looked at when, so both are sound changes (reference first). The first
-  also needs a better idea than the one this file used to hold, that most awake bands "hold one steady partial"
-  and could be checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at
-  octave up; 83 fall and stay down, 41 fall and come back).
-- Target: under 5 % shifting down and under 10 % shifting up, and the 99.9th-percentile 64-sample block under 25 %
-  of its slot, so that a 64-sample buffer is safe (on an Apple M1 Max). **To do first: measure on that computer**
-  (`build/tools/polypitch_load` and `polypitch_profile`, a minute). By the old engine's ratio between the two
-  computers the chord take would be at 4.3 %, 8.7 % and 20 %; the stab take at about 10 % and 23 %, and 28 % of the
-  slot on Clean.
-- If more is needed, what is left that keeps the sound: the readers (a reader's sample still costs about fifteen
-  times a plain band's; its envelope could be kept as a ready polynomial per frame, and old readers in a fade go
-  the slow way), and the fits' plain stretches. The reference device's shifter, timed as a black box, takes 1.9 %
-  of a core on the M4 whatever the interval; getting near that would take doing less, not doing the same faster.
+- **Measure on the M1 Max** (`build/tools/polypitch_load` and `polypitch_profile`, a minute). Target: under 5 %
+  shifting down and under 10 % shifting up, and the 99.9th-percentile 64-sample block under 25 % of its slot, so
+  that a 64-sample buffer is safe. By the old engine's ratio between the two computers the chord take would be at
+  4.3 %, 8.7 % and 20 % there; the stab take at about 10 % and 23 %, and at 28 % of the slot on Clean.
+- **If more is needed, what is left that keeps the sound**: the readers (a reader's sample still costs about
+  fifteen times a plain band's; its envelope could be kept as a ready polynomial per frame, and old readers in a
+  fade go the slow way), and the plain stretches in a fit.
+- **Do less of the curves, or look at a quarter of the bands at each frame**, only if that is not enough: both
+  change which bands are looked at when, so both are sound changes (reference first). The first also needs a
+  better idea than the one this file used to hold, that most awake bands "hold one steady partial" and could be
+  checked coarsely: on DI takes almost no awake band has a curve that never falls (0.1 of 125 at octave up; 83
+  fall and stay down, 41 fall and come back).
+- For scale: the reference device's shifter, timed as a black box, takes 1.9 % of a core on the M4 whatever the
+  interval. Getting near that would take doing less, not doing the same faster.
 
 ## 3. Sound
 
