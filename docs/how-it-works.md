@@ -139,7 +139,8 @@ the player chooses:
   10 cents around the right pitch instead of 2 to 4.
 
 Nothing else differs between the three: the same decisions, the same thresholds. `docs/benchmarks.md` has each
-one's numbers. Changing the response while shifting up restarts the bands, as changing the interval does.
+one's numbers. Changing the response while shifting up restarts the bands, as changing the interval does (the processor
+cross-fades it: "Around the engine").
 
 ## Step 7: the Quality control
 
@@ -169,7 +170,7 @@ which is less than the reference device's shifter takes at any interval (on Clea
 
 Shifting up, Eco with Response on Balanced is as late as the reference device and within about a decibel of it on
 recordings of guitars; on clean synthetic held chords at octave up the device is 6 dB ahead. `docs/benchmarks.md` has the numbers ("Lite and Eco"). Changing Quality while playing restarts
-the bands, as changing the interval does.
+the bands, as changing the interval does (the processor cross-fades it).
 
 ## Around the engine
 
@@ -179,6 +180,12 @@ the bands, as changing the interval does.
 - **Tone**: a pair of high shelves on the shifted sound, scaled by the interval (an octave down gets brighter above
   1 kHz and loses the very top; an octave up gets a little darker);
 - **Mix**: both signals at full level at 50 %, and the quieter side falling away on a dB curve toward the ends;
+- **a change of interval, Quality, or Response while shifting up is a cross-fade between two engines**: the engine
+  has to start its bands over for it, which clicks, so a second engine starts over with the new setting while the
+  first plays on, each with its own tone curve. Shifting down the fade starts after 4 ms (the new engine plays the
+  input straight away); shifting up after the new engine's band filter and a tenth of a second more, because until a
+  beat has gone by once a new engine treats every band as plain and comes out rough and quiet. A change during a
+  fade waits for it, and only the latest is kept;
 - the dry signal is never delayed, and no latency is reported to the host.
 
 ## What limits it

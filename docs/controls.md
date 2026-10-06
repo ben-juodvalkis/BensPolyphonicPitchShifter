@@ -25,9 +25,24 @@ The interval, from an octave down to an octave up in whole semitones. At 0 the s
 Shifting down and shifting up are done differently inside (`docs/how-it-works.md`, step 4), which is why a picked
 note comes out about 2 ms late going down and about 8 ms late going up.
 
-Changing it while playing restarts the bands, and that can click: the largest step in the sound at the moment of
-the change measured about 4 times the largest in steady playing going up, and 30 times going down. Change it
-between phrases, or automate it onto a gap. A click-free change is on the roadmap.
+Changing it while playing is a cross-fade. The engine has to start its bands over for a new interval, which on
+its own clicks, so a second engine starts with the new interval while the first plays on, and the shifted sound
+fades from one to the other, each with its own tone curve:
+
+- **To a shift down**, the new engine plays the input straight away (the way it plays an attack), so the fade starts
+  after 4 ms and is over 30 ms later.
+- **To a shift up**, a new engine is rough and several dB quiet for its first tenth of a second (it cannot tell a
+  band with two partials in it until their beat has gone by once, just as after an attack), so the old interval plays
+  on for that tenth of a second after the new one's band filter has filled, and the fade takes 40 ms: the new
+  interval has taken over 150 to 160 ms after the change.
+- **A sweep** moves in steps: a change that comes during a fade waits for it to end, and only the latest is kept, so
+  the sound follows the knob a step at a time and ends where the knob stops.
+
+On a steady synthetic chord, the largest step in the sound during a change is now no larger than in steady playing,
+one semitone or a jump across both octaves, stepped or swept (it was up to 10 times as large), and the level stays
+within what the chord does by itself. While a fade runs, two engines run: sweeping the knob nonstop between 0 and
++12 took 10.7 % of a core against 6.3 % before (`docs/benchmarks.md`, "Changing a setting while playing"). With
+the knob still, nothing is different.
 
 ## Mix
 
@@ -80,8 +95,8 @@ not, so the player chooses. Shifting down, Response changes nothing.
 | **Clean** | about 16 ms | Full chords and dense playing: the middle note of a chord at its right loudness, mixes of parts 2 to 3.6 dB cleaner than Fast at a fifth and an octave up. | 8 ms. Pitch that moves is followed less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 ms); pure intervals at small shifts are 1 to 3 dB less clean than on Fast; the first tenth of a second after a strum is a little rougher. |
 
 On Full all three cost the same CPU; on Lite and Eco, Clean costs more at octave up (3.5 % against 2.6 % on Lite,
-1.9 % against 1.5 % on Eco), because Lite's saving on the doubled bands does not apply to it. Changing Response while shifting up restarts the bands, as changing Semitones does,
-and can click; while shifting down it does nothing until the interval goes up.
+1.9 % against 1.5 % on Eco), because Lite's saving on the doubled bands does not apply to it. Changing Response while shifting up is a cross-fade, as changing Semitones is;
+while shifting down it does nothing until the interval goes up.
 
 Which should be the default is a listening decision that has not been made; Fast is the default because it was
 the engine's sound before the choice existed.
@@ -102,7 +117,7 @@ Eco takes less CPU than the reference device of the benchmarks at any interval (
 same). Shifting up, Eco with Response on Balanced is as late as that device and within about a decibel of it on
 recordings of guitars; on clean synthetic held chords at octave up the device is 6 dB ahead.
 
-Changing Quality while playing restarts the bands and can click.
+Changing Quality while playing is a cross-fade, as changing Semitones is.
 
 ## Where the controls are
 

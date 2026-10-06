@@ -444,6 +444,42 @@ doing); the 99.9th percentile repeats.
 Shifting up by less than a fifth costs a little less (fewer bands are on readers), and the three responses cost
 about the same.
 
+## Changing a setting while playing
+
+A change of Semitones, Quality, or Response while shifting up is a cross-fade between two engines
+(`docs/controls.md`, "Semitones"). Measured on a steady synthetic chord (an open E, eight harmonics a note) through
+the processor at 48 kHz, Mix 100 and Tone 100, the setting changed once per 64-sample block as a host does: the
+largest sample-to-sample step from the change until 0.2 s after it, against the largest in steady playing at either
+setting (above about 1.5 is a click).
+
+| Change | Before (the bands restarted) | Cross-fade |
+|---|---|---|
+| -12 to -11, one step | 4.1 | 0.9 |
+| -11 to -12, one step | 10.1 | 0.9 |
+| +11 to +12, one step | 1.5 | 0.8 |
+| -12 to +12, one step | 9.0 | 0.8 |
+| -12 to 0, swept over 0.5 s | 3.3 | 0.9 |
+| 0 to -12, swept over 0.5 s | 6.1 | 0.7 |
+| 0 to +12, swept over 0.5 s | 7.1 | 0.7 |
+| -12 to +12, swept over 1 s | 6.1 | 1.0 |
+| -12 to -7, swept over 0.3 s | 9.4 | 1.0 |
+| Quality Full to Eco at -12 | 5.3 | 0.9 |
+| Response Fast to Clean at +12 | 0.8 | 0.7 |
+
+The level, in 10 ms windows, stays within what the chord does by itself in steady playing (about +-3 dB at +12,
+-8 to +4 dB at -12, where its partials beat). Shifting up it needed the old engine to play on for a tenth of a
+second after the new one's band filter has filled: with only 4 ms there the level sagged by 5 to 10 dB for about
+100 ms after an upward change, the time a new engine needs before it can tell a band with two partials in it. The
+built plug-in, hosted headless and changed between 64-sample blocks: 6.2, 2.4, 1.0 and 7.6 before (-12 to -11,
+-11 to -12, +11 to +12, -12 to +12), 1.0, 1.0, 0.9 and 0.9 now.
+
+What it costs. With the knobs still, nothing: the processor's output is the same to the bit as before at every
+setting tried. Starting the second engine over takes 4 to 13 % of a 64-sample slot, inside one block. During a fade
+two engines run. On an Apple M1 Max (with Live open, so both builds interleaved in the same sitting, the lowest of
+eight), the DI chord take with Semitones swept nonstop between 0 and +12, once every two seconds: 10.7 % of a core
+against 6.3 %, and the 99.9th-percentile 64-sample block 29 % of its slot against 21 %. A single change at octave
+up or down left no block heavier than a quarter of its slot.
+
 ## Sample rates
 
 44.1 and 48 kHz use the designed band filters, and the engine matches the reference implementation at both

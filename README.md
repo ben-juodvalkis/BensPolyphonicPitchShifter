@@ -76,8 +76,8 @@ played straight from the input when shifting down, which is why they are only 2 
 
 ## Limits
 
-- Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up,
-  and changing Quality.
+- Changing Semitones, Quality, or Response while shifting up is a cross-fade, so it does not click, but it is not a
+  glide: a sweep moves in steps, and shifting up the new interval takes over about 0.15 s after the knob moves.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
 - The work is not quite even: at octave up one 64-sample block in a thousand takes 9 % of its time on an Apple M4,
   against 4.5 % on average (on Lite 5 % against 2.6 %; `docs/benchmarks.md`, "Cost"). On a slower computer, measure

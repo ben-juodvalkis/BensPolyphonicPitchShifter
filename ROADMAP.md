@@ -181,8 +181,10 @@ Left:
 
 ## 4. Features
 
-- **Change the interval while playing without a click** (run the old and new settings side by side for a few
-  milliseconds). The same for Response and Quality, which restart the bands as well.
+- **A glide between intervals.** Changing the interval, Quality or Response is a cross-fade between two engines
+  now, which does not click, but a sweep moves in steps, and shifting up the new interval takes over 0.15 s late
+  (a new engine needs a tenth of a second before its readers are right). A glide would keep one engine and move its
+  ratio, which touches every decision that depends on the interval: engine work, reference first.
 - **Smooth Tone.** Its shelves change at once. Swept, that is inaudible; jumped in one step at a large shift down
   it clicks (at octave down the largest step was 3 to 10 times the largest in steady playing, on a synthetic chord;
   at -5 and shifting up nothing showed). Gliding the shelf gains over 10 ms or so, as Mix does, would remove it.

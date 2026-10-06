@@ -31,6 +31,9 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
   Balanced it is as late as that shifter and within about a decibel of it on recordings of guitars where that
   shifter leads; on clean synthetic held chords at octave up it is 6 dB behind (`docs/benchmarks.md`, "Lite and
   Eco").
+- Changing Semitones, Quality, or Response while shifting up no longer clicks: the processor cross-fades between
+  two engines, one playing on with the old setting while the other starts over with the new one. Shifting up the new
+  interval takes over about 0.15 s after the change; a sweep moves in steps. Nothing changes while the knobs are still.
 - An input sample that is not a number, or is infinite, counts as silence, in the shifted sound and in the dry
   one. Before, one such sample from the host left the output not a number until the next reset.
 
