@@ -233,7 +233,8 @@ lines), which lost 3 dB on Clean when small shifts got their own settings while 
 The Quality control (`docs/how-it-works.md`, step 7) has two settings that do less. Lite takes about four fifths of
 Full's CPU shifting down and under three fifths shifting up ("Cost" below): it looks for beating only below 2.5 kHz
 of the input and, shifting up on Fast and Balanced, keeps the doubled bands only below 1.25 kHz. Eco takes about a
-third of Full's CPU, less than the reference device's shifter at any interval: it is Lite with the bands looked at
+half of Full's CPU shifting down and a third shifting up, less than the reference device's shifter at any
+interval (on Clean at octave up about the same): it is Lite with the bands looked at
 every 64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz. Everything above this
 section is Full. The same tests, Full / Lite, on the Fast response:
 
@@ -312,7 +313,7 @@ against Eco's -33.9 on Balanced, and about 1 dB on the DI pairs at +7. Eco on Ba
 -39.1 / -36.3 / -33.6 / -28.9, attacks 13.2 / 12.8 / 12.4 / 11.8 ms; on Clean 25 / 28 / 28 / 28, -43.3 / -41.3 /
 -39.0 / -35.0, -39.3 / -37.9 / -35.8 / -32.0, 17.2 / 16.8 / 16.4 / 15.8 ms.
 
-The middle note of a full chord ("The three responses" below): on Eco it is 3.1 / 0.8 / 2.5 dB off on Fast at
+The middle note of a full chord ("The three responses" above): on Eco it is 3.1 / 0.8 / 2.5 dB off on Fast at
 +2 / +7 / +12 (Full 1.6 / 2.2 / 4.5) and 1.6 / 1.3 / 2.2 on Balanced (Full 1.2 / 0.4 / 2.5), but on Clean 5.8 dB
 off at octave up against Full's 0.7: Eco on Clean loses what Clean is for.
 
@@ -325,7 +326,7 @@ out the input's 5 to 10 kHz at 10 to 20 kHz, Eco and the reference device do not
   2.1 dB cleaner at +7 and 1.3 dB at +12, and on loop mixes 0.7 dB at +7. The Clean response is level with it on
   the twelve pairs at +7 and 1.2 dB ahead at +12, and Balanced is ahead on loop mixes at both. The reason for what
   is left has not been found. (Below a fifth the gap is closed on the twelve pairs and on loop mixes; on all 45
-  pairings the reference device is 1.1 to 1.8 dB ahead from +2 to +5 by the usual ruler, and within about 1 dB
+  pairings the reference device is 1.2 to 1.8 dB ahead from +2 to +5 by the usual ruler, and within about 1 dB
   either way by the sharp one.)
 - **Low notes a small interval apart, shifted up a little.** Closing that gap had a price: a few real chords on the
   lowest strings (a minor third on low E, a minor triad on low G) came out 4 to 5 dB rougher at +2 while the thirty
@@ -379,15 +380,16 @@ up goes: the band loop 0.8, the transform 0.5 (it is still the 1024-point one), 
 per-band work at a frame 0.3, the window 0.2. Eco halves all of it but the band loop, and the band loop is two
 fifths shorter for the bands that would land above 10.5 kHz.
 
-**Before the performance work** (the engine of commit `83187b0`) the same computer took 5.6, 11.2, 12.3 and 12.5 %
-on average and 14.0, 25.9, 31.5 and 33.9 % of the slot in the heavy block (the stab take 14.3 % and 36 % at octave
+**Before the performance work** (the engine of commit `83187b0`) the same computer took, at octave down, +2, octave
+up and octave up on Clean, 5.6, 11.2, 12.3 and 12.5 % on average and 14.0, 25.9, 31.5 and 33.9 % of the slot in the heavy block (the stab take 14.3 % and 36 % at octave
 up, the synthetic signal 15.5 % and 41 %). After that work, and before beating was looked for only below 5 kHz
 (below), it took 2.7, 4.9, 5.5 and 5.6 %, with 7.0, 10.0, 12.4 and 12.6 % of the slot (a sitting in which the
 engine as it is now read 6.2, 8.4, 10.6 and 9.7 % of the slot: the heavy block varies by a tenth from one sitting
 to the next). The engine of `83187b0` was also measured on an Apple M1 Max, which took 1.5 to 1.6 times as long
 (8.5 % at octave down and 18.6 % at octave up; 24 % and 51 % of the slot). **The engine as it is now has not been
-measured on an M1 Max.** If that computer is slower by the same factor, Full would take about 3.5 % and 7.0 % on
-the chord take with 10 % and 16 % of the slot in the heavy block, and Lite 2.9 % and 4.0 % with 9 %.
+measured on an M1 Max.** If that computer is slower by the same factors (1.52 on average, 1.64 in the heavy
+block), Full would take about 3.3 % and 6.8 % on the chord take with 10 % and 15 % of the slot in the heavy block,
+Lite 2.7 % and 4.0 % with 9 % and 8 %, and Eco 1.8 % and 2.3 % with 8 % and 6 %.
 
 For scale, the reference device's shifter was timed as a black box: its plug-in with nothing in it but that
 shifter, hosted the same way as this project's own plug-in and timed in the same 64-sample blocks on the same take

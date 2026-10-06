@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build PolyPitch. Usage: scripts/build.sh [tools] [plugin] [max]     (no arguments = all three)
-#   tools   build/tools/polypitch_cli and polypitch_load (what the tests run), and polypitch_profile (where the time goes)
-#   plugin  build/plugin: the AU and VST3 (needs JUCE 8: -DJUCE_DIR, or ~/JUCE, or it is fetched)
+#   tools   build/tools/polypitch_cli (what the tests run), polypitch_load (the CPU load) and polypitch_profile (where the time goes)
+#   plugin  build/plugin: the AU and VST3 (needs JUCE 8: JUCE_DIR=/path/to/JUCE, or ~/JUCE, or it is fetched)
 #   max     max/PolyPitch/externals/polypitch~.mxo (needs Cycling '74's max-sdk-base: set C74_SDK=/path/to/max-sdk-base)
 set -e
 cd "$(dirname "$0")/.."

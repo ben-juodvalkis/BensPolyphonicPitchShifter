@@ -1,5 +1,5 @@
 #!/bin/bash
-# The gate: what has to pass before a change goes to main. About eight minutes.
+# The gate: what has to pass before a change goes to main. About seven minutes.
 #   1. the tools build
 #   2. an input sample that is not a number, or is infinite, counts as silence (tests/test_bad_samples.py; a few seconds)
 #   3. the C++ engine still matches the Python reference (44.1 and 48 kHz: octave down, +2, and octave up in each response;

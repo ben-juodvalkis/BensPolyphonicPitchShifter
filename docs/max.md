@@ -36,7 +36,7 @@ Install it with `scripts/install-macos.sh max`, which copies the package into `~
 | `@mix` | 0 to 100. 0 = dry only, 50 = both at full level, 100 = shifted only (default). |
 | `@tone` | 0 to 100. How much of the tone curve for the interval is applied to the shifted sound. Default 100. |
 | `@response` | Shifting up only: 0 = fast (default, attacks about 8 ms late), 1 = balanced (about 12 ms, cleaner), 2 = clean (about 16 ms; the middle note of a full chord comes out right). |
-| `@quality` | 0 = full (default); 1 = lite: about four fifths of the CPU shifting down and under three fifths shifting up, and clean, steady chords come out a few dB less clean in their upper harmonics; 2 = eco: about a third of full's CPU, the bands looked at every 64 samples instead of every 32, and shifting up nothing above 10.5 kHz. |
+| `@quality` | 0 = full (default); 1 = lite: about four fifths of the CPU shifting down and under three fifths shifting up, and clean, steady chords come out 2 to 6 dB less clean in their upper harmonics; 2 = eco: about half of full's CPU shifting down and a third shifting up, the bands looked at every 64 samples instead of every 32, and shifting up nothing above 10.5 kHz. |
 | `clear` | Forget everything heard so far. |
 
 `docs/controls.md` says what each setting does to the sound. The shifted sound is mono (the two inputs summed) and

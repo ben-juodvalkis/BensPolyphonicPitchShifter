@@ -8,7 +8,7 @@
 //     (0 % = dry only, 100 % = shifted only);
 //   - Response (shifting up only): fast, balanced or clean (attacks about 8, 12 or 16 ms late, each step cleaner);
 //   - Quality: full, lite or eco (lite does less, for about four fifths of the CPU shifting down and under three fifths shifting
-//     up; eco about a third of full);
+//     up; eco about half of full's shifting down and a third shifting up);
 //   - the dry signal is never delayed, and no latency is reported.
 //
 // Copyright (c) 2026 Ben Juodvalkis. MIT License (see LICENSE).

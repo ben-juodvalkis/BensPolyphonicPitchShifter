@@ -43,7 +43,7 @@ SR = 44100
 
 # ------------------------------------------------------------------------------------------------ analysis
 def analyze(x, K, h, H, kmax):
-    """-> Z[k, m], k = 0..kmax-1, band k centred at k*sr/K (so a guitar's low E, 82 Hz, sits in the middle of band 1
+    """-> Z[k, m], k = 0..kmax-1, band k centered at k*sr/K (so a guitar's low E, 82 Hz, sits in the middle of band 1
     when K = 512, and no band has to share its pass-band with its own mirror image). Band 0 is what is left below
     the first band (real; halved here because the read formula doubles)."""
     n = len(x); L = len(h); M = n // H + 1; P = int(np.ceil(L / K)) * K; hp = np.zeros(P); hp[:L] = h
@@ -173,7 +173,7 @@ def _cx(Z, A, U, US, CE, k, t, mode, t0, d0, psi, L, Jn, ratio, H, wk, wl, tau, 
     """one stretch of band k's output at time t (may be fractional, may lie before t0), as a complex (analytic) value.
     mode 1: loudness as it happens; phase = the band's own + (ratio - 1) x the phase of its leader band L (itself
             when it stands alone), the latter from US (the smoothed advance; US is U when nothing is smoothed). A band
-            that holds a share of the same partial as its stronger neighbour takes that neighbour as leader, which
+            that holds a share of the same partial as its stronger neighbor takes that neighbor as leader, which
             keeps the two shares in step whatever happens (a quiet moment in a beat, the attack itself).
     mode 0: a reader that was d0 behind at t0 and moves at `ratio`. Its loudness is corrected to the band's level
             now (Jn > 0: both levels taken over one beat = Jn frames): a reader plays material from up to a beat ago,
@@ -200,7 +200,7 @@ def _cx(Z, A, U, US, CE, k, t, mode, t0, d0, psi, L, Jn, ratio, H, wk, wl, tau, 
 def _align(Z, A, U, US, CE, k, t, mo, to, do, po, lo, jo, mn, dn, ln, jn, ratio, H, wka, tau, dpv, flr, M, step):
     """the turn that lines a new stretch of band k (mode mn, delay dn, leader ln, starting at t) up with the running
     one (mo, to, do, po, lo) over the last M*step samples of output - not just at the splice, where a beat's quiet
-    moment can mislead. wka = every band's centre frequency in radians per sample."""
+    moment can mislead. wka = every band's center frequency in radians per sample."""
     cr = 0.0; ci = 0.0
     for j in range(M):
         tt = t - j * step
@@ -212,9 +212,9 @@ def _align(Z, A, U, US, CE, k, t, mo, to, do, po, lo, jo, mn, dn, ln, jn, ratio,
 def _place(Z, A, U, US, CE, k, t, mode, st0, sd0, psi, lead, sjn, mn, dn0, jn, lo, hi, nc, ratio, H, dw, wka, kof, tau, dpv, flr, M, step, m0, Wl, nb_on):
     """Where to put band k's reader, and with what turn. A reader's position matters by one beat of the band's
     envelope: the band's two partials come out right anywhere on that grid, but a partial whose other share sits in
-    the neighbouring band only adds up with that share at one place per beat. So: try nc delays from dn0 + lo to
+    the neighboring band only adds up with that share at one place per beat. So: try nc delays from dn0 + lo to
     dn0 + hi and keep the one where the new stretch lines up best with (a) the band's own running stretch and (b) the
-    neighbours' running output, the latter at the phase the two bands have between them in the input (which turns with
+    neighbors' running output, the latter at the phase the two bands have between them in the input (which turns with
     how far apart the two are: kof = which of the bank's bands each one is, dw = the spacing of those).
     -> (delay, turn)"""
     kmax = Z.shape[0]; wk = wka[k]; ir = np.zeros(2); ii = np.zeros(2); nbs = np.array([k - 1, k + 1])
@@ -416,7 +416,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                 if mode[k] == 1:
                     if cin[k] >= n_in and t >= quiet_until and t >= busy[k] and pend < 0:
                         Jk = Jc[k] * H; dn = flr + Jk if up else flr; stp = max(Jk, wmin) / ratio / M; jnk = max(int(np.round(Jk / H)), 1) if gain_on == 1 else 0
-                        if nb_on == 1 or nb_on == 2:              # anywhere within one beat: where the neighbours' shares fit
+                        if nb_on == 1 or nb_on == 2:              # anywhere within one beat: where the neighbors' shares fit
                             dn, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, 0.0, Jk * 15.0 / 16.0, 16, ratio, H, dw, wk, kof, tau, dpv, flr, M, stp, m0, max(int(np.round(Jk / H)), 8), 1)
                             dn, ps = _place(Z, A, U, US, CE, k, float(t), mode, st0, sd0, psi, lead, sjn, 0, dn, jnk, -Jk / 24.0, Jk / 24.0, 5, ratio, H, dw, wk, kof, tau, dpv, flr, M, stp, m0, max(int(np.round(Jk / H)), 8), 1)
                             if dn < flr: dn = flr
@@ -436,7 +436,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                     else: cout[k] += 1
                 else:                                           # free-running after the bridge: no jump needed yet
                     # (it waits twait to see whether the band beats. That has to be long enough for a beat to be seen three times: a band
-                    # that leaves and comes back as a reader is no longer in step with its neighbours. A time, not a distance: a small
+                    # that leaves and comes back as a reader is no longer in step with its neighbors. A time, not a distance: a small
                     # shift falls behind slowly, and a band that waited until it was far behind would play soft notes late)
                     if cin[k] >= n_in: J[k] = Jc[k] * H; cout[k] = 0
                     elif t - st0[k] > twait or on[k] == 0: cout[k] = n_out
@@ -464,7 +464,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                         else: ps = _align(Z, A, U, US, CE, k, float(t), 0, st0[k], sd0[k], psi[k], k, sjn[k], 0, dn, k, jnk, ratio, H, wk, tau, dpv, flr, M, stp)
                         _emit(et, em, ed, ep, el, ej, ef, en, k, t, 0, dn, ps, k, jnk, xfu); sjn[k] = jnk; st0[k] = t; sd0[k] = dn; psi[k] = ps; busy[k] = t + xfu
             diag[hix, 0] = nrd
-            # ---- shares of one partial in neighbouring bands: the weaker band follows the stronger one's phase
+            # ---- shares of one partial in neighboring bands: the weaker band follows the stronger one's phase
             if lock_on == 1 and m0 - Wl - 1 >= 0:
                 for k in range(1, kmax - 1):                    # how steady the phase between band k and k+1 has been
                     sr_ = 0.0; si_ = 0.0; nn = 1e-30; Za = Z[k]; Zb = Z[k + 1]
@@ -476,7 +476,7 @@ def _control(Z, A, U, US, CE, n, ons, ratio, H, K, hopf, Wn, ws, lmin, lmax, xf,
                     want[k] = k
                     if mode[k] != 1 or on[k] == 0: continue
                     best = E0[k]
-                    lk = lead[k]                                 # (a band already following a neighbour lets go only when the phase between them gets clearly unsteady)
+                    lk = lead[k]                                 # (a band already following a neighbor lets go only when the phase between them gets clearly unsteady)
                     if k > 1 and mode[k - 1] == 1 and on[k - 1] == 1 and cpair[k - 1] >= (clock - 0.15 if (lk == k - 1 or lk == lead[k - 1]) and lk != k else clock) and E0[k - 1] > best: want[k] = k - 1; best = E0[k - 1]
                     if k + 1 < kmax and mode[k + 1] == 1 and on[k + 1] == 1 and cpair[k] >= (clock - 0.15 if (lk == k + 1 or lk == lead[k + 1]) and lk != k else clock) and E0[k + 1] > best: want[k] = k + 1
                 for k in range(1, kmax):
@@ -535,7 +535,7 @@ def shift(x, st, sr=SR, response=0, quality=0, K=None, tau_ms=None, tail_ms=None
     quality: 0 = full; 1 = lite, which does less, for under three fifths of the engine's CPU shifting up and four fifths
     shifting down: beating is looked for only in the bands below 2.5 kHz instead of 5, and shifting up on the fast and
     balanced responses only the bands below 1.25 kHz are doubled; 2 = eco, which is lite with the bands looked at every
-    64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz: about a third of full's CPU.
+    64 samples instead of every 32 and, shifting up, nothing put out above 10.5 kHz: about half of full's CPU shifting down and a third shifting up.
     Everything after that is a tuning constant of the engine; the defaults are what the C++ engine uses. The ones set
     to None differ between shifting up and shifting down (and with the response) and are filled in below.
     debug=True also returns per-hop diagnostics; debug="bands" returns every band's output and the event lists."""
@@ -546,7 +546,7 @@ def shift(x, st, sr=SR, response=0, quality=0, K=None, tau_ms=None, tail_ms=None
     # The band filter. Shifting down: 512 bands 86 Hz apart, 12 ms delay (the bridge hides it). Shifting up, fast: the same bands
     # behind an 8 ms filter, and twice as many of them (`over`, below). Balanced: as fast, behind the 12 ms filter, which lets
     # less of each partial into the bands around it. Clean: 1024 bands 43 Hz apart, each half as wide, 16 ms delay. Where three
-    # partials 30 to 50 Hz apart crowd together (the third of a full chord between its neighbours' harmonics), half-width bands
+    # partials 30 to 50 Hz apart crowd together (the third of a full chord between its neighbors' harmonics), half-width bands
     # give each a band of its own; with the wide ones the middle partial came out 6 to 13 dB quiet.
     if K is None: K = 1024 if clean else 512
     if tau_ms is None: tau_ms = (8.0, 12.0, 16.0)[resp] if up else 12.0
@@ -586,7 +586,7 @@ def shift(x, st, sr=SR, response=0, quality=0, K=None, tau_ms=None, tail_ms=None
     Z = analyze(x, Kb, h, H, nbin)[kof]; Z[0] = 0.0; kmax = len(kof)
     # Beating is looked for only in the bands below read_hz of the input. Above 5 kHz it changed no measure, synthetic or real,
     # to treat every band as plain, and those are half the bands. Lite: below 2.5 kHz, which costs clean steady chords 2 to
-    # 3 dB in their upper harmonics and real recordings nothing that was measured.
+    # 6 dB in their upper harmonics and real recordings nothing that was measured.
     if read_hz is None: read_hz = 2500.0 if lite else 5000.0
     kr = int(np.searchsorted(kof, int(read_hz * Kb / sr)))
     Zc = Z.astype(np.complex128); A = np.abs(Zc); ang = np.angle(Zc); ang[A == 0.0] = 0.0; U = np.unwrap(ang, axis=1); CE = np.cumsum(A * A, axis=1)     # (digital silence has no phase: 0, not the pi a negative zero would give)

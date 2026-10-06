@@ -23,7 +23,7 @@ source (below).
 | How late a picked note comes out | about 2 ms | about 7.5 ms |
 | Chord notes in tune to | 0.4 cents | 0.2 cents |
 | Dirt on full plucked chords (lower is cleaner) | -37.4 dB | -28.8 dB |
-| CPU, one core at 48 kHz (Apple M4) | 2.3 % (Lite 1.9 %, Eco 1.2 %) | 4.6 % (Lite 2.6 %, Eco 1.5 %) |
+| CPU, one core at 48 kHz (Apple M4) | 2.2 % (Lite 1.8 %, Eco 1.2 %) | 4.5 % (Lite 2.6 %, Eco 1.5 %) |
 
 Shifts from -12 to +12 semitones. No latency is reported to the host and the dry signal is never delayed.
 
@@ -44,7 +44,7 @@ scripts/build.sh tools plugin                               # the command-line t
 C74_SDK=/path/to/max-sdk-base scripts/build.sh max          # the Max object (needs Cycling '74's max-sdk-base)
 
 scripts/install-macos.sh                                    # plug-in and Max package into your user folders
-scripts/gate.sh                                             # the tests: about four minutes
+scripts/gate.sh                                             # the tests: about seven minutes
 ```
 
 The plug-in needs CMake and JUCE 8 (a checkout at `~/JUCE` is used if present, otherwise it is fetched). Details,
@@ -79,9 +79,9 @@ played straight from the input when shifting down, which is why they are only 2 
 - Changing Semitones while playing restarts the bands and can click. So does changing Response while shifting up,
   and changing Quality.
 - 44.1 and 48 kHz are fully supported. Other sample rates run on a simpler, leakier filter and have not been scored.
-- The work is not quite even: at octave up one 64-sample block in a thousand takes 10 % of its time on an Apple M4,
-  against 5 % on average (on Lite 5 % against 3 %) (`docs/benchmarks.md`, "Cost"). On a slower computer, measure before trusting a 64-sample
-  buffer: `build/tools/polypitch_load`.
+- The work is not quite even: at octave up one 64-sample block in a thousand takes 9 % of its time on an Apple M4,
+  against 4.5 % on average (on Lite 5 % against 2.6 %; `docs/benchmarks.md`, "Cost"). On a slower computer, measure
+  before trusting a 64-sample buffer: `build/tools/polypitch_load`.
 - Held chords shifted up are a little rougher than the best commercial shifter. With Response on Fast the middle
   note of a full chord comes out too quiet at octave up; Clean puts it right, 8 ms later.
 - Nothing below about 60 Hz is shifted (bass guitar's lowest notes).
@@ -97,9 +97,11 @@ played straight from the input when shifting down, which is why they are only 2 
 | `max/` | The Max package with `polypitch~`, the Max for Live device, and the scripts that generate and check them |
 | `reference/` | The same algorithm in Python, which the engine is tested against, and the band-filter design |
 | `tests/` | Synthetic test signals, the scorecard and its regression gate |
+| `tools/` | Command-line tools: render a file, measure the CPU load, profile the stages |
+| `scripts/` | Build, install, and the gate |
 | `docs/` | The controls, how it works, benchmarks, design notes, building, Max |
 
-## Licence
+## License
 
 MIT (see `LICENSE`). The plug-in links against JUCE, which changes the terms for plug-in binaries; the Max object
 links against Cycling '74's SDK. `THIRD-PARTY.md` spells out what that means.

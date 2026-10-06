@@ -1,8 +1,8 @@
 # The controls
 
 Five controls, the same in the plug-in, in the Max object (`polypitch~`) and in the Max for Live device. This page
-says what each one does to the sound. `docs/how-it-works.md` says why, and `docs/benchmarks.md` has every number
-quoted here.
+says what each one does to the sound. `docs/how-it-works.md` says why. `docs/benchmarks.md` has the measured numbers
+quoted here; the Mix and Tone curves come from the code (`engine/PolyPitchProcessor.h`).
 
 | Control | Range | Default | What it does |
 |---|---|---|---|
@@ -63,7 +63,9 @@ applied: at 100 (the default) all of it, at 50 half the decibels, at 0 none (the
 | +7 | -2.6 | |
 | +12 | -5.3 | |
 
-The curve changes smoothly: sweeping or jumping Tone does not click.
+Sweeping Tone does not click. Jumping it in one step can, at large shifts down: the shelves change at once, and
+at octave down the largest step in the sound measured 3 to 10 times the largest in steady playing (at -7 two to
+three times; at -5 and shifting up nothing showed). Smoothing it is on the roadmap.
 
 ## Response (shifting up only)
 
@@ -77,7 +79,8 @@ not, so the player chooses. Shifting down, Response changes nothing.
 | **Balanced** | about 12 ms | The all-rounder: pure intervals 5 to 7 dB cleaner than Fast, chords up to 4 dB, mixes of parts up to 2 dB. As late as the reference device of the benchmarks. | 4 ms. A vibrato wobbles a little more (5.6 cents against 3.9 at octave up). |
 | **Clean** | about 16 ms | Full chords and dense playing: the middle note of a chord at its right loudness, mixes of parts 2 to 3.6 dB cleaner than Fast at a fifth and an octave up. | 8 ms. Pitch that moves is followed less closely (a vibrato wobbles 7 to 10 cents, bends trail by 16 to 20 ms); pure intervals at small shifts are 1 to 3 dB less clean than on Fast; the first tenth of a second after a strum is a little rougher. |
 
-All three cost the same CPU. Changing Response while shifting up restarts the bands, as changing Semitones does,
+On Full all three cost the same CPU; on Lite and Eco, Clean costs more at octave up (3.5 % against 2.6 % on Lite,
+1.9 % against 1.5 % on Eco), because Lite's saving on the doubled bands does not apply to it. Changing Response while shifting up restarts the bands, as changing Semitones does,
 and can click; while shifting down it does nothing until the interval goes up.
 
 Which should be the default is a listening decision that has not been made; Fast is the default because it was
@@ -92,11 +95,12 @@ one DI chord take, average load and the 99.9th-percentile 64-sample block as a s
 | | CPU at octave down | CPU at octave up | What is left out | What it costs in sound |
 |---|---|---|---|---|
 | **Full** | 2.2 %, block 5.8 % | 4.5 %, block 8.9 % | Nothing. | |
-| **Lite** | 1.8 %, block 5.4 % | 2.6 %, block 4.7 % | Two notes beating in one band are looked for only below 2.5 kHz of the input (Full: 5 kHz), and shifting up on Fast and Balanced the doubled bands run only below 1.25 kHz. | Recordings of guitars came out within 0.7 dB of Full. Clean, steady chords are a few dB less clean in their upper harmonics. Attacks, tuning, single notes and pitch that moves are the same. |
-| **Eco** | 1.2 %, block 4.7 % | 1.5 %, block 3.5 % | Lite, and the bands are looked at every 64 samples instead of every 32, and shifting up nothing above 10.5 kHz is put out (the reference device's shifted sound ends there too). | Up to 1.4 dB rougher than Lite on guitar recordings shifting down and about a decibel shifting up; a bend is followed about a millisecond later; at octave up the top octave of the sound is gone. |
+| **Lite** | 1.8 %, block 5.4 % | 2.6 %, block 4.7 % | Two notes beating in one band are looked for only below 2.5 kHz of the input (Full: 5 kHz), and shifting up on Fast and Balanced the doubled bands run only below 1.25 kHz. | Recordings of guitars came out within 0.7 dB of Full. Clean, steady synthetic chords are 2 to 6 dB less clean in their upper harmonics. Attacks, tuning, single notes and pitch that moves are the same. |
+| **Eco** | 1.2 %, block 4.7 % | 1.5 %, block 3.5 % | Lite, and the bands are looked at every 64 samples instead of every 32, and shifting up nothing above 10.5 kHz is put out (the reference device's shifted sound ends there too). | Up to 1.4 dB rougher than Lite on guitar recordings shifting down and about a decibel shifting up; a slide at octave down trails by about a millisecond more; at octave up the top octave of the sound is gone. |
 
-Eco takes less CPU than the reference device of the benchmarks at any interval. Shifting up, Eco with Response on
-Balanced is as late as that device and within about a decibel of it on its strongest tests.
+Eco takes less CPU than the reference device of the benchmarks at any interval (on Clean at octave up, about the
+same). Shifting up, Eco with Response on Balanced is as late as that device and within about a decibel of it on
+recordings of guitars; on clean synthetic held chords at octave up the device is 6 dB ahead.
 
 Changing Quality while playing restarts the bands and can click.
 

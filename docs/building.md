@@ -96,6 +96,6 @@ does not do yet.
 | `max/device/Ben's Polyphonic Pitch Shifter.amxd` | The Max for Live device. |
 | `max/tools/` | Generators for the device and help patch, and the in-Max check. |
 | `tools/` | The command-line harness, the load meter and the profile. |
-| `tests/` | Signals, measures, the scorecard, the held-chord, moving-pitch and strummed-chord tests, the engine-against-reference test, the plug-in test. |
+| `tests/` | Signals, measures, the scorecard, the held-chord, moving-pitch and strummed-chord tests, the engine-against-reference test, the bad-input-sample test, the plug-in test, and the mix test for your own recordings. |
 | `scripts/` | Build, install, gate. |
 | `docs/` | The controls, how it works, benchmarks, design notes, Max notes. |

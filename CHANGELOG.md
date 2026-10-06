@@ -18,18 +18,19 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
   the working name, stays in code and file names; Line 6 uses "Poly Pitch" for a Helix effect.
 - A Python reference implementation the engine is tested against, a scorecard with a regression gate, and the
   band-filter design that generates the engine's tables.
-- The engine's work is spread out and well under half of what it was: about 2 % of a core shifting down and 5 %
-  shifting up at 48 kHz on an Apple M4, with the heaviest 64-sample blocks at 6 and 11 % of their time
+- The engine's work is spread out and well under half of what it was: about 2 % of a core shifting down and 4.5 %
+  shifting up at 48 kHz on an Apple M4, with the 99.9th-percentile 64-sample blocks at 6 and 9 % of their time
   (`docs/benchmarks.md`, "Cost"). Its likeness sums are in double precision, as the reference's are. Beating is
   looked for only in the bands below 5 kHz of the input, which changed no score.
 - A Quality setting (Full, Lite, Eco). Lite takes about four fifths of the CPU shifting down and under three
-  fifths shifting up (1.9 % and 2.6 % of a core at the octaves on an Apple M4): beating is looked for only below
+  fifths shifting up (1.8 % and 2.6 % of a core at the octaves on an Apple M4): beating is looked for only below
   2.5 kHz, and shifting up the doubled bands are kept only below 1.25 kHz. Recordings of guitars came out within
-  0.7 dB of Full; clean, steady chords are a few dB less clean in their upper harmonics. Eco (1.2 % and 1.5 %) is
+  0.7 dB of Full; clean, steady chords are 2 to 6 dB less clean in their upper harmonics. Eco (1.2 % and 1.5 %) is
   Lite with the bands looked at every 64 samples instead of every 32 and, shifting up, nothing put out above
   10.5 kHz; it costs less than the commercial shifter the project is measured against, and with Response on
-  Balanced it is as late as that shifter and within about a decibel of it where that shifter leads
-  (`docs/benchmarks.md`, "Lite and Eco").
+  Balanced it is as late as that shifter and within about a decibel of it on recordings of guitars where that
+  shifter leads; on clean synthetic held chords at octave up it is 6 dB behind (`docs/benchmarks.md`, "Lite and
+  Eco").
 - An input sample that is not a number, or is infinite, counts as silence, in the shifted sound and in the dry
   one. Before, one such sample from the host left the output not a number until the next reset.
 

@@ -193,7 +193,7 @@ def superposition(ym, *parts, n_fft=8192, hop=2048, k=2.5, floor_db=70.0):
     """New spectral energy in dev(a+b) that dev(a) and dev(b) do not have (dB re the total), and energy they
     have that the mix lost (two parts or more). Fine frequency resolution (5.4 Hz bins), so sidebands and wrong
     tones between the partials count, while a partial that is merely a little louder or softer does not (k = 4 dB
-    of slack, and a +-2 bin neighbourhood: a partial up to 11 Hz from its place is not counted either)."""
+    of slack, and a +-2 bin neighborhood: a partial up to 11 Hz from its place is not counted either)."""
     from scipy.ndimage import maximum_filter1d
     n = min([len(ym)] + [len(p) for p in parts]); w = np.blackman(n_fft); ex = []; mi = []; tot = []
     for i in range(0, n - n_fft, hop):

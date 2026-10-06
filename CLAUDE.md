@@ -21,7 +21,7 @@ and judges by behavior and by ear, not by code.
 
 ## From edit to main
 
-1. `scripts/gate.sh` (about six minutes): builds the tools, input samples that are not numbers counted as silence,
+1. `scripts/gate.sh` (about seven minutes): builds the tools, input samples that are not numbers counted as silence,
    engine against reference at 44.1 and 48 kHz, scorecard at -12, +2 and +12 (and at +12 in the balanced and clean
    responses, and all three with the quality set to lite and to eco) inside its limits. It must pass before a commit.
 2. If the sound changed, run `python tests/scorecard.py engine all` and put the before and after lines in the
@@ -69,5 +69,5 @@ and judges by behavior and by ear, not by code.
 - numba: unifying a `prange` index with an int32 array element gives float64. Cast to `np.int64` before indexing.
 - `auval -a` scans every Audio Unit and takes many minutes. Validate one: `auval -v aufx PlyP Bjuo`.
 - CPU numbers move with whatever else the computer is doing. Compare before and after in the same sitting, runs
-  interleaved, and take the lowest of several; trust the 99.9th-percentile block of `polypitch_profile`, not the
-  single heaviest one.
+  interleaved, and take the lowest of several; trust the 99.9th-percentile block of `polypitch_load` (or
+  `polypitch_profile`), not the single heaviest one.

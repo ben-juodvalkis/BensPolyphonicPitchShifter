@@ -8,7 +8,7 @@
 //   @tone       0 .. 100: how much of the interval-dependent tone curve is applied to the shifted sound (default 100)
 //   @response   shifting up only: 0 = fast (default), 1 = balanced (attacks 4 ms later, cleaner), 2 = clean (8 ms later; a full chord's middle note comes out right)
 //   @quality    0 = full (default), 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up; clean chords a little less clean),
-//               2 = eco (about a third of full's CPU; shifting up nothing above 10.5 kHz)
+//               2 = eco (about half of full's CPU shifting down and a third shifting up; shifting up nothing above 10.5 kHz)
 //   clear       forget everything heard so far
 //
 // The shifted sound is mono (the two inputs summed), sent to both outlets; the dry signal passes in stereo and is

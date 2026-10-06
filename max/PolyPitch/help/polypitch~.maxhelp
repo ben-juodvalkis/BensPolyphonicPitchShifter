@@ -45,7 +45,7 @@
 						520,
 						48
 					],
-					"text": "Polyphonic pitch shifter for live playing: chords stay in tune and clean, attacks come out about 2 ms late shifting down and 7 ms shifting up. The shifted sound is mono (the inputs summed); the dry signal passes in stereo and is never delayed."
+					"text": "Polyphonic pitch shifter for live playing: chords stay in tune and clean, attacks come out about 2 ms late shifting down and 7.5 ms shifting up. The shifted sound is mono (the inputs summed); the dry signal passes in stereo and is never delayed."
 				}
 			},
 			{
@@ -263,7 +263,7 @@
 						330,
 						34
 					],
-					"text": "0 = full, 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up), 2 = eco (about a third of full; shifting up nothing above 10.5 kHz)"
+					"text": "0 = full, 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up), 2 = eco (about half of full's CPU shifting down and a third shifting up, where nothing above 10.5 kHz is put out)"
 				}
 			},
 			{

@@ -75,7 +75,7 @@ all on those eleven chords (dirt between the notes, engine -26.7 dB before, refe
 
 What it came down to:
 
-- **A real note's partial is not a line.** It is a tight cluster (two polarisations of the string, a unison string,
+- **A real note's partial is not a line.** It is a tight cluster (two polarizations of the string, a unison string,
   a chorus) that beats slowly and wanders. Synthetic partials are lines. Everything the engine did well on
   synthetic chords and badly on real ones traces back to that.
 - **A slow beat on a real note is not to be trusted.** A cluster looks like two partials 10 to 20 Hz apart for a
@@ -150,7 +150,7 @@ eleven real held chords, both at octave up; the reference device has -28.9 and -
 | The same bands behind the 12 ms filter (the one shifting down uses: 41 dB down one band away instead of 30) | Full chords -30.2, held -27.9, the middle note 2.5 dB off, pure intervals 5 to 7 dB cleaner, loop mixes 1.4 to 2 dB. Attacks 11.3 ms late, the reference device's figure. The Balanced response. |
 | Bands half as wide (1024, 43 Hz wide), 16 ms filter | Full chords -33.5, held -27.5, the middle note 0.7 dB off (reference device 0.5), mixes of DI takes 2 to 3.6 dB cleaner at +7 and +12. Attacks 15.4 ms late, and a 6 Hz vibrato wobbles 9.5 cents instead of 3.9. The Clean response. |
 | Bands half as wide behind a 12 ms filter | Worse than either neighbor: full chords -31.0, held -26.1, and only 24 of 28 pure pairs under -40 dB. A band half as wide needs a filter twice as long to be as tight; with less it leaks. |
-| Clean's bands twice over (2048, half a band apart, as Fast does with the wide ones), 16 ms | Held chords -29.6 dB, the only thing tried so far that beats the reference device there; two-note chords -38.2 (Clean: -35.1); full chords -33.0. About twice the work. Not built: it wants the faster transform first (`ROADMAP.md`). |
+| Clean's bands twice over (2048, half a band apart, as Fast does with the wide ones), 16 ms | Held chords -29.6 dB, the only thing tried so far that beats the reference device there; two-note chords -38.2 (Clean: -35.1); full chords -33.0. About twice the work. Not built: it wants CPU to spare first (`ROADMAP.md`). |
 
 What it taught:
 
@@ -454,7 +454,7 @@ the 512-band one to -188 dB.
 | 2 kHz | 2.9 % | within 0.4 dB |
 
 **Lite is the join at 1.25 kHz and beating looked for below 2.5 kHz.** Its numbers are in `docs/benchmarks.md`
-("Lite"). On real recordings it is within 0.7 dB of Full. On the synthetic tests it loses where both of its
+("Lite and Eco"). On real recordings it is within 0.7 dB of Full. On the synthetic tests it loses where both of its
 savings touch the same thing, steady upper harmonics: two-note chords 6 dB at +7 and 3 dB at +12, held chords at
 +12 3.8 dB. Strummed chords are within 0.6 dB and pitch that moves is the same.
 

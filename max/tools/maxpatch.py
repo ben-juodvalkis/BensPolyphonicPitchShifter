@@ -90,14 +90,14 @@ def write_amxd(path, patcher):
 
 def help_patcher():
     B = [comment("t", "polypitch~", [20, 15, 300, 30], fontsize=20.0, fontface=1),
-         comment("d", "Polyphonic pitch shifter for live playing: chords stay in tune and clean, attacks come out about 2 ms late shifting down and 7 ms shifting up. The shifted sound is mono (the inputs summed); the dry signal passes in stereo and is never delayed.", [20, 50, 520, 48]),
+         comment("d", "Polyphonic pitch shifter for live playing: chords stay in tune and clean, attacks come out about 2 ms late shifting down and 7.5 ms shifting up. The shifted sound is mono (the inputs summed); the dry signal passes in stereo and is never delayed.", [20, 50, 520, 48]),
          obj("adc", "adc~ 1 2", [20, 130, 60, 22], 1, 2, ["signal", "signal"]), comment("c_in", "your instrument (or any signal)", [90, 130, 200, 20]),
          obj("pp", "polypitch~ -12", [20, 350, 150, 22], 2, 2, ["signal", "signal"]),
          box("a_semi", "attrui", [200, 170, 200, 22], 1, 1, [""], attr="semitones"), box("a_mix", "attrui", [200, 196, 200, 22], 1, 1, [""], attr="mix"), box("a_tone", "attrui", [200, 222, 200, 22], 1, 1, [""], attr="tone"),
          comment("c_semi", "-12 .. 12 semitones (also the first argument)", [410, 170, 280, 20]), comment("c_mix", "0 = dry only, 50 = both at full level, 100 = shifted only", [410, 196, 330, 20]),
          comment("c_tone", "how much of the tone curve for this interval is applied", [410, 222, 330, 20]),
          box("a_resp", "attrui", [200, 248, 200, 22], 1, 1, [""], attr="response"), comment("c_resp", "shifting up: 0 = fast, 1 = balanced (attacks 4 ms later, cleaner), 2 = clean (8 ms later; a full chord's middle note comes out right)", [410, 244, 330, 34]),
-         box("a_qual", "attrui", [200, 282, 200, 22], 1, 1, [""], attr="quality"), comment("c_qual", "0 = full, 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up), 2 = eco (about a third of full; shifting up nothing above 10.5 kHz)", [410, 278, 330, 34]),
+         box("a_qual", "attrui", [200, 282, 200, 22], 1, 1, [""], attr="quality"), comment("c_qual", "0 = full, 1 = lite (about four fifths of the CPU shifting down and under three fifths shifting up), 2 = eco (about half of full's CPU shifting down and a third shifting up, where nothing above 10.5 kHz is put out)", [410, 278, 330, 34]),
          msg("m_clear", "clear", [200, 316, 45, 22]), comment("c_clear", "forget everything heard so far", [250, 316, 200, 20]),
          box("g", "gain~", [20, 385, 22, 100], 1, 2, ["signal", ""], multichannelvariant=0, parameter_enable=0), box("g2", "gain~", [150, 385, 22, 100], 1, 2, ["signal", ""], multichannelvariant=0, parameter_enable=0),
          box("dac", "ezdac~", [20, 500, 45, 45], 2, 0), comment("c_dac", "start audio", [75, 512, 100, 20]),

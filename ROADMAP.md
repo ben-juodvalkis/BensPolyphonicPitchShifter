@@ -3,15 +3,15 @@
 Ordered by what would help most. Numbers quoted here are from `docs/benchmarks.md`; each item says how to tell when
 it is done.
 
-## Order of work: speed now
+## Order of work
 
 Decided 2026-10-05, after a day of "sound before speed". The sound work that was planned is in: held chords and
-slides, the Response control, small shifts up (section 3 has what is left, all of it small or research-sized). What
-stands between the engine and a stage now is section 2: the average load is fine, but the work arrives in lumps.
+slides, the Response control, small shifts up (section 3 has what is left, all of it small or research-sized).
 
-1. **Now: performance** (section 2), in the order given there, which comes from a measurement of where the time
-   goes and not from the guesses this file used to hold. The transform, for one, is a sixteenth of the load.
-2. **The sound is held in place while that happens.** Work that only does the same sums faster must leave the
+1. **Performance** (section 2) has been done on an Apple M4, in the order that a measurement of where the time goes
+   gave, and the Quality control was added. On the M4 Full is inside the targets that were set on the M1 Max,
+   scaled to the M4; the M1 Max itself has not been measured since. What comes next has not been decided.
+2. **The sound is held in place during speed work.** Work that only does the same sums faster must leave the
    output as it is: the gate proves it, and so does a bit-for-bit comparison with the build before. Work that
    changes when or how often a band is looked at changes the sound a little; that is a sound change like any
    other: reference first, both directions and all three responses scored, the docs' numbers updated.
@@ -36,12 +36,12 @@ stands between the engine and a stage now is section 2: the average load is fine
 
 ## 2. Performance
 
-Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): on a DI chord take 2.3 % of a
-core shifting down and 4 to 5 % shifting up, and the 99.9th-percentile 64-sample block takes 6 % of its time slot
-at octave down and 10 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and 31 %
-of the slot. Heavier material (chord stabs, or many bands on readers) takes 4.6 to 5.8 % at octave up and 9 to
-11 % of the slot. With Quality on Lite: 1.9 % shifting down and 2.4 to 2.6 % shifting up, 6 % and 5 % of the slot;
-on Eco 1.2 % and 1.4 to 1.5 %, 5 % and 3 to 4 %.
+Where it stands (48 kHz, one core of an Apple M4; `docs/benchmarks.md`, "Cost"): on a DI chord take 2.2 % of a
+core shifting down and 4.0 to 4.5 % shifting up, and the 99.9th-percentile 64-sample block takes 6 % of its time
+slot at octave down and 9 % at octave up. Before this work the same computer took 5.6 % and 12.3 %, and 14 % and
+31 % of the slot. Heavier material (chord stabs, or many bands on readers) takes 4.5 to 5.6 % at octave up and 9 to
+10 % of the slot. With Quality on Lite: 1.8 % shifting down and 2.3 to 2.6 % shifting up (3.5 % on Clean), 5 % of
+the slot both ways; on Eco 1.2 % and 1.4 to 1.5 % (1.9 % on Clean), 5 % and 3 to 4 %.
 
 The targets below were set on an Apple M1 Max, which took 1.5 to 1.6 times as long for the engine as it was and
 has not been measured since. On the M4 they come to about 3.3 %, 6.6 % and 15 %: the chord take and the heavier
@@ -87,14 +87,15 @@ Done:
 
 - **A Quality control: Full or Lite.** Lite looks for beating only below 2.5 kHz and, shifting up on Fast and
   Balanced, keeps the doubled bands only below 1.25 kHz of the input, where low notes need them: 1.9 % of a core
-  at octave down and 2.6 % at octave up, against 2.3 % and 4.6 %. Recordings of guitars came out within 0.7 dB of
-  Full; clean, steady chords lose 2 to 6 dB in their upper harmonics (`docs/benchmarks.md`, "Lite";
+  at octave down and 2.6 % at octave up, against 2.2 % and 4.5 % (`docs/benchmarks.md`, "Cost"). Recordings of guitars came out within 0.7 dB of
+  Full; clean, steady chords lose 2 to 6 dB in their upper harmonics (`docs/benchmarks.md`, "Lite and Eco";
   `docs/design-notes.md`, "Doing less"). The switch is in the plug-in, the Max object and the device; in Max and
   in Live it has not been tried yet.
 - **Eco, a third Quality setting that costs less than the reference device's shifter at any interval** (1.2 % at
-  octave down, 1.5 % at octave up): Lite with the bands looked at every 64 samples instead of every 32, and
+  octave down, 1.5 % at octave up; 1.9 % on Clean, about the same as the device): Lite with the bands looked at every 64 samples instead of every 32, and
   shifting up nothing put out above 10.5 kHz, which is where the reference device's own sound ends. On real
-  recordings it is within 1.4 dB of Lite shifting down and about a decibel shifting up; with Response on Balanced
+  recordings it is within 1.4 dB of Lite shifting down and about a decibel shifting up (one exception: chords built
+  from single notes at +2, 3.6 dB); with Response on Balanced
   it is as late as the reference device and within about a decibel of it where that device leads. The one clear
   loss: clean synthetic held chords at octave up, 6 dB behind the reference device.
 
@@ -109,9 +110,12 @@ Left:
   below 1.25 kHz are 13.
 - **The M1 Max has not been measured since any of this** (set aside on 2026-10-05). The targets were under 5 %
   shifting down, under 10 % shifting up and the 99.9th-percentile 64-sample block under 25 % of its slot. By the
-  old engine's ratio between the two computers Full would be at about 3.5 %, 7.0 % and 16 % there, Lite at
-  2.9 %, 4.0 % and 9 % and Eco at 1.8 %, 2.3 % and 6 %. A first sitting on that computer (2026-10-05, before the 5 kHz change) was disturbed by
-  other programs and is not recorded here; its gate and scorecard matched this computer's exactly.
+  old engine's ratio between the two computers Full would be at about 3.3 %, 6.8 % and 15 % there, Lite at
+  2.7 %, 4.0 % and 8 % and Eco at 1.8 %, 2.3 % and 6 %. A first sitting on that computer (2026-10-05, the build
+  before the 5 kHz change) was disturbed by other programs and is not recorded as a measurement; its gate and
+  scorecard matched the M4's exactly. One thing in it is worth checking in a quiet sitting: against the old engine
+  in the same runs, the heavy block at octave up shrank less there than on the M4 (to 0.46 of the old engine's,
+  against 0.39 for the same build on the M4), so the estimates above may be low.
 - **Do less of the curves, or look at a quarter of the bands at each frame**, only if that is not enough: both
   change which bands are looked at when, so both are sound changes (reference first). The first also needs a
   better idea than the one this file used to hold, that most awake bands "hold one steady partial" and could be
@@ -165,12 +169,12 @@ Left:
   the reference device as well.)
 - **The loudness of a chord's partials at small shifts.** Partials that stand alone are 1.2 to 2.0 dB off at +2 and
   0.9 to 1.6 dB at +7, depending on the response; the reference device has 0.3 and 0.5.
-- **Chord-note tuning** from 0.1 to 0.6 cents to zero.
+- **Chord-note tuning** from 0.1 to 0.4 cents to zero.
 - **Below 60 Hz.** The lowest band is unused, so bass-guitar fundamentals below that are lost.
 - **A cleaner Clean: its bands twice over.** 2048 bands (Clean's 43 Hz bands, half a band apart, as Fast does
   with the wide ones) measured -29.6 dB on the real held chords in the reference implementation, the only thing
   tried that beats the reference device's -28.4, and two-note chords 3 dB cleaner than Clean. It is about twice
-  the work, so it waits for the faster transform (section 2).
+  the work: it waits until there is CPU to spare for it (section 2).
 - **Vibrato on the Clean response** wobbles 7 to 10 cents (Fast: 2.4 to 3.9), because a band half as wide follows
   a moving pitch half as fast. An idea, untried: let a plain band's phase advance lean on its neighbors when the
   pitch is moving.
@@ -179,6 +183,9 @@ Left:
 
 - **Change the interval while playing without a click** (run the old and new settings side by side for a few
   milliseconds). The same for Response and Quality, which restart the bands as well.
+- **Smooth Tone.** Its shelves change at once. Swept, that is inaudible; jumped in one step at a large shift down
+  it clicks (at octave down the largest step was 3 to 10 times the largest in steady playing, on a synthetic chord;
+  at -5 and shifting up nothing showed). Gliding the shelf gains over 10 ms or so, as Mix does, would remove it.
 - **More sample rates.** Filter tables for 88.2 and 96 kHz, with twice the bands so the band width stays the same.
 - **Stereo.** Today the shifted sound is mono. Options: an engine per channel, or mid and side.
 - **Optional latency reporting**, delaying the dry signal to line up with the shifted one, for parallel use.
@@ -197,4 +204,4 @@ Left:
 - **A readability pass** over the reference and the engine. Both were written to be compared line against line,
   and it shows: long lines, terse names.
 - **A public set of real recordings** for the benchmarks, so the real-material tables in `docs/benchmarks.md` can
-  be reproduced by anyone. Contributions of DI takes under an open licence are welcome.
+  be reproduced by anyone. Contributions of DI takes under an open license are welcome.

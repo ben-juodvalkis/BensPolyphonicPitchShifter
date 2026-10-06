@@ -15,8 +15,8 @@ import numpy as np
 
 def designed(K, tau, tail, beta=1.0, w_stop=300.0, stop_from=None, ngrid=6000, w_far=None, far_from=6.0):
     """Least-squares fit to a target band shape with delay tau: flat top, raised-cosine roll-off of width beta
-    (beta = 1: from the centre to one full spacing away), nothing beyond; stop band weighted w_stop times heavier.
-    The add-back-up condition is imposed exactly. Unlike optimal(), the pass band stays flat and in phase.
+    (beta = 1: from the center to one full spacing away), nothing beyond; stop band weighted w_stop times heavier.
+    The add-back-up condition is imposed exactly, and the pass band stays flat and in phase.
     w_far: a heavier weight still from `far_from` spacings on. What a partial leaks into the ~100 far bands is too
     fast for the frame rate to follow, so every one of them turns it into a wrong tone: with the plain weight that
     haze sits 41 dB under a lone sine at tau = 8 ms; w_far = 30000 takes 20 dB off it for 2 dB more leak next door."""
@@ -55,6 +55,6 @@ def prototype(K, tau, tail, beta=1.0, w_stop=300.0, w_far=30000.0):
 
 
 def describe(h, K, tau, sr):
-    """-> text: the band's gain and phase at a few offsets from its centre (dB re the centre, degrees re a pure delay)"""
+    """-> text: the band's gain and phase at a few offsets from its center (dB re the center, degrees re a pure delay)"""
     n = np.arange(len(h)); G = lambda f: np.sum(h * np.exp(-2j * np.pi * f * (n - tau) / sr)) * K; sp = sr / K; g0 = abs(G(0.0))
     return ", ".join(f"{m:g} band{'s' if m != 1 else ''}: {20 * np.log10(abs(G(m * sp)) / g0 + 1e-12):.1f} dB / {np.degrees(np.angle(G(m * sp))):.0f} deg" for m in (0.25, 0.5, 1, 1.5, 2, 4, 8, 16))

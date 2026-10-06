@@ -3,12 +3,12 @@
 // decisions; tests/test_engine_vs_reference.py holds the two together.
 //
 // How it works (docs/how-it-works.md has the long version):
-// The input runs through a bank of narrow band-pass filters (one FFT every 32 samples gives each band's slowly
-// changing envelope). Each band is then handled in one of two ways.
+// The input runs through a bank of narrow band-pass filters (one FFT every 32 samples, 64 on eco, gives each band's
+// slowly changing envelope). Each band is then handled in one of two ways.
 //   "plain" band (one partial in it): its loudness is passed on as it happens and its phase is advanced `ratio`
 //       times as fast as the input's (that advance smoothed over a few milliseconds). Nothing is
 //       repeated or skipped; the partial is exactly in tune. A band that holds the weaker share of a partial follows
-//       its stronger neighbour's phase, so the two shares stay in step.
+//       its stronger neighbor's phase, so the two shares stay in step.
 //   "beating" band (two partials in it): a reader plays the band at the shifted speed and jumps by exactly one
 //       repeat of the band's envelope (one beat), with the phase carried across. Both partials come out right.
 // Attacks, shifting down: played straight from the input (the bridge); the bands take over where they are the same
@@ -28,8 +28,6 @@
 #include <algorithm>
 #include "PolyPitchFilters.h"
 
-// Built with -DPOLYPITCH_PROFILE (tools/polypitch_profile.cpp does) the engine keeps the time it spends in each stage of
-// its work. No other build has any of it: the two macros below then stand for nothing.
 // (a promise to the compiler that two arrays are not the same one, so that it can work through them several bands at a time)
 #if defined (__GNUC__) || defined (__clang__) || defined (_MSC_VER)
  #define POLYPITCH_RESTRICT __restrict
@@ -42,6 +40,8 @@
 #else
  #define POLYPITCH_MULADD(a, b, c) ((a) * (b) + (c))
 #endif
+// Built with -DPOLYPITCH_PROFILE (tools/polypitch_profile.cpp does) the engine keeps the time it spends in each stage of
+// its work. No other build has any of it: the two macros below then stand for nothing.
 #ifdef POLYPITCH_PROFILE
  #include <chrono>
  #define POLYPITCH_STAGE_START(s) StageTimer stageTimer (stageTime, s)
@@ -58,7 +58,7 @@ class Engine
 {
 public:
 #ifdef POLYPITCH_PROFILE
-    // seconds spent, by stage. sPlacement is part of sDecisions (fitting a reader to its neighbours); the rest do not overlap.
+    // seconds spent, by stage. sPlacement is part of sDecisions (fitting a reader to its neighbors); the rest do not overlap.
     enum Stage { sWindow, sTransform, sFrameBands, sCurves, sDecisions, sPlacement, sAttacks, sLoopFrameStart, sLoop, numStages };
     mutable double stageTime[numStages] = {};
     static double stageNow() { return std::chrono::duration<double> (std::chrono::steady_clock::now().time_since_epoch()).count(); }
@@ -175,7 +175,7 @@ public:
     // shifting up on the fast and balanced responses only the bands below 1.25 kHz are doubled (loadFilter). On real recordings
     // that came out within 0.7 dB of full; clean, steady chords are 2 to 6 dB less clean in their upper harmonics. Eco is lite
     // with the bands looked at every 64 samples instead of every 32 (frameSettings) and, shifting up, nothing put out above
-    // 10.5 kHz (setSemitones): about a third of full's CPU, within about a decibel of lite on real recordings
+    // 10.5 kHz (setSemitones): about half of full's CPU shifting down and a third shifting up, within about a decibel of lite on real recordings
     // (docs/benchmarks.md). Changing it restarts the bands, as changing the interval does.
     void setQuality (int q)
     {
@@ -439,7 +439,7 @@ private:
     //   which 2: shifting up, balanced     as fast, behind the 12 ms filter (the one shifting down uses): less of a partial leaks
     //                                      into the bands around it
     //   which 3: shifting up, clean        1024 bands half as wide, 16 ms delay: where three partials 30 to 50 Hz apart crowd together
-    //                                      (the third of a full chord between its neighbours' harmonics) each has a band of its own
+    //                                      (the third of a full chord between its neighbors' harmonics) each has a band of its own
     void makeBank (int which)
     {
         static const int Ks[4] = { 512, 512, 512, 1024 }, overs[4] = { 1, 2, 2, 1 };
@@ -482,7 +482,7 @@ private:
         // one band's width, and every second one above (the even ones, which are a whole bank by themselves). Over the last few odd
         // bands below that frequency the odd ones' weight goes from 1 to 0 and the even ones' from 1 to 2, so that the two add up
         // to the same everywhere and a partial near the join keeps its loudness. kGap: how many of the bank's bands the next band
-        // is away (the phase between two neighbours turns that many times as fast: control, fitNeighbours).
+        // is away (the phase between two neighbors turns that many times as fast: control, fitNeighbors).
         {
             const int nbin = std::min ((int) (std::min (fmax, 0.45 * sr) * Kb / sr), kS), kx = (quality >= 1 && over == 2) ? (((int) (fdense * Kb / sr)) & ~1) : -1; int nb = 0;
             for (int q = 0; q < nbin; ++q)
@@ -582,7 +582,7 @@ private:
     void analyzeFrame()
     {
         POLYPITCH_STAGE_START (sWindow);
-        // band k centred at k sr / K:  Z_k = e^{-j w_k t} sum_n x[t - n] h[n] e^{+j w_k n}
+        // band k centered at k sr / K:  Z_k = e^{-j w_k t} sum_n x[t - n] h[n] e^{+j w_k n}
         for (int q = 0; q < Kb; ++q)
         {
             double acc = 0.0;
@@ -894,9 +894,9 @@ private:
         moments (k, mode[kk], st0[kk], sd0[kk], psi[kk], lead[kk], sjn[kk], step, fitOr, fitOi);
     }
 
-    // What a new reader is placed against: the band's own running stretch plus the neighbours' output, each neighbour turned to
+    // What a new reader is placed against: the band's own running stretch plus the neighbors' output, each neighbor turned to
     // the phase the two bands have between them in the input (over the last WlP frames) and weighted by what they have in common.
-    void fitNeighbours (int k, double step, int WlP)
+    void fitNeighbors (int k, double step, int WlP)
     {
         POLYPITCH_STAGE_START (sPlacement);
         const int64_t m0 = t / H; const int nbs[2] = { k - 1, k + 1 }; WlP = std::min (WlP, NF - 4);
@@ -957,7 +957,7 @@ private:
     }
 
     // where to put band k's reader (within dn0 + lo .. dn0 + hi, nc trials and one more in between) and with what turn: where it
-    // lines up best with what fitNeighbours laid out
+    // lines up best with what fitNeighbors laid out
     void fitSearch (int k, int jn, double dn0, double lo, double hi, int nc, double& bd, double& bp)
     {
         POLYPITCH_STAGE_START (sPlacement);
@@ -1131,7 +1131,7 @@ private:
             }
         }
         POLYPITCH_STAGE_NEXT (sDecisions);
-        // the turn of phase between two neighbouring bands at each of the last frames (the followers below and fitNeighbours use it)
+        // the turn of phase between two neighboring bands at each of the last frames (the followers below and fitNeighbors use it)
         lockN = std::max (Wl, Kb / H);
         for (int j = 0; j < lockN; ++j)
         {
@@ -1180,9 +1180,9 @@ private:
                 if (cin[i] >= nIn && t >= quietUntil && t >= busy[i] && pend < 0)
                 {
                     const double Jk = Jc[i] * H, stp = std::max (Jk, wmin) / ratio / M; double dn = up ? flr + Jk : flr, ps; const int jnk = std::max ((int) std::nearbyint (Jk * rH), 1);
-                    if (placeMode == 1 || placeMode == 2)       // anywhere within one beat: where the neighbours' shares fit
+                    if (placeMode == 1 || placeMode == 2)       // anywhere within one beat: where the neighbors' shares fit
                     {
-                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (Jk * rH), 8));
+                        fitPrepare (k, jnk, stp); fitNeighbors (k, stp, std::max ((int) std::nearbyint (Jk * rH), 8));
                         fitSearch (k, jnk, dn, 0.0, Jk * 15.0 / 16.0, 16, dn, ps);
                         fitSearch (k, jnk, dn, -Jk / 24.0, Jk / 24.0, 5, dn, ps);
                         if (dn < flr) dn = flr;
@@ -1232,7 +1232,7 @@ private:
                     {
                         double lo = -J[i] / 8.0, dq;
                         if (dn + lo < flr) lo = flr - dn;
-                        fitPrepare (k, jnk, stp); fitNeighbours (k, stp, std::max ((int) std::nearbyint (J[i] * rH), 8));
+                        fitPrepare (k, jnk, stp); fitNeighbors (k, stp, std::max ((int) std::nearbyint (J[i] * rH), 8));
                         fitSearch (k, jnk, dn, lo, J[i] / 8.0, 9, dq, ps);
                         if (pgain < 1.0) { dn = dn + pgain * (dq - dn); ps = fitAlign (k, jnk, dn); }
                         else dn = dq;
@@ -1242,7 +1242,7 @@ private:
                 }
             }
         }
-        // shares of one partial in neighbouring bands: the weaker band follows the stronger one's phase
+        // shares of one partial in neighboring bands: the weaker band follows the stronger one's phase
         if (m0 - Wl - 1 < 0) return;
         for (int k = 1; k < kmax - 1; ++k)                       // how steady the phase between band k and k+1 has been
         {

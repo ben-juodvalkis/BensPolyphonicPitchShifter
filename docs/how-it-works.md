@@ -130,7 +130,7 @@ the player chooses:
 - **Fast** (the default): the 8 ms filter. One band away from its center it is 30 dB down.
 - **Balanced**: the same bands behind the 12 ms filter that shifting down uses, 41 dB down one band away. Less of
   every partial reaches the bands around it, so less is treated wrongly there: pure intervals come out 5 to 7 dB
-  cleaner, chords and mixes up to 2 dB. Attacks are 4 ms later.
+  cleaner, chords up to 4 dB and mixes up to 2 dB. Attacks are 4 ms later.
 - **Clean**: bands half as wide (43 Hz), 1024 of them, behind a 16 ms filter. A filter twice as long is what a band
   half as wide needs to be as tight. This is the setting for full chords: a chord's middle note often has a
   partial with other notes' partials 30 to 50 Hz either side of it. In 86 Hz bands all three share every band
@@ -148,7 +148,7 @@ about four fifths of the CPU shifting down and under three fifths shifting up:
 
 - **Beating is looked for only below 2.5 kHz of the input**, not 5. Between the two, a band that holds two partials
   is treated as plain: the stronger one comes out right, the weaker one a little off its pitch. On clean, steady
-  chords that is a few dB more dirt in the upper harmonics. On recordings of guitars it could not be measured.
+  chords that is 2 to 6 dB more dirt in the upper harmonics. On recordings of guitars it could not be measured.
 - **Shifting up, only the bands below 1.25 kHz are doubled** (on Fast and Balanced; Clean has bands of its own and
   keeps them all). The doubling of step 5 is there for partials that crowd into one band's width, and that is a
   matter of low notes: two neighboring harmonics of a low E are 82 Hz apart, closer than a band is wide. Above
@@ -157,18 +157,18 @@ about four fifths of the CPU shifting down and under three fifths shifting up:
 
 Attacks, tuning, single notes and pitch that moves are the same in both.
 
-**Eco** is Lite with two more things left out, for about a third of Full's CPU, which is less than the reference
-device's shifter takes at any interval:
+**Eco** is Lite with two more things left out, for about half of Full's CPU shifting down and a third shifting up,
+which is less than the reference device's shifter takes at any interval (on Clean at octave up, about the same):
 
 - **The bands are looked at every 64 samples instead of every 32.** Everything that follows a band in time is then
   half as fine: the likeness check, the smoothing of the phase advance, the moment a reader jumps. On recordings of
-  guitars that cost up to 1.4 dB against Lite shifting down and about a decibel shifting up; a bend is followed
-  about a millisecond later.
+  guitars that cost up to 1.4 dB against Lite shifting down and about a decibel shifting up; a slide at octave down
+  trails by about a millisecond more.
 - **Shifting up, nothing above 10.5 kHz is put out.** The reference device's shifted sound ends there too (at
   octave up its level above 12 kHz is 72 dB below the whole). At octave up that is the top octave of the sound.
 
 Shifting up, Eco with Response on Balanced is as late as the reference device and within about a decibel of it on
-its strongest tests. `docs/benchmarks.md` has the numbers ("Lite and Eco"). Changing Quality while playing restarts
+recordings of guitars; on clean synthetic held chords at octave up the device is 6 dB ahead. `docs/benchmarks.md` has the numbers ("Lite and Eco"). Changing Quality while playing restarts
 the bands, as changing the interval does.
 
 ## Around the engine

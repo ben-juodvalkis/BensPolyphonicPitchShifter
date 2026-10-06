@@ -7,7 +7,7 @@
 
 Ten sustained chords in the high, sparse register, where every partial should come out as one clean line. Each note
 is a plucked-string model. In five of the chords every partial is a close pair (0.3 to 2.5 Hz apart), as a real
-string's is (two polarisations, a unison string, a chorus), so each partial beats slowly; in the other five the
+string's is (two polarizations, a unison string, a chorus), so each partial beats slowly; in the other five the
 partials are pure. Measured from 0.4 s into each chord:
 
   dirt     the output's energy that is not within reach of any shifted line of the input (metrics.line_dirt)

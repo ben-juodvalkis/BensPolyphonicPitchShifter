@@ -32,7 +32,7 @@ int main (int argc, char** argv)
     std::vector<size_t> idx (bt.size()); std::iota (idx.begin(), idx.end(), 0); std::sort (idx.begin(), idx.end(), [&] (size_t a, size_t b) { return bt[a] > bt[b]; });
     const size_t top = std::max<size_t> (bt.size() / 100, 1);      // the heaviest 1 % of the 64-sample blocks
     double topT = 0.0; std::vector<double> topS ((size_t) NS, 0.0); for (size_t q = 0; q < top; ++q) { topT += bt[idx[q]]; for (int s = 0; s < NS; ++s) topS[(size_t) s] += bs[idx[q]][(size_t) s]; }
-    std::printf ("%+g semitones, response %d, %.0f Hz: %d bands, %.0f on readers on average\n", std::atof (argv[3]), e.getResponse(), sr, e.getNumBands(), (double) readers / (double) bt.size());
+    std::printf ("%+g semitones, response %d, quality %d, %.0f Hz: %d bands, %.0f on readers on average\n", std::atof (argv[3]), e.getResponse(), e.getQuality(), sr, e.getNumBands(), (double) readers / (double) bt.size());
     std::printf ("   %-28s %12s %32s\n", "stage", "average", "in the heaviest 1 % of blocks");
     for (int s = 0; s < NS; ++s) std::printf ("   %-28s %8.2f %% of a core %14.1f %% of the time slot\n", names[s], 100.0 * e.stageTime[s] / audio, 100.0 * topS[(size_t) s] / top / slot);
     std::printf ("   %-28s %8.2f %% of a core %14.1f %% of the time slot\n", "all", 100.0 * tot / audio, 100.0 * topT / top / slot);
