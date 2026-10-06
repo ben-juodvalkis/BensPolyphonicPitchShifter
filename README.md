@@ -12,9 +12,10 @@ It is one small C++ engine with no dependencies, offered three ways:
 - a **Max object**, `polypitch~`,
 - a **Max for Live device** built on that object.
 
-**Status: 0.1.0, not yet released.** macOS only so far. The plug-in is tested and passes Apple's validation. The
-Max object and the device are built but have not been run inside Max yet. There are no downloads yet: build from
-source (below).
+**Status: 0.1.0.** macOS only so far (11 or later, Apple silicon and Intel). The plug-in is tested and passes Apple's
+validation, and the Max for Live device has been played in Live; the Max object's own check inside Max
+(`max/tools/check_in_max.py`) has not been run yet. Signed and notarized builds of the plug-in, the Max package and
+the device are on the Releases page, with install notes; or build from source (below).
 
 ## What it does
 
@@ -98,7 +99,7 @@ played straight from the input when shifting down, which is why they are only 2 
 | `reference/` | The same algorithm in Python, which the engine is tested against, and the band-filter design |
 | `tests/` | Synthetic test signals, the scorecard and its regression gate |
 | `tools/` | Command-line tools: render a file, measure the CPU load, profile the stages |
-| `scripts/` | Build, install, and the gate |
+| `scripts/` | Build, install, the gate, and the release archive |
 | `docs/` | The controls, how it works, benchmarks, design notes, building, Max |
 
 ## License

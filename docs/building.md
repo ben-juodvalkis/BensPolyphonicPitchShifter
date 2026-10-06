@@ -26,6 +26,18 @@ scripts/build.sh                                         # all three
 The plug-in and the Max object are built universal (Apple silicon and Intel), for macOS 11 or later. The plug-in
 takes about two minutes the first time because JUCE is compiled with it.
 
+## A release (macOS)
+
+```
+C74_SDK=/path/to/max-sdk-base scripts/release-macos.sh     # build/release/BensPolyphonicPitchShifter-<version>-macOS.zip
+```
+
+Builds the plug-in and the Max object, puts them with the Max package, the device, the license notes and
+`scripts/release-INSTALL.txt` into one folder, signs every bundle with the Developer ID certificate in the keychain,
+has Apple notarize them (credentials stored once with `xcrun notarytool store-credentials notarytool-profile ...`),
+staples the tickets and zips the folder. The version is the one in `plugin/CMakeLists.txt`; the Max package's
+`package-info.json` has to say the same. Run the gate first.
+
 ## Install on this Mac
 
 ```
@@ -97,5 +109,5 @@ does not do yet.
 | `max/tools/` | Generators for the device and help patch, and the in-Max check. |
 | `tools/` | The command-line harness, the load meter and the profile. |
 | `tests/` | Signals, measures, the scorecard, the held-chord, moving-pitch and strummed-chord tests, the engine-against-reference test, the bad-input-sample test, the plug-in test, and the mix test for your own recordings. |
-| `scripts/` | Build, install, gate. |
+| `scripts/` | Build, install, gate, release. |
 | `docs/` | The controls, how it works, benchmarks, design notes, Max notes. |

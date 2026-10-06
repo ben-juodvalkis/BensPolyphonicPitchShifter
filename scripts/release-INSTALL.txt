@@ -1,0 +1,27 @@
+Ben's Polyphonic Pitch Shifter @VERSION@ for macOS (11 or later; Apple silicon and Intel)
+
+A polyphonic pitch shifter for live playing: play a chord through it and it comes out up to an octave down or up,
+in tune and clean. Signed and notarized.
+
+PLUG-IN (any Audio Unit or VST3 host: Live, Logic, Reaper, ...)
+  Copy  Plug-ins/PolyPitch.component  to  ~/Library/Audio/Plug-Ins/Components/
+  Copy  Plug-ins/PolyPitch.vst3       to  ~/Library/Audio/Plug-Ins/VST3/
+  Restart the host. It appears as "Ben's Polyphonic Pitch Shifter" (maker: Ben Juodvalkis).
+
+MAX AND MAX FOR LIVE
+  Copy the folder  Max/PolyPitch  into  ~/Documents/Max 9/Packages/  (or Max 8/Packages).
+  That gives Max the polypitch~ object (its help patch opens from the object).
+  Max/Ben's Polyphonic Pitch Shifter.amxd is the Max for Live device: drag it onto an audio track in Live.
+  The device needs the PolyPitch package installed as above. Restart Live after installing it.
+
+THE CONTROLS
+  Semitones  -12 to +12.
+  Mix        0 dry only, 50 both at full level, 100 shifted only.
+  Tone       how much of a tone curve fitted to the interval is applied to the shifted sound.
+  Response   shifting up only: Fast, Balanced or Clean (attacks about 8, 12 or 16 ms late, each cleaner).
+  Quality    Full, Lite or Eco: less CPU for a little less cleanliness.
+  Changing Semitones, Quality, or Response while playing cross-fades without a click.
+  More: https://github.com/ben-juodvalkis/BensPolyphonicPitchShifter/blob/main/docs/controls.md
+
+LICENSE
+  MIT (LICENSE). The plug-in binaries are built with JUCE under the AGPLv3; THIRD-PARTY.md explains.

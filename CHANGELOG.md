@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-05)
 
 First version in this repository. The engine comes out of a research project that set out to replace a commercial
 polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that story.
@@ -37,4 +37,8 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
 - An input sample that is not a number, or is infinite, counts as silence, in the shifted sound and in the dry
   one. Before, one such sample from the host left the output not a number until the next reset.
 
-Known gaps are listed in `ROADMAP.md`. The Max object and the device have been built but not yet run inside Max.
+- A release archive for macOS (`scripts/release-macos.sh`): the AU and VST3, the Max package and the Max for Live
+  device, signed with a Developer ID and notarized.
+
+Known gaps are listed in `ROADMAP.md`. The Max for Live device has been played in Live; the Max object's own check
+inside Max has not been run.

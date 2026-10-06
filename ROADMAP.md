@@ -19,9 +19,10 @@ slides, the Response control, small shifts up (section 3 has what is left, all o
 
 ## 1. Before a first public release
 
-- **Run the Max object and the device inside Max.** They are built but untested there, the device's Response
-  buttons included. `max/tools/check_in_max.py` does it in under a minute; done when it prints `ALL MATCH`. Then
-  freeze the device so it travels as one file.
+- **Run the Max object's check inside Max.** The device has been played in Live (2026-10-05), but
+  `max/tools/check_in_max.py`, which compares the object and the device with the engine in under a minute, has not
+  been run; done when it prints `ALL MATCH`. It has no case for Quality yet. Then freeze the device so it travels as
+  one file (today it needs the Max package installed beside it).
 - **Choose the default response by ear.** Shifting up there are three (Fast, Balanced, Clean: attacks 8, 12 and
   16 ms late, each cleaner in its own way; `docs/benchmarks.md`). Fast is the default because it was the engine's
   sound before the choice existed. Balanced is as late as the reference device and measures cleaner than Fast on
@@ -29,8 +30,9 @@ slides, the Response control, small shifts up (section 3 has what is left, all o
 - **A listening pass on real rigs.** The numbers say "better than the reference device shifting down, close to it
   shifting up". One player has confirmed it by ear at octave down and octave up; more ears and more instruments
   are needed.
-- **Signed, notarized macOS binaries and a release archive** (plug-ins, Max package, frozen device). Today's
-  builds are signed ad hoc and only run without warnings on the machine that built them.
+- ~~Signed, notarized macOS binaries and a release archive~~: `scripts/release-macos.sh` makes it (the plug-ins,
+  the Max package and the device, signed with a Developer ID and notarized); 0.1.0 was the first. Builds made with
+  `scripts/build.sh` alone are still signed ad hoc and only run without warnings on the machine that built them.
 - **Check the name.** Renamed from "PolyPitch", which Line 6 uses for a Helix effect, to Ben's Polyphonic Pitch Shifter.
   Only web searches have been done; a proper trademark check is still needed before release.
 
