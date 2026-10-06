@@ -38,6 +38,12 @@ has Apple notarize them (credentials stored once with `xcrun notarytool store-cr
 staples the tickets and zips the folder. The version is the one in `plugin/CMakeLists.txt`; the Max package's
 `package-info.json` has to say the same. Run the gate first.
 
+The device goes in frozen, carrying `polypitch~` inside it so that it works without the package. Freezing is done in
+Max, by hand: install the package from this build, open the device, freeze it, and save the frozen copy as
+`build/frozen/Ben's Polyphonic Pitch Shifter.amxd`, not over `max/device/`, which `max/tools/maxpatch.py` rewrites.
+The script refuses a frozen device older than the last change to the engine or the Max object, since it would carry an
+old `polypitch~`; without one it packs the plain device, which needs the package.
+
 ## Install on this Mac
 
 ```

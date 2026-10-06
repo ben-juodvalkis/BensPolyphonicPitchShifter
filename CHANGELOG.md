@@ -38,7 +38,7 @@ polyphonic "capo" effect in a live guitar rig; `docs/design-notes.md` tells that
   one. Before, one such sample from the host left the output not a number until the next reset.
 
 - A release archive for macOS (`scripts/release-macos.sh`): the AU and VST3, the Max package and the Max for Live
-  device, signed with a Developer ID and notarized.
+  device (frozen, so it works without the package), signed with a Developer ID and notarized.
 
 Known gaps are listed in `ROADMAP.md`. The Max for Live device has been played in Live; the Max object's own check
 inside Max has not been run.

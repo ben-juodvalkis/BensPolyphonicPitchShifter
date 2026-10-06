@@ -21,8 +21,8 @@ slides, the Response control, small shifts up (section 3 has what is left, all o
 
 - **Run the Max object's check inside Max.** The device has been played in Live (2026-10-05), but
   `max/tools/check_in_max.py`, which compares the object and the device with the engine in under a minute, has not
-  been run; done when it prints `ALL MATCH`. It has no case for Quality yet. Then freeze the device so it travels as
-  one file (today it needs the Max package installed beside it).
+  been run; done when it prints `ALL MATCH`. It has no case for Quality yet. (The device in the 0.1.0 download is
+  frozen, so it travels as one file; `scripts/release-macos.sh` says how to keep it so.)
 - **Choose the default response by ear.** Shifting up there are three (Fast, Balanced, Clean: attacks 8, 12 and
   16 ms late, each cleaner in its own way; `docs/benchmarks.md`). Fast is the default because it was the engine's
   sound before the choice existed. Balanced is as late as the reference device and measures cleaner than Fast on

@@ -11,8 +11,8 @@ PLUG-IN (any Audio Unit or VST3 host: Live, Logic, Reaper, ...)
 MAX AND MAX FOR LIVE
   Copy the folder  Max/PolyPitch  into  ~/Documents/Max 9/Packages/  (or Max 8/Packages).
   That gives Max the polypitch~ object (its help patch opens from the object).
-  Max/Ben's Polyphonic Pitch Shifter.amxd is the Max for Live device: drag it onto an audio track in Live.
-  The device needs the PolyPitch package installed as above. Restart Live after installing it.
+  Max/Ben's Polyphonic Pitch Shifter.amxd is the Max for Live device: drag it onto an audio track in Live, or keep it
+  in your User Library. @DEVICE_NOTE@
 
 THE CONTROLS
   Semitones  -12 to +12.
